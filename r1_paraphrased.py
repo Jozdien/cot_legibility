@@ -13,26 +13,25 @@ def write_to_file(content, file):
     file.flush()
 
 deepseek_client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv('OPENROUTER_API_KEY'),
+    base_url="https://api.deepseek.com/beta",
+    api_key=os.getenv('DEEPSEEK_API_KEY'),
 )
 anthropic_client = anthropic.Anthropic(
     api_key=os.getenv('ANTHROPIC_API_KEY'),
 )
 openai_client = OpenAI()
 
-def get_completion_deepseek(model, messages):
+def get_completion_deepseek(model, messages, prefix=None):
+    if prefix:
+        messages.append({
+            "role": "assistant",
+            "prefix": True,
+            "content": "",
+            "reasoning_content": prefix
+        })
     completion = deepseek_client.chat.completions.create(
         model=model,
         messages=messages,
-        extra_body={
-            "include_reasoning": True,
-            "provider": {
-                # "order": ["Novita", "Nebius"],
-                "order": ["Nebius"],
-                "allow_fallbacks": False
-            }
-        },
     )
     return completion
 
@@ -53,7 +52,7 @@ def get_completion_openai(model, messages):
 
 # Create a temporary file with timestamp
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-temp_file_path = f"r1_faithful_cot_rollouts/r1_faithful_cot_{timestamp}.md"
+temp_file_path = f"r1_rollouts_deepseek_api/r1_faithful_cot_{timestamp}.md"
 
 with open(temp_file_path, 'w') as f:
     deepseek_model = "deepseek-reasoner"
@@ -70,7 +69,7 @@ with open(temp_file_path, 'w') as f:
     # Initial Deepseek completion
     start_time_initial_deepseek = perf_counter()
     deepseek_completion = get_completion_deepseek(deepseek_model, messages)
-    deepseek_reasoning = deepseek_completion.choices[0].message.reasoning
+    deepseek_reasoning = deepseek_completion.choices[0].message.reasoning_content
     cut_off_deepseek_reasoning = deepseek_reasoning[:len(deepseek_reasoning)//4]
     write_to_file(f"# Deepseek response\n\n{deepseek_completion.choices[0].message.content}", f)
     write_to_file(f"# Deepseek reasoning\n\n{deepseek_reasoning}", f)
@@ -101,46 +100,46 @@ with open(temp_file_path, 'w') as f:
     write_to_file(f"# Anthropic completion\n\n{anthropic_completion.content[0].text}", f)
     write_to_file(f"# OpenAI completion\n\n{openai_completion.choices[0].message.content}", f)
 
-    cutoff_reasoning_messages = messages.copy()
-    cutoff_reasoning_messages.append({
-        "role": "assistant",
-        "content": f"<think>\n{cut_off_deepseek_reasoning}"
-    })
+    cutoff_prefix = cut_off_deepseek_reasoning
+    # cutoff_reasoning_messages = messages.copy()
+    # cutoff_reasoning_messages.append({
+    #     "role": "assistant",
+    #     "content": f"<think>\n{cut_off_deepseek_reasoning}"
+    # })
     
-    paraphrased_reasoning_anthropic_messages = messages.copy()
-    paraphrased_reasoning_anthropic_messages.append({
-        "role": "assistant",
-        "content": f"<think>\n{anthropic_completion.content[0].text}"
-    })
+    anthropic_prefix = anthropic_completion.content[0].text
+    # paraphrased_reasoning_anthropic_messages = messages.copy()
+    # paraphrased_reasoning_anthropic_messages.append({
+    #     "role": "assistant",
+    #     "content": f"<think>\n{anthropic_completion.content[0].text}"
+    # })
 
-    paraphrased_reasoning_openai_messages = messages.copy()
-    paraphrased_reasoning_openai_messages.append({
-        "role": "assistant",
-        "content": f"<think>\n{openai_completion.choices[0].message.content}"
-    })
-
-    write_to_file(f"# paraphrased_reasoning_anthropic_messages\n\n{json.dumps(paraphrased_reasoning_anthropic_messages, indent=2)}", f)
-    write_to_file(f"# paraphrased_reasoning_openai_messages\n\n{json.dumps(paraphrased_reasoning_openai_messages, indent=2)}", f)
+    openai_prefix = openai_completion.choices[0].message.content
+    # paraphrased_reasoning_openai_messages = messages.copy()
+    # paraphrased_reasoning_openai_messages.append({
+    #     "role": "assistant",
+    #     "content": f"<think>\n{openai_completion.choices[0].message.content}"
+    # })
 
     # Final completions
     start_time_final_deepseek = perf_counter()
-    cutoff_deepseek_completion = get_completion_deepseek(deepseek_model, cutoff_reasoning_messages)
-    paraphrased_deepseek_completion_anthropic = get_completion_deepseek(deepseek_model, paraphrased_reasoning_anthropic_messages)
-    paraphrased_deepseek_completion_openai = get_completion_deepseek(deepseek_model, paraphrased_reasoning_openai_messages)
+    cutoff_deepseek_completion = get_completion_deepseek(deepseek_model, messages, prefix=cutoff_prefix)
+    paraphrased_deepseek_completion_anthropic = get_completion_deepseek(deepseek_model, messages, prefix=anthropic_prefix)
+    paraphrased_deepseek_completion_openai = get_completion_deepseek(deepseek_model, messages, prefix=openai_prefix)
     end_time_final_deepseek = perf_counter()
     print(f"Final Deepseek completions time: {end_time_final_deepseek - start_time_final_deepseek:.2f} seconds")
     print(f"Total time: {end_time_final_deepseek - start_time_initial_deepseek:.2f} seconds")
 
     write_to_file(f"# cutoff_deepseek_completion\n\n{str(cutoff_deepseek_completion)}", f)
     write_to_file(f"# cutoff_deepseek_completion response\n\n{cutoff_deepseek_completion.choices[0].message.content}", f)
-    write_to_file(f"# cutoff_deepseek_completion reasoning\n\n{cutoff_deepseek_completion.choices[0].message.reasoning}", f)
+    write_to_file(f"# cutoff_deepseek_completion reasoning\n\n{cutoff_deepseek_completion.choices[0].message.reasoning_content}", f)
 
     write_to_file(f"# paraphrased_deepseek_completion_anthropic\n\n{str(paraphrased_deepseek_completion_anthropic)}", f)
     write_to_file(f"# paraphrased_deepseek_completion_anthropic response\n\n{paraphrased_deepseek_completion_anthropic.choices[0].message.content}", f)
-    write_to_file(f"# paraphrased_deepseek_completion_anthropic reasoning\n\n{paraphrased_deepseek_completion_anthropic.choices[0].message.reasoning}", f)
+    write_to_file(f"# paraphrased_deepseek_completion_anthropic reasoning\n\n{paraphrased_deepseek_completion_anthropic.choices[0].message.reasoning_content}", f)
 
     write_to_file(f"# paraphrased_deepseek_completion_openai\n\n{str(paraphrased_deepseek_completion_openai)}", f)
     write_to_file(f"# paraphrased_deepseek_completion_openai response\n\n{paraphrased_deepseek_completion_openai.choices[0].message.content}", f)
-    write_to_file(f"# paraphrased_deepseek_completion_openai reasoning\n\n{paraphrased_deepseek_completion_openai.choices[0].message.reasoning}", f)
+    write_to_file(f"# paraphrased_deepseek_completion_openai reasoning\n\n{paraphrased_deepseek_completion_openai.choices[0].message.reasoning_content}", f)
 
 print(f"Results written to: {temp_file_path}")

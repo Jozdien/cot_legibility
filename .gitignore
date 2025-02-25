@@ -1,3 +1,5 @@
 .env
 venv/
-r1_faithful_cot_rollouts/
+r1_rollouts_openrouter_api/
+r1_rollouts_deepseek_api/
+test.py
