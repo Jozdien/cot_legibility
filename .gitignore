@@ -1,8 +1,10 @@
 .env
 venv/
-r1_rollouts_openrouter_api/
-r1_rollouts_deepseek_api/
+
+r1_rollouts/
+data/
+
 test.py
 test_data.py
-data/
+
 prompts.txt
