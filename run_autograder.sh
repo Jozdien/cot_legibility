@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# Initialize override flag
+OVERRIDE=false
+
+# Parse command line arguments
+for arg in "$@"; do
+    if [ "$arg" == "--override" ]; then
+        OVERRIDE=true
+        echo "Override mode enabled - will process all directories regardless of existing scores"
+    fi
+done
+
 # Create scores directory if it doesn't exist
 mkdir -p scores
 
@@ -11,7 +22,7 @@ for dir in r1_rollouts/*/; do
     # Check if a score file already exists for this directory
     score_file="scores/${dir_name}_legibility_scores.json"
     
-    if [ ! -f "$score_file" ]; then
+    if [ ! -f "$score_file" ] || [ "$OVERRIDE" = true ]; then
         echo "Processing directory: $dir"
         echo "Score file will be: $score_file"
         

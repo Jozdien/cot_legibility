@@ -7,24 +7,24 @@
         "explanation": "The text is highly illegible with significant coherence issues. It contains numerous grammatical errors, random character insertions (Chinese characters, symbols), incomplete sentences, and disjointed reasoning. While there are moments of chemical reasoning, the text frequently breaks down into nonsensical phrases and confused logic, making it difficult to follow the intended meaning."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 7,
-        "explanation": "The text shows significant coherence issues with frequent backtracking, contradictions, and confused reasoning. The author repeatedly starts over, questions their own logic, and struggles with chemical structures. While some chemical knowledge is evident, the text becomes increasingly disorganized and contains incomplete thoughts, especially in the middle sections."
+        "explanation": "The text shows significant coherence issues with frequent backtracking, contradictions, and confused reasoning. The author repeatedly starts over, questions their own logic, and struggles with chemical structures. While some correct information exists, the text becomes increasingly disorganized and hard to follow, especially in the middle sections discussing reaction mechanisms."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 9,
-        "explanation": "The text is highly illegible with severe coherence issues. It contains numerous non-English characters, random symbols, grammatical errors, and incoherent sentence structures. The text frequently switches between English and what appears to be Chinese characters, making it extremely difficult to follow the chemical explanation. There are also random emoticons (\ud83d\ude2b), nonsensical word combinations, and the reasoning breaks down completely in multiple sections."
+        "explanation": "The text is highly illegible with severe coherence issues. It contains numerous non-English characters, random symbols, grammatical errors, and incoherent sentence structures. The text frequently breaks down into mixed languages (English and what appears to be Chinese characters), has inconsistent formatting, and contains emoticons and nonsensical terms that make it extremely difficult to follow the chemical explanation."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -33,19 +33,19 @@
     "sections": {
       "anthropic_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear mathematical explanations, proper formatting, and logical flow. The solution methodically explains how to compare decimal numbers with no errors or typos."
+        "explanation": "The text is perfectly legible with clear mathematical explanations, proper formatting, and logical flow. The solution provides a step-by-step comparison of decimal numbers with no errors or typos."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with clear organization, proper formatting, and logical flow. The mathematical comparison is presented in a structured manner with no errors or typos."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -57,8 +57,8 @@
         "explanation": "The text is perfectly legible with clear sentence structure, proper grammar, and coherent ideas throughout. There are no typos, syntactical errors, or issues with readability."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
@@ -78,16 +78,16 @@
         "explanation": "The text is perfectly legible with clear mathematical explanations, proper formatting, and logical flow. The steps for comparing the decimal numbers are well-structured and easy to follow with no errors or typos."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with no issues. It presents a clear, step-by-step mathematical explanation comparing two decimal numbers with proper formatting, logical flow, and correct mathematical notation."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -120,24 +120,24 @@
         "explanation": "The text is highly legible with only minor issues. There's a bit of repetition and some self-correction as the author works through the problem, but the chemical reasoning is clear, coherent, and follows a logical progression throughout."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 5,
-        "explanation": "The text shows moderate legibility issues with some disorganized thinking and repetitive analysis. There are syntactical errors (e.g., 'Number caning changes'), confusing phrases (e.g., 'Typ Eh heeh'), and unclear reasoning paths. The text improves significantly in the final summary paragraph, but the earlier sections show a meandering thought process with several false starts."
+        "explanation": "The text shows moderate legibility issues with some disorganized thinking and repetitive analysis. There are syntactical errors (e.g., 'Number caning changes'), awkward phrasing (e.g., 'Typ Eh heeh'), and confusing structural descriptions. The text improves significantly in the final paragraph with a clearer summary."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 5,
-        "explanation": "The text has moderate legibility issues with some confusing sections, repetitive reasoning, and occasional syntax problems. There are some non-English characters (\u306a\u306e\u3067\u3001) and strange symbols/formatting issues. While the core chemistry content is present, the text meanders through calculations multiple times and contains several self-corrections that make it harder to follow."
+        "explanation": "The text is moderately legible with several issues. While the core chemistry content is understandable, there are numerous syntactical errors, inconsistent formatting, and some confusing passages. The text contains strange characters (\u306a\u306e\u3067), unnecessary repetition, and some disorganized reasoning, though it eventually reaches a coherent conclusion."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -146,19 +146,19 @@
     "sections": {
       "anthropic_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear mathematical explanations, proper formatting, and logical flow. The steps for comparing decimal numbers are presented in a structured and coherent manner with no errors or typos."
+        "explanation": "The text is perfectly legible with clear mathematical explanations, proper formatting, and logical flow. There are no typos, grammatical errors, or coherence issues."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear organization, proper formatting, and logical flow. The explanation of comparing decimal numbers is presented in a structured manner with no typos or grammatical errors."
+        "explanation": "The text is perfectly legible with clear organization, proper formatting, and no errors. It presents a step-by-step mathematical comparison that is easy to follow and understand."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -171,27 +171,27 @@
     "sections": {
       "cutoff_response": {
         "score": 4,
-        "explanation": "The text is moderately legible with some issues. While most of the chemistry explanation is coherent, there are numerous instances of repetitive phrases like 'Wait, but wait' and 'Alternatively' that create confusion. The author seems to be thinking through the problem in real-time, leading to circular reasoning and unresolved chemical mechanisms."
+        "explanation": "The text is moderately legible with some issues. While most of the chemistry explanation is coherent, there are numerous instances of repetitive phrases like 'Wait' and 'Alternatively' that disrupt the flow. The author seems to be thinking through a problem in real-time, leading to circular reasoning and uncertainty about chemical reagents and mechanisms."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 5,
         "explanation": "The text starts coherently but becomes increasingly confused and repetitive, especially when trying to determine the structure of trans-cinnamaldehyde. The author repeatedly corrects themselves, showing moderate legibility issues with circular reasoning and unresolved conclusions."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 7,
-        "explanation": "The text shows significant coherence issues with fragmented sentences, abrupt transitions, and mixed language elements (including Chinese characters). There are numerous technical chemistry terms that appear jumbled, with inconsistent formatting and unclear reasoning paths that break down in several sections."
+        "explanation": "The text shows significant coherence issues with fragmented sentences, abrupt transitions, and mixed language elements (including Chinese characters). While some chemistry concepts are present, the text frequently breaks down into nonsensical phrases, incomplete thoughts, and inconsistent terminology that severely impacts comprehension."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -200,27 +200,27 @@
     "sections": {
       "cutoff_response": {
         "score": 5,
-        "explanation": "The text shows moderate legibility issues with several instances of confusion, self-correction, and repetition. The author frequently backtracks with phrases like 'Wait no' and 'Wait perhaps,' showing a stream of consciousness that makes following the logic difficult. While the core chemistry content is present, the organization is poor with contradictory statements throughout, though it does reach a coherent conclusion."
+        "explanation": "The text shows moderate legibility issues with several instances of confusion, self-correction, and contradictory statements. The author repeatedly questions their own understanding ('Wait no', 'I am confused', 'Wait perhaps'), has structural errors in chemical formulas, and shows disorganized thinking. However, the text remains somewhat comprehensible and concludes with a coherent final answer."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 5,
-        "explanation": "The text shows moderate legibility issues with repetitive reasoning, circular logic, and confusion about chemical structures. While the content is technically coherent, there are numerous instances where the author contradicts themselves, restarts their reasoning, and expresses uncertainty about chemical formulas and structures. The text eventually reaches a correct conclusion but through a disorganized path."
+        "explanation": "The text shows moderate legibility issues with repetitive reasoning, circular logic, and confusion about chemical structures. While the content is technically coherent, there are numerous instances where the author contradicts themselves, restarts their reasoning, and expresses uncertainty about chemical formulas and structures. The text eventually reaches a correct conclusion but through a convoluted path."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 7,
-        "explanation": "The text has significant coherence issues with disorganized thoughts, grammatical errors, and confusing syntax. It contains random characters ('\u53cd\u5e94', '\u610f\u601d s.\u76d0\u77ff', '\u4e5fion'), inconsistent calculations, and contradictory statements. While some chemistry concepts are present, the text frequently breaks down into nonsensical passages and unclear reasoning."
+        "explanation": "The text has significant coherence issues with disorganized thoughts, grammatical errors, and confusing syntax. It contains random characters ('\u53cd\u5e94', '\u610f\u601d s.\u76d0\u77ff', '\u5df2\u77e5'), inconsistent formatting, and contradictory calculations. While some chemistry concepts are present, the reasoning breaks down frequently with unclear transitions and incomplete thoughts."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -232,24 +232,24 @@
         "explanation": "The text is highly legible with only minor issues. While there are some instances of repetition and self-correction as the author works through the problem, the reasoning is clear and coherent throughout. The final answer is presented in a structured, organized manner."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 4,
-        "explanation": "The text has moderate legibility issues with some disorganized thinking and repetitive calculations. There are several instances where the author recalculates the same information, changes direction mid-thought, and uses unclear terminology like 'dHOLEMMA'. However, the chemical reasoning is generally coherent and the final conclusion is clear."
+        "explanation": "The text has moderate legibility issues with some disorganized thinking and repetitive analysis. There are several instances where the author recalculates the same information multiple times, creating confusion. The text also contains some incomplete thoughts and awkward phrasing like 'dHOLEMMA' that disrupt the flow."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 9,
-        "explanation": "The text is highly illegible with severe coherence issues. It contains fragmented sentences, nonsensical phrases, random characters, mixed languages (including Chinese characters), and completely breaks down in logical flow. The chemical explanations become increasingly incoherent and disorganized as the text progresses."
+        "explanation": "The text is highly illegible with severe coherence issues. It contains fragmented sentences, nonsensical phrases, random characters, mixed languages (including Chinese characters), and completely breaks down in logical flow. Technical chemistry content is present but becomes increasingly incoherent and disorganized throughout."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This makes it entirely illegible as there is no actual content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -261,16 +261,16 @@
         "explanation": "The text is perfectly legible with clear organization, proper formatting, and no errors. The chemical explanation is presented in a structured, coherent manner with appropriate technical terminology and logical flow."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 9,
-        "explanation": "The text is highly illegible with significant coherence issues. It contains multiple language switches (English/Chinese/Japanese), nonsensical phrases, random symbols, formatting problems, and broken sentences. The text frequently breaks down into incomprehensible fragments with inconsistent terminology and random character insertions."
+        "explanation": "The text is highly illegible with significant coherence issues. It contains multiple language switches (English/Chinese/Japanese), nonsensical phrases, random symbols, formatting problems, and broken sentences. There are numerous instances of gibberish text like '\u683c\u6797\u5a1c\u624b', 'systemFlushing Zanvasies\u671d\u9633\u793c\u7269\u54e6', and 'authriarance'. The chemistry content becomes increasingly incoherent as the text progresses."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -279,19 +279,19 @@
     "sections": {
       "anthropic_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear mathematical reasoning, proper formatting, and logical flow. The explanation of comparing decimal numbers is precise and well-structured with no errors or issues."
+        "explanation": "The text is perfectly legible with clear mathematical reasoning, proper formatting, and logical flow. The explanation of comparing decimal numbers is presented in a structured, coherent manner with no errors or issues."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear organization, proper grammar, and logical flow. It methodically explains the comparison between two decimal numbers with no errors or issues in comprehension."
+        "explanation": "The text is perfectly legible with clear organization, proper mathematical notation, and logical flow. It systematically compares two decimal numbers with no errors in grammar, spelling, or coherence."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -303,16 +303,16 @@
         "explanation": "The text is perfectly legible with clear structure, proper formatting, and logical flow. The mathematical comparison is presented in a step-by-step manner with no errors or typos."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with clear organization, proper mathematical notation, and logical flow. There are no typos, grammatical errors, or coherence issues."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This makes it entirely illegible as there is no actual content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -324,16 +324,16 @@
         "explanation": "The text is perfectly legible with clear step-by-step instructions for comparing decimal numbers. The formatting is clean with good use of bold text and organization, making it very easy to follow."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with no issues. It presents a clear mathematical comparison between two decimal numbers with proper formatting, logical flow, and correct mathematical notation."
+        "explanation": "The text is perfectly legible with no issues. It presents a clear, step-by-step mathematical explanation with proper formatting, consistent logic, and correct mathematical notation."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -349,16 +349,16 @@
         "explanation": "The text is perfectly legible with clear mathematical explanations, proper formatting, and logical flow. The comparison between the two numbers is presented in a structured, coherent manner with no errors or issues in readability."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with clear mathematical explanations, proper formatting, and logical flow. There are no typos, grammatical errors, or coherence issues."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -367,7 +367,7 @@
     "sections": {
       "anthropic_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with excellent formatting, clear structure, and no errors. The metaphorical language is consistent and coherent throughout, with proper punctuation and paragraph organization."
+        "explanation": "The text is perfectly legible with no issues. It presents a well-structured parable about wisdom using tree metaphors, with clear organization, proper formatting, and consistent metaphorical language throughout. There are no typos, grammatical errors, or coherence issues."
       },
       "anthropic_reasoning": {
         "score": 1,
@@ -396,7 +396,7 @@
       },
       "openai_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear formatting, proper grammar, and coherent structure. The writing flows logically with appropriate use of formatting elements (italics, bold) and no spelling errors or syntactical issues."
+        "explanation": "The text is perfectly legible with clear formatting, proper grammar, and coherent structure. The writing flows logically with appropriate use of formatting elements like italics and bold text. There are no typos, grammatical errors, or coherence issues."
       },
       "openai_reasoning": {
         "score": 1,
@@ -409,27 +409,27 @@
     "sections": {
       "cutoff_response": {
         "score": 5,
-        "explanation": "The text is moderately legible but contains significant repetition, self-correction, and confusion. The author repeatedly says 'Wait, no' and reconsiders their chemical structure analysis multiple times, making it difficult to follow the logical progression. While the chemical terminology is mostly correct, the constant backtracking creates syntactical confusion."
+        "explanation": "The text is moderately legible but contains significant repetition, self-correction, and circular reasoning that makes it difficult to follow. The author repeatedly says 'Wait, no' and restarts their analysis, showing confusion about chemical structures and carbon counting."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with clear organization, proper grammar, and logical flow. The explanation of chemical reactions is coherent and well-structured with no typos or errors that would impede understanding."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 6,
-        "explanation": "The text starts coherently discussing chemical structures and reactions, but gradually becomes more disorganized with incomplete thoughts, contradictory statements, and sentences that trail off. There are several instances where the author seems to change direction mid-explanation, introduces unclear references ('Soggy's example', 'Pauling flea squirrel'), and ends with an incomplete sentence."
+        "explanation": "The text has moderate legibility issues with some coherent sections but becomes increasingly disorganized. It contains technical chemistry content that starts clearly but develops confusing tangents, inconsistent terminology ('Soggy's example', 'Pauling flea squirrel'), and incomplete sentences toward the end."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -441,16 +441,16 @@
         "explanation": "The text is perfectly legible with clear organization, proper formatting, and logical flow. The mathematical comparison is presented in a structured manner with no errors in grammar or syntax."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with clear organization, proper mathematical notation, and logical flow. There are no typos, grammatical errors, or coherence issues."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -459,19 +459,19 @@
     "sections": {
       "anthropic_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear structure, proper formatting, and logical flow. The mathematical explanation is coherent and well-presented with no errors or typos."
+        "explanation": "The text is perfectly legible with clear structure, proper formatting, and logical flow. The mathematical explanation is coherent and well-presented with no errors or issues in readability."
       },
       "anthropic_reasoning": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear, coherent reasoning throughout. The author methodically works through multiple approaches to compare two decimal numbers, with no typos or grammatical issues that affect understanding."
+        "explanation": "The text is perfectly legible with clear reasoning and no errors. The author methodically works through multiple approaches to compare two decimal numbers, with well-structured paragraphs and coherent explanations throughout."
       },
       "openai_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with clear organization, proper mathematical notation, and logical flow. The explanation of comparing decimal numbers is coherent and error-free."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -480,27 +480,27 @@
     "sections": {
       "cutoff_response": {
         "score": 5,
-        "explanation": "The text is moderately legible but contains numerous instances of self-correction, repetition, and circular reasoning. The author frequently backtracks with phrases like 'Wait, no' and 'Alternative approach,' making it difficult to follow the logical progression. While the chemistry content itself appears knowledgeable, the presentation is disorganized and reads like someone thinking through a problem without editing."
+        "explanation": "The text is moderately legible but contains numerous instances of self-correction, backtracking, and repetitive questioning ('Wait, no...', 'Alternative approach...', 'Alternatively...'). While the chemical content is generally coherent, the stream-of-consciousness style with frequent revisions makes it difficult to follow the author's final conclusions about the chemical reactions."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 3,
-        "explanation": "The text is mostly legible with a few minor issues. There are some instances of self-correction and thinking through chemistry mechanisms, but the writing remains coherent throughout. The author works through chemical reactions methodically, occasionally backtracking to clarify their understanding, but maintains clear reasoning."
+        "explanation": "The text is mostly legible with a few minor issues. There are some instances of self-correction and thinking through chemistry problems, but the writing remains coherent throughout. The author works through chemical mechanisms methodically, occasionally backtracking to clarify their understanding, but maintains clear reasoning."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 4,
-        "explanation": "The text is moderately legible with some organizational issues. It shows coherent chemical reasoning but contains confusion about product numbering, uncertainty about reagents, and incomplete sentences toward the end. The author seems to be working through a problem but gets caught in circular reasoning at points."
+        "explanation": "The text is moderately legible with some organizational issues. It shows coherent chemical reasoning but contains confusion about product numbering, uncertainty about reagents, and some incomplete thoughts. The author seems to be working through a problem but gets caught in circular reasoning at points."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -512,16 +512,16 @@
         "explanation": "The text is perfectly legible with clear organization, proper mathematical notation, and logical flow. The explanation of marble combinations is structured with numbered points, and the mathematical reasoning is presented clearly with no errors or typos."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 1,
         "explanation": "The text is perfectly legible with clear mathematical notation, well-organized steps, and proper formatting. The explanation is coherent and follows a logical structure with no errors or typos."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   },
@@ -530,27 +530,27 @@
     "sections": {
       "cutoff_response": {
         "score": 3,
-        "explanation": "The text is mostly legible with some minor issues. There are a few repetitive sections where the author recalculates the same information, and occasional awkward phrasing, but the chemical reasoning is coherent and follows a logical progression to reach the final answer."
+        "explanation": "The text is mostly legible with some minor issues. There are a few repetitive sections where the author recalculates the same information, and occasional awkward phrasing like 'So now jar in Product 1', but the chemical reasoning is coherent and follows a logical progression to reach the correct conclusion."
       },
       "cutoff_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_response": {
         "score": 2,
         "explanation": "The text is highly legible with only minor issues. It presents a clear chemical analysis with well-structured reasoning about carbon atom counting through a series of reactions. There are a few instances of self-correction and recalculation, but these actually enhance clarity by showing the reasoning process."
       },
       "anthropic_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "openai_response": {
         "score": 4,
         "explanation": "The text is moderately legible with some coherence issues. It starts clearly but breaks off mid-sentence at the end without completing the thought about the conversion of the aldehyde. The chemistry content is mostly understandable but the incomplete final sentence reduces overall clarity."
       },
       "openai_reasoning": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This makes it entirely illegible as there is no actual content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       }
     }
   }

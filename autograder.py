@@ -168,7 +168,7 @@ def process_transcript_file(file_path, client):
         print(f"  Grading {section_name}...")
         
         # Check if text is empty or just whitespace
-        if not text or text.strip() == "":
+        if not text or text.strip() == "" or text.strip() == "None":
             grade = {"score": "N/A", "explanation": "No text content available in this section"}
             print(f"    Score: N/A - No text content available")
         else:

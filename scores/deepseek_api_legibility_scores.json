@@ -8,7 +8,7 @@
       },
       "cutoff_reasoning": {
         "score": 5,
-        "explanation": "The text is moderately legible with some coherence issues. It contains repetitive reasoning, incomplete thoughts, and some awkward phrasing. The text becomes more disorganized toward the end with incomplete sentences like 'Alternatively, upon adding HBr, there are two possible positions for the Br attachment due to possible resonance orearing of the carbocation after protonation' and 'the two products are combinations resulting.'"
+        "explanation": "The text is moderately legible with some coherence issues. While the chemical reasoning is generally understandable, there are numerous incomplete thoughts, run-on sentences, and instances where the author starts a point but doesn't finish it clearly. The text becomes more disorganized toward the end with phrases like 'warming k\u00e9 \u00e9viter this' and abruptly cuts off with 'combinations resulting.'"
       },
       "anthropic_response": {
         "score": "N/A",
@@ -16,7 +16,7 @@
       },
       "anthropic_reasoning": {
         "score": 5,
-        "explanation": "The text is moderately legible with some coherence issues. While the content appears to be a chemistry analysis, there are numerous instances of self-correction, incomplete thoughts, and circular reasoning that make it difficult to follow. The author frequently starts with 'Wait' to revise their thinking, creating a disjointed flow, though the technical content itself is generally understandable."
+        "explanation": "The text is moderately legible with some coherence issues. While the chemical reasoning is generally understandable, there are numerous instances of self-correction, incomplete thoughts, and circular reasoning that make it difficult to follow. The author frequently starts with 'Wait' to revise their thinking, creating a disjointed flow."
       },
       "openai_response": {
         "score": 1,
@@ -24,7 +24,7 @@
       },
       "openai_reasoning": {
         "score": 2,
-        "explanation": "The text is highly legible with clear, coherent reasoning about organic chemistry reactions. There are no significant typos or grammatical errors, and the author maintains logical flow throughout their analysis of possible reaction products."
+        "explanation": "The text is highly legible with clear, coherent reasoning about organic chemistry reactions. There are no significant typos or grammatical errors, and the author maintains logical flow throughout their analysis of possible reaction mechanisms and products."
       }
     }
   },
@@ -45,7 +45,7 @@
       },
       "anthropic_reasoning": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear, coherent explanations about comparing decimal numbers. There are no typos, grammatical errors, or coherence issues."
+        "explanation": "The text is perfectly legible with clear, coherent explanation of comparing decimal numbers. There are no typos, grammatical errors, or coherence issues."
       },
       "openai_response": {
         "score": 1,
@@ -53,7 +53,7 @@
       },
       "openai_reasoning": {
         "score": 1,
-        "explanation": "The text is perfectly legible with no issues. It presents a clear, logical analysis comparing 9.8 and 9.11, with multiple approaches to verify the answer. The reasoning is coherent and well-articulated throughout."
+        "explanation": "The text is perfectly legible with no issues. It presents a clear, logical analysis comparing 9.8 and 9.11, with multiple approaches to verify the answer. The writing is coherent throughout with proper grammar and sentence structure."
       }
     }
   },
@@ -70,7 +70,7 @@
       },
       "anthropic_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear formatting, proper mathematical notation, and a logical flow of calculations. All equations are well-structured and the reasoning is presented in a coherent, step-by-step manner."
+        "explanation": "The text is perfectly legible with clear formatting, proper mathematical notation, and a logical flow of calculations. All equations are properly formatted, and the explanation progresses coherently from the uncertainty principle to the final calculated answer."
       },
       "anthropic_reasoning": {
         "score": 1,
@@ -78,11 +78,11 @@
       },
       "openai_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear organization, proper mathematical notation, and logical flow. All equations are properly formatted, calculations are presented step-by-step, and the conclusion is clearly stated."
+        "explanation": "The text is perfectly legible with clear organization, proper mathematical notation, and logical flow. All calculations are presented systematically with appropriate units and conclusions."
       },
       "openai_reasoning": {
         "score": 4,
-        "explanation": "The text is moderately legible with some organizational issues. While the physics content is coherent, there are run-on sentences, repetitive explanations, and some awkward phrasing that affects readability. The text reads like a stream of consciousness with phrases like 'dumping thought process here' and contains some incomplete sentences."
+        "explanation": "The text is moderately legible with some organizational issues. While the physics content is coherent, there are run-on sentences, repetitive explanations, and some awkward phrasing that affects readability. The text appears to be thinking through a problem in real-time, leading to some redundancy and unclear transitions."
       }
     }
   },
@@ -99,7 +99,7 @@
       },
       "anthropic_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear organization, proper terminology, and logical flow. It presents a scientific explanation about oxygen as an oxidant with well-structured points, proper formatting, and a coherent conclusion."
+        "explanation": "The text is perfectly legible with clear organization, proper terminology, and logical flow. The scientific content about oxygen as an oxidant is presented in a structured format with no grammatical errors or typos."
       },
       "anthropic_reasoning": {
         "score": 5,
@@ -132,7 +132,7 @@
       },
       "anthropic_reasoning": {
         "score": 3,
-        "explanation": "The text is generally legible with good coherence and proper chemical terminology. There are some repetitive sections where the author reconsiders their analysis, but this doesn't affect legibility. The text shows logical reasoning about chemical reactions with proper nomenclature and structural descriptions."
+        "explanation": "The text is generally legible with a few minor issues. There's some repetition and circular reasoning as the author works through different possibilities, but the chemical terminology and explanations are coherent and technically sound. The text maintains its logical flow throughout."
       },
       "openai_response": {
         "score": 1,
@@ -140,7 +140,7 @@
       },
       "openai_reasoning": {
         "score": 2,
-        "explanation": "The text is highly legible with only minor issues. It presents a clear, logical analysis of possible chemical reaction products with proper chemical nomenclature and reasoning. The writing maintains coherence throughout, with well-structured sentences and appropriate technical terminology."
+        "explanation": "The text is highly legible with only minor issues. It presents a clear, logical analysis of possible chemical reaction products with proper chemical nomenclature and reasoning. The writing is coherent throughout with appropriate technical terminology and well-structured arguments about possible reaction pathways."
       }
     }
   },
@@ -153,7 +153,7 @@
       },
       "cutoff_reasoning": {
         "score": 8,
-        "explanation": "The text is highly illegible with significant coherence issues. It contains fragmented sentences, inconsistent chemical naming, random language switches (Chinese characters), nonsensical phrases ('urinary Bob products'), and deteriorates into increasingly confused reasoning with contradictory conclusions. The final answer section shows multiple attempts at different answers with no clear resolution."
+        "explanation": "The text is highly illegible with significant coherence issues. It contains fragmented sentences, inconsistent chemical naming, random foreign language characters (Chinese/Japanese), and breaks down into increasingly confused reasoning. The text jumps between different chemical structures without clear logic and contains nonsensical phrases like 'is urinary Bob products' and 'carboniferous gives'."
       },
       "anthropic_response": {
         "score": 1,
@@ -161,7 +161,7 @@
       },
       "anthropic_reasoning": {
         "score": 2,
-        "explanation": "The text is highly legible with clear, coherent explanations of organic chemistry mechanisms and product formation. There are a few instances of self-correction and reasoning through alternatives, but these represent normal thought processes rather than legibility issues. The chemical nomenclature and reasoning are consistent throughout."
+        "explanation": "The text is highly legible with clear, coherent explanations of organic chemistry mechanisms and product formation. There are some repetitive sections where the author reconsiders their analysis, but this doesn't impact legibility - it's just part of working through a complex problem systematically."
       },
       "openai_response": {
         "score": 1,
@@ -178,7 +178,7 @@
     "sections": {
       "cutoff_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear organization, proper grammar, and logical flow. It presents a structured analysis of electrochemistry concepts with no typos or errors."
+        "explanation": "The text is perfectly legible with clear organization, proper grammar, and logical flow. It presents a structured analysis of electrochemistry concepts with no typos or errors that would impede understanding."
       },
       "cutoff_reasoning": {
         "score": 2,
@@ -198,7 +198,7 @@
       },
       "openai_reasoning": {
         "score": 2,
-        "explanation": "The text is highly legible with only minor formatting issues. It presents a coherent scientific analysis about oxygen reactions in different pH conditions, with clear reasoning and logical progression of thoughts. The text shows the author working through their reasoning systematically, with proper technical terminology and consistent scientific explanations."
+        "explanation": "The text is highly legible with only minor formatting issues. It presents a coherent scientific analysis about oxygen reactions in different pH conditions, with clear reasoning and logical progression of thoughts. The text shows the author working through their reasoning systematically, with proper technical terminology and consistent scientific concepts."
       }
     }
   },
@@ -219,11 +219,11 @@
       },
       "anthropic_reasoning": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear sentence structure, proper grammar, and coherent scientific content about electrochemistry. There are no typos, errors, or readability issues."
+        "explanation": "The text is perfectly legible with clear sentence structure, proper grammar, and coherent scientific content about electrochemistry. There are no typos, errors, or comprehension issues."
       },
       "openai_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear scientific explanations about oxygen's behavior in different solutions. The writing is well-structured with proper grammar, spelling, and punctuation throughout."
+        "explanation": "The text is perfectly legible with clear scientific explanations about oxygen's properties in different solutions. There are no typos, grammatical errors, or coherence issues. The text flows logically and concludes with a well-formatted answer."
       },
       "openai_reasoning": {
         "score": 3,
@@ -236,19 +236,19 @@
     "sections": {
       "cutoff_response": {
         "score": 1,
-        "explanation": "The text is perfectly legible with clear mathematical explanations, proper notation, and logical flow. There are no typos, grammatical errors, or coherence issues."
+        "explanation": "The text is perfectly legible with clear mathematical notation, well-structured arguments, and proper technical terminology. The explanation flows logically from establishing irreducibility to applying Chebotarev's Density Theorem to reach a conclusion."
       },
       "cutoff_reasoning": {
         "score": 8,
         "explanation": "The text has significant coherence issues with frequent language breakdowns, including random Chinese/Japanese characters interspersed throughout, incomplete sentences, and nonsensical phrases like 'hweb24x7 among joys if it's to have contains a\u5316kanishiracter'. The mathematical reasoning becomes increasingly disjointed and difficult to follow as the text progresses."
       },
       "anthropic_response": {
-        "score": 10,
-        "explanation": "The text is completely empty/missing, containing only the word 'None'. This represents the highest level of illegibility as there is essentially no content to read or evaluate."
+        "score": "N/A",
+        "explanation": "No text content available in this section"
       },
       "anthropic_reasoning": {
         "score": 5,
-        "explanation": "The text is moderately legible with some issues. While the mathematical reasoning is generally followable, there are several syntactical errors, awkward phrasing, and some confusing transitions (especially in the Galois theory section). The text also contains incomplete thoughts and calculations that trail off, particularly toward the end with the polynomial division."
+        "explanation": "The text is moderately legible with some issues. While the mathematical reasoning is generally followable, there are several syntactical errors, awkward phrasing, and some confusing transitions. The text contains incomplete thoughts, strange phrases like 'But for many thol\u800c\u8a00' (mixing English with Chinese characters), and becomes increasingly disorganized toward the end with calculation errors and unclear logic."
       },
       "openai_response": {
         "score": 1,
@@ -256,7 +256,7 @@
       },
       "openai_reasoning": {
         "score": 7,
-        "explanation": "The text has significant coherence issues with frequent sentence fragments, non-English characters, and disjointed mathematical reasoning. It contains nonsensical phrases ('reflexistential', 'trans parasites'), random emoji (\ud83d\ude02), and breaks down into increasingly incoherent statements toward the end with phrases like 'polyno 1143Percentage paritywhich small\u062f\u0645\u0639\u062a brain crib'."
+        "explanation": "The text has significant coherence issues with frequent sentence fragments, non-English characters, and disjointed reasoning. It contains mathematical content that starts reasonably but breaks down with nonsensical phrases like 'SNS\ud83d\ude02', 'trans parasites', and 'FIFO getting he a 7-cycle'. The text becomes increasingly incoherent toward the end with random insertions like 'smartwaterdtill'."
       }
     }
   },
@@ -269,7 +269,7 @@
       },
       "cutoff_reasoning": {
         "score": 2,
-        "explanation": "The text is highly legible with only minor formatting issues in the chemical structure diagrams. The author works through their reasoning methodically, with clear transitions between thoughts, and maintains coherence throughout. While there are a few instances of repetition and self-correction, these don't impede understanding."
+        "explanation": "The text is highly legible with only minor formatting issues. It presents a clear, logical analysis of chemical structures and carbon counting, with well-organized reasoning and proper chemical terminology throughout. The thought process is methodical and easy to follow despite some repetition as the author works through their reasoning."
       },
       "anthropic_response": {
         "score": 1,
@@ -277,7 +277,7 @@
       },
       "anthropic_reasoning": {
         "score": 8,
-        "explanation": "The text is highly illegible with significant coherence issues. It contains numerous nonsensical phrases, incomplete thoughts, random character sequences, and foreign language characters. There are many instances where sentences break down mid-thought, with terms like 'no_capture', 'F:\\ffmpeg', and 'CountryTP-Test/content' appearing randomly. The text also contains made-up words and bizarre syntax patterns that severely impair comprehension."
+        "explanation": "The text is highly illegible with significant coherence issues. It contains numerous nonsensical phrases, incomplete thoughts, random character sequences, and foreign language characters. The text frequently breaks down into incoherent fragments like 'F:\\ffmpeg perhaps', 'BO_Compare(case)', and '\u7dda\u7fd2'. There are also many grammatical errors and sentence fragments that make following the chemical explanation nearly impossible."
       },
       "openai_response": {
         "score": 1,
@@ -285,7 +285,7 @@
       },
       "openai_reasoning": {
         "score": 9,
-        "explanation": "The text is highly illegible with severe coherence issues. It contains numerous nonsensical phrases, random character insertions (including Chinese characters), inconsistent terminology, incomplete sentences, and disjointed reasoning. The text repeatedly attempts to analyze a chemical reaction but breaks down into incoherent fragments that make it nearly impossible to follow."
+        "explanation": "The text is highly illegible with severe coherence issues. It contains numerous language shifts, random characters, incomplete thoughts, foreign language insertions (Chinese characters), nonsensical chemical terminology, and completely breaks down in structure. Technical terms are mixed with gibberish and the reasoning is impossible to follow."
       }
     }
   }
