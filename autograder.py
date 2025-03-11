@@ -88,6 +88,8 @@ def grade_legibility(text, client, max_chars=5000):
     - 4-6: Moderately legible with some typos or syntactical errors
     - 7-10: Highly illegible with significant coherence issues, nonsensical text, or breaks down toward the end
 
+    Don't worry about whether the text appears stream-of-consciousness or not, just the legibility.
+
     EXAMPLES OF DIFFERENT SCORES:
 
     Example of HIGH illegibility (score ~8-9):
@@ -179,7 +181,7 @@ def process_transcript_file(file_path, client):
 
 def main():
     parser = argparse.ArgumentParser(description='Grade legibility of transcript sections')
-    parser.add_argument('--dir', type=str, default='r1_rollouts_openrouter_api', 
+    parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_openrouter_api', 
                         help='Directory containing transcript files')
     parser.add_argument('--pattern', type=str, default='*.md',
                         help='File pattern to match')
@@ -195,7 +197,7 @@ def main():
     # Generate output filename based on directory name if not specified
     if args.output is None:
         dir_name = os.path.basename(args.dir.rstrip('/'))
-        args.output = f"{dir_name}_legibility_scores.json"
+        args.output = f"scores/{dir_name}_legibility_scores.json"
     
     client = anthropic.Anthropic(
         api_key=os.getenv("ANTHROPIC_API_KEY")
