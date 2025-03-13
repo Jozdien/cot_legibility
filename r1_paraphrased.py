@@ -1,12 +1,10 @@
 from time import perf_counter
 import anthropic
 from openai import OpenAI
-import json
 from datetime import datetime
 import os
 from dotenv import load_dotenv
 from datasets import load_from_disk
-import random
 
 load_dotenv()
 

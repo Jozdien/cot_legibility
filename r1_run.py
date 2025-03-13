@@ -1,6 +1,5 @@
 from time import perf_counter
 from openai import OpenAI
-import json
 from datetime import datetime
 import os
 from dotenv import load_dotenv
