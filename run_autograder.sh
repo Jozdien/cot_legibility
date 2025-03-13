@@ -20,14 +20,18 @@ for dir in r1_rollouts/*/; do
     dir_name=$(basename "$dir")
     
     # Check if a score file already exists for this directory
-    score_file="scores/${dir_name}_legibility_scores.json"
+    score_file="scores/${dir_name}_scores.json"
+
+    # Check if an answers file already exists for this directory
+    answers_file="answers/${dir_name}_answers.md"
     
-    if [ ! -f "$score_file" ] || [ "$OVERRIDE" = true ]; then
+    if [ ! -f "$score_file" ] || [ ! -f "$answers_file" ] || [ "$OVERRIDE" = true ]; then
         echo "Processing directory: $dir"
         echo "Score file will be: $score_file"
+        echo "Answers file will be: $answers_file"
         
         # Run the autograder on this directory
-        python autograder.py --dir "$dir" --output "$score_file"
+        python autograder.py --dir "$dir" --scores-output "$score_file" --answers-output "$answers_file"
         
         # Optional: add a delay between processing directories
         echo "Completed processing $dir. Waiting 5 seconds before next directory..."
