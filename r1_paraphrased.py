@@ -114,7 +114,7 @@ def process_question(question_text, output_dir="r1_rollouts"):
     # Sanitize question text for filename
     safe_question = "".join(c if c.isalnum() else "_" for c in question_text[:30])
 
-    cutoff_portion = 0.5
+    cutoff_portion = 0.25
     
     # Create a temp file with timestamp and question preview
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

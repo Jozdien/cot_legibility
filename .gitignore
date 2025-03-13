@@ -3,8 +3,6 @@ venv/
 
 r1_rollouts/
 data/
-
-test.py
-test_data.py
+tests/
 
 prompts.txt

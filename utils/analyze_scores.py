@@ -2,6 +2,7 @@ import os
 import json
 import glob
 import argparse
+import numpy as np
 
 def load_score_file(file_path):
     """Load a score JSON file and return the data."""
@@ -38,6 +39,8 @@ def analyze_scores(data):
         if scores:
             stats[section] = {
                 "avg_score": sum(scores) / len(scores),
+                "std_dev": np.std(scores),
+                "max_score": max(scores),
                 "count": len(scores),
                 "na_count": na_count,
                 "total": total
@@ -45,6 +48,8 @@ def analyze_scores(data):
         else:
             stats[section] = {
                 "avg_score": None,
+                "std_dev": None,
+                "max_score": None,
                 "count": 0,
                 "na_count": na_count,
                 "total": total
@@ -57,7 +62,8 @@ def print_summary(stats, file_name):
     print(f"\nSummary for {file_name}:")
     for section, section_stats in stats.items():
         if section_stats["avg_score"] is not None:
-            print(f"{section}: Avg score {section_stats['avg_score']:.2f} from {section_stats['count']} samples (N/A: {section_stats['na_count']})")
+            print(f"{section}: Avg score {section_stats['avg_score']:.2f} (σ={section_stats['std_dev']:.2f}, max={section_stats['max_score']:.2f}) "
+                  f"from {section_stats['count']} samples (N/A: {section_stats['na_count']})")
         else:
             print(f"{section}: No valid scores found (N/A: {section_stats['na_count']})")
 
@@ -67,17 +73,21 @@ def compare_files(all_stats):
     for section in ["cutoff_response", "cutoff_reasoning", "anthropic_response", 
                    "anthropic_reasoning", "openai_response", "openai_reasoning"]:
         print(f"\n--- {section} comparison ---")
-        print(f"{'File':<40} {'Avg Score':<10} {'Count':<10} {'N/A':<10}")
-        print("-" * 70)
+        print(f"{'File':<40} {'Avg Score':<10} {'Std Dev':<10} {'Max':<10} {'Count':<10} {'N/A':<10}")
+        print("-" * 90)
         
         for file_name, stats in all_stats.items():
             section_stats = stats.get(section, {})
             avg_score = section_stats.get("avg_score")
+            std_dev = section_stats.get("std_dev")
+            max_score = section_stats.get("max_score")
             count = section_stats.get("count", 0)
             na_count = section_stats.get("na_count", 0)
             
             avg_display = f"{avg_score:.2f}" if avg_score is not None else "N/A"
-            print(f"{file_name:<40} {avg_display:<10} {count:<10} {na_count:<10}")
+            std_display = f"{std_dev:.2f}" if std_dev is not None else "N/A"
+            max_display = f"{max_score:.2f}" if max_score is not None else "N/A"
+            print(f"{file_name:<40} {avg_display:<10} {std_display:<10} {max_display:<10} {count:<10} {na_count:<10}")
 
 def main():
     parser = argparse.ArgumentParser(description='Analyze legibility scores from JSON files')
