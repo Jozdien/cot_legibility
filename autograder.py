@@ -353,10 +353,10 @@ def main():
     parser = argparse.ArgumentParser(description='Analyze and grade answers from markdown files.')
     parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_openrouter_api', 
                         help='Directory containing markdown files to analyze (default: r1_rollouts)')
-    parser.add_argument('--answers-output', type=str, default=None,
-                        help='Output markdown file path (defaults to dir_name_analysis.md)')
     parser.add_argument('--scores-output', type=str, default=None,
                         help='Output JSON file path (defaults to dir_name_scores.json)')
+    parser.add_argument('--answers-output', type=str, default=None,
+                        help='Output markdown file path (defaults to dir_name_analysis.md)')
     parser.add_argument('--limit', type=int, default=None,
                         help='Limit number of files to process')
     parser.add_argument('--max-chars', type=int, default=5000,

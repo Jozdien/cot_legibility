@@ -20,9 +20,9 @@ anthropic_client = anthropic.Anthropic(
 SECTIONS_TO_ANALYZE = [
     "# DeepSeek reasoning",
     "# Cut off deepseek reasoning",
-    "# cutoff_deepseek_completion reasoning",
     "# Anthropic completion",
     "# OpenAI completion",
+    "# cutoff_deepseek_completion reasoning",
     "# paraphrased_deepseek_completion_anthropic reasoning",
     "# paraphrased_deepseek_completion_openai reasoning"
 ]
@@ -376,13 +376,13 @@ def main():
     parser.add_argument('--mode', type=str, choices=['generate', 'grade', 'both'], default='both',
                         help='Mode to run: generate answers from reasoning, grade answers, or both (default: both)')
     parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_0.5_openrouter',
-                        help='Directory containing rollout files with reasoning traces (only used in generate mode)')
+                        help='Directory containing rollout files with reasoning traces (only used when generating answers)')
     parser.add_argument('--limit', type=int, default=None,
-                        help='Maximum number of files to process (only used in generate mode)')
+                        help='Maximum number of files to process (only used when generating answers)')
     parser.add_argument('--results', type=str, default=None,
                         help='Path to results JSON file from generation step (required for grade mode if not running both)')
     parser.add_argument('--dataset', type=str, default="data/gpqa_diamond",
-                        help='Path to GPQA dataset (only used in grade mode)')
+                        help='Path to GPQA dataset (only used when grading answers)')
     args = parser.parse_args()
     
     results_file = None

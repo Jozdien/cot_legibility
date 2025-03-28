@@ -457,6 +457,209 @@ def plot_overall_model_performance(all_stats, plots_dir):
     plt.close()
     print(f"Overall model performance plot saved to {plot_path}")
 
+def load_claude_score_file(file_path):
+    """Load a Claude score JSON file and return the data."""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def analyze_claude_scores(data):
+    """Analyze scores from a Claude answers JSON file."""
+    # Extract section names from the summary
+    sections = list(data.get("summary", {}).keys())
+    
+    # Prepare data structure for correctness scores
+    correctness_stats = {}
+    for section in sections:
+        section_summary = data["summary"].get(section, {})
+        section_percentages = data["percentages"].get(section, {})
+        
+        # Calculate total
+        total = sum(section_summary.values())
+        
+        # Extract or use percentages directly
+        correct_pct = section_percentages.get("correct_pct", 0)
+        partially_pct = section_percentages.get("partially_pct", 0)
+        incorrect_pct = section_percentages.get("incorrect_pct", 0)
+        
+        correctness_stats[section] = {
+            "correct": section_summary.get("correct", 0),
+            "partially_correct": section_summary.get("partially_correct", 0),
+            "incorrect": section_summary.get("incorrect", 0),
+            "N/A": section_summary.get("N/A", 0),
+            "error": section_summary.get("error", 0),
+            "total": total,
+            "correct_percentage": correct_pct,
+            "partially_percentage": partially_pct,
+            "incorrect_percentage": incorrect_pct
+        }
+    
+    return {
+        "correctness": correctness_stats
+    }
+
+def print_claude_summary(stats, file_name):
+    """Print a summary of Claude answer stats for a file."""
+    print(f"\nSummary for {file_name}:")
+    
+    # Print correctness stats
+    print("\nCorrectness Assessment:")
+    for section, section_stats in stats["correctness"].items():
+        total = section_stats["total"]
+        if total > 0:
+            print(f"{section}: "
+                  f"Correct: {section_stats['correct']} ({section_stats['correct_percentage']:.1f}%), "
+                  f"Partially: {section_stats['partially_correct']} ({section_stats['partially_percentage']:.1f}%), "
+                  f"Incorrect: {section_stats['incorrect']} ({section_stats['incorrect_percentage']:.1f}%), "
+                  f"N/A: {section_stats['N/A']}, "
+                  f"Errors: {section_stats['error']}")
+        else:
+            print(f"{section}: No assessments found")
+
+def plot_claude_correctness(stats, file_name, plots_dir):
+    """Create and save bar charts for Claude correctness assessments."""
+    # Create plot
+    plt.figure(figsize=(14, 8))
+    
+    # Prepare data
+    sections = list(stats["correctness"].keys())
+    correct_pct = [stats["correctness"][section]["correct_percentage"] for section in sections]
+    partially_pct = [stats["correctness"][section]["partially_percentage"] for section in sections]
+    incorrect_pct = [stats["correctness"][section]["incorrect_percentage"] for section in sections]
+    
+    # Define bar width and positions
+    bar_width = 0.25
+    r1 = np.arange(len(sections))
+    r2 = [x + bar_width for x in r1]
+    r3 = [x + bar_width for x in r2]
+    
+    # Create bars
+    plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
+    plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
+    plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
+    
+    # Add labels and customize plot
+    plt.xlabel('Reasoning Sections', fontsize=12)
+    plt.ylabel('Percentage (%)', fontsize=12)
+    plt.title(f'Claude Answer Correctness Assessment - {file_name}', fontsize=14)
+    plt.xticks([r + bar_width for r in range(len(sections))], [s.replace("_", " ").capitalize() for s in sections], rotation=45, ha='right')
+    plt.ylim(0, 100)
+    plt.legend()
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # Add value labels on bars
+    for i, bars in enumerate([r1, r2, r3]):
+        values = [correct_pct, partially_pct, incorrect_pct][i]
+        for j, bar in enumerate(bars):
+            if values[j] > 0:
+                plt.text(bar, values[j] + 2, f'{values[j]:.1f}%', 
+                        ha='center', va='bottom', fontsize=9)
+    
+    plt.tight_layout()
+    
+    # Save plot
+    plot_path = os.path.join(plots_dir, f"{file_name}_claude_correctness.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Claude correctness assessment plot saved to {plot_path}")
+
+def plot_claude_comparisons(stats, file_name, plots_dir):
+    """Create comparison plots for different types of reasoning sections."""
+    plt.figure(figsize=(14, 8))
+    
+    # Group sections by model type (deepseek, cutoff, etc.)
+    model_sections = {}
+    for section in stats["correctness"].keys():
+        if section not in model_sections:
+            model_sections[section] = []  
+        model_sections[section].append(section)
+    
+    # Create a stacked bar chart
+    models = list(model_sections.keys())
+    x = np.arange(len(models))
+    width = 0.6
+    
+    # Collect data for each model
+    correct_values = []
+    partially_values = []
+    incorrect_values = []
+    
+    for model in models:
+        # Average the values across all sections for this model
+        sections = model_sections[model]
+        correct_avg = np.mean([stats["correctness"][s]["correct_percentage"] for s in sections])
+        partially_avg = np.mean([stats["correctness"][s]["partially_percentage"] for s in sections])
+        incorrect_avg = np.mean([stats["correctness"][s]["incorrect_percentage"] for s in sections])
+        
+        correct_values.append(correct_avg)
+        partially_values.append(partially_avg)
+        incorrect_values.append(incorrect_avg)
+    
+    # Create stacked bars
+    plt.bar(x, correct_values, width, label='Correct', color='#2ecc71')
+    plt.bar(x, partially_values, width, bottom=correct_values, label='Partially Correct', color='#f39c12')
+    bottom_vals = [c + p for c, p in zip(correct_values, partially_values)]
+    plt.bar(x, incorrect_values, width, bottom=bottom_vals, label='Incorrect', color='#e74c3c')
+    
+    # Add value annotations
+    for i, model in enumerate(models):
+        # Correct
+        if correct_values[i] > 5:  # Only add text if there's enough space
+            plt.text(i, correct_values[i]/2, f'{correct_values[i]:.1f}%', 
+                    ha='center', va='center', color='white', fontweight='bold')
+        
+        # Partially correct
+        if partially_values[i] > 5:
+            plt.text(i, correct_values[i] + partially_values[i]/2, f'{partially_values[i]:.1f}%', 
+                    ha='center', va='center', color='white', fontweight='bold')
+        
+        # Incorrect
+        if incorrect_values[i] > 5:
+            plt.text(i, bottom_vals[i] + incorrect_values[i]/2, f'{incorrect_values[i]:.1f}%', 
+                    ha='center', va='center', color='white', fontweight='bold')
+        
+        # Add section count below the x-axis
+        section_count = len(model_sections[model])
+        plt.text(i, -5, "", ha='center', va='top')
+    
+    # Customize plot
+    plt.title('Model Performance in Reasoning Sections', fontsize=16)
+    plt.ylabel('Percentage (%)', fontsize=14)
+    plt.xticks(x, [m.replace('_', ' ').capitalize() for m in models], fontsize=12, rotation=45, ha='right')
+    plt.ylim(0, 100)
+    plt.grid(axis='y', linestyle='--', alpha=0.3)
+    plt.legend(loc='upper right', bbox_to_anchor=(0.5, -0.15), ncol=3)
+    
+    # Adjust layout to make room for the legend
+    plt.subplots_adjust(bottom=0.45)
+    
+    # Save plot
+    plot_path = os.path.join(plots_dir, f"{file_name}_model_comparison.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Model comparison plot saved to {plot_path}")
+
+def process_claude_file(file_path, plots=False):
+    """Process a single Claude answers score file and generate analysis."""
+    try:
+        print(f"Analyzing Claude answers file: {file_path}")
+        file_name = os.path.basename(file_path).replace('.json', '')
+        data = load_claude_score_file(file_path)
+        stats = analyze_claude_scores(data)
+        
+        # Print summary for this file
+        print_claude_summary(stats, file_name)
+        
+        # Generate plots if requested
+        if plots:
+            plots_dir = create_plots_directory()
+            plot_claude_correctness(stats, file_name, plots_dir)
+            plot_claude_comparisons(stats, file_name, plots_dir)
+            
+        return True
+    except Exception as e:
+        print(f"Error processing Claude answers file {file_path}: {e}")
+        return False
+
 def main():
     parser = argparse.ArgumentParser(description='Analyze legibility and correctness scores from JSON files')
     parser.add_argument('--dir', type=str, default='scores',
@@ -467,56 +670,80 @@ def main():
                         help='Compare stats across different files')
     parser.add_argument('--plots', action='store_true',
                         help='Generate plots of the results')
+    parser.add_argument('--claude-file', type=str, default=None,
+                        help='Process a specific Claude answers score file from claude_answers/scores directory')
+    parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
+                        help='Type of analysis to run (regular or claude)')
     
     args = parser.parse_args()
     
-    # Find all matching files
-    file_pattern = os.path.join(args.dir, args.pattern)
-    files = glob.glob(file_pattern)
+    analysis_type = args.analysis_type
     
-    print(f"Found {len(files)} score files to analyze")
+    if analysis_type is None:
+        if args.claude_file:
+            analysis_type = 'claude'
+        else:
+            analysis_type = 'regular'
     
-    all_stats = {}
-    
-    for file_path in files:
-        try:
-            print(f"Analyzing: {file_path}")
-            file_name = os.path.basename(file_path).replace('_scores.json', '')
-            data = load_score_file(file_path)
-            stats = analyze_scores(data)
-            all_stats[file_name] = stats
+    if analysis_type == 'claude':
+        if args.claude_file:
+            claude_file_path = args.claude_file
+            if os.path.exists(claude_file_path):
+                process_claude_file(claude_file_path, plots=args.plots)
+            else:
+                print(f"Claude answers file not found: {claude_file_path}")
+        else:
+            print("Error: When using --analysis-type=claude, you must provide a --claude-file")
+        return  # Exit after processing Claude file
+
+    if analysis_type == 'regular':
+        # Find all matching files
+        file_pattern = os.path.join(args.dir, args.pattern)
+        files = glob.glob(file_pattern)
+        
+        print(f"Found {len(files)} score files to analyze")
+        
+        all_stats = {}
+        
+        for file_path in files:
+            try:
+                print(f"Analyzing: {file_path}")
+                file_name = os.path.basename(file_path).replace('_scores.json', '')
+                data = load_score_file(file_path)
+                stats = analyze_scores(data)
+                all_stats[file_name] = stats
+                
+                # Print summary for this file
+                print_summary(stats, file_name)
+                
+                # Generate plots if requested
+                if args.plots:
+                    plots_dir = create_plots_directory()
+                    plot_legibility_scores(stats, file_name, plots_dir)
+                    plot_correctness_assessment(stats, file_name, plots_dir)
+                
+            except Exception as e:
+                print(f"Error processing {file_path}: {e}")
+        
+        # If comparison is requested, print comparison tables
+        if args.compare and len(all_stats) > 1:
+            compare_files(all_stats)
             
-            # Print summary for this file
-            print_summary(stats, file_name)
-            
-            # Generate plots if requested
+            # Generate comparison plots if requested
             if args.plots:
                 plots_dir = create_plots_directory()
-                plot_legibility_scores(stats, file_name, plots_dir)
-                plot_correctness_assessment(stats, file_name, plots_dir)
-            
-        except Exception as e:
-            print(f"Error processing {file_path}: {e}")
-    
-    # If comparison is requested, print comparison tables
-    if args.compare and len(all_stats) > 1:
-        compare_files(all_stats)
-        
-        # Generate comparison plots if requested
-        if args.plots:
-            plots_dir = create_plots_directory()
-            
-            # Plot legibility comparisons for each section
-            for section in ["deepseek_response", "deepseek_reasoning", "cutoff_response", "cutoff_reasoning", 
-                           "anthropic_response", "anthropic_reasoning", "openai_response", "openai_reasoning"]:
-                plot_comparison_legibility(all_stats, section, plots_dir)
-            
-            # Plot correctness comparisons for each model
-            for model in ["deepseek", "cutoff", "anthropic", "openai"]:
-                plot_comparison_correctness(all_stats, model, plots_dir)
-            
-            # Plot overall model performance
-            plot_overall_model_performance(all_stats, plots_dir)
+                
+                # Plot legibility comparisons for each section
+                for section in ["deepseek_response", "deepseek_reasoning", "cutoff_response", "cutoff_reasoning", 
+                               "anthropic_response", "anthropic_reasoning", "openai_response", "openai_reasoning"]:
+                    plot_comparison_legibility(all_stats, section, plots_dir)
+                
+                # Plot correctness comparisons for each model
+                for model in ["deepseek", "cutoff", "anthropic", "openai"]:
+                    plot_comparison_correctness(all_stats, model, plots_dir)
+                
+                # Plot overall model performance
+                plot_overall_model_performance(all_stats, plots_dir)
 
 if __name__ == "__main__":
     main()
