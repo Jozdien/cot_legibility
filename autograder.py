@@ -351,7 +351,7 @@ def process_file(file_path, dataset, client):
 def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description='Analyze and grade answers from markdown files.')
-    parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_openrouter_api', 
+    parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_0.5_openrouter', 
                         help='Directory containing markdown files to analyze (default: r1_rollouts)')
     parser.add_argument('--scores-output', type=str, default=None,
                         help='Output JSON file path (defaults to dir_name_scores.json)')
