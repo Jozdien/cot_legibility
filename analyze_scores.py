@@ -189,12 +189,14 @@ def plot_legibility_scores(stats, file_name, plots_dir):
     sections = []
     avg_scores = []
     std_devs = []
+    counts = []
     
     for section, section_stats in stats["legibility"].items():
         if section_stats["avg_score"] is not None:
             sections.append(section)
             avg_scores.append(section_stats["avg_score"])
             std_devs.append(section_stats["std_dev"])
+            counts.append(section_stats["count"])
     
     if not sections:
         print(f"No valid legibility scores to plot for {file_name}")
@@ -215,10 +217,17 @@ def plot_legibility_scores(stats, file_name, plots_dir):
     # Plot bars with error bars
     bars = plt.bar(sections, avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
     
-    # Add value labels on top of each bar
-    for bar, score in zip(bars, avg_scores):
+    # Add value labels on top of each bar and count inside each bar
+    for bar, score, count in zip(bars, avg_scores, counts):
+        # Add score on top
         plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
                 f'{score:.2f}', ha='center', va='bottom', fontsize=9)
+        
+        # Add count inside bar (only if bar is tall enough)
+        if bar.get_height() > 0.5:  # Only add if bar is tall enough
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
+                    f'n={count}', ha='center', va='center', fontsize=9, 
+                    color='white', fontweight='bold')
     
     # Customize plot
     plt.title(f'Average Legibility Scores - {file_name}', fontsize=14)
@@ -244,6 +253,10 @@ def plot_correctness_assessment(stats, file_name, plots_dir):
     correct_pct = [stats["correctness"][model]["correct_percentage"] for model in models]
     partially_pct = [stats["correctness"][model]["partially_percentage"] for model in models]
     incorrect_pct = [stats["correctness"][model]["incorrect_percentage"] for model in models]
+    counts = [stats["correctness"][model]["total"] for model in models]
+    correct_counts = [stats["correctness"][model]["correct"] for model in models]
+    partially_counts = [stats["correctness"][model]["partially_correct"] for model in models]
+    incorrect_counts = [stats["correctness"][model]["incorrect"] for model in models]
     
     # Define bar width and positions
     bar_width = 0.25
@@ -252,9 +265,9 @@ def plot_correctness_assessment(stats, file_name, plots_dir):
     r3 = [x + bar_width for x in r2]
     
     # Create bars
-    plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
-    plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
-    plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
+    bars1 = plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
+    bars2 = plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
+    bars3 = plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
     
     # Add labels and customize plot
     plt.xlabel('Models', fontsize=12)
@@ -265,13 +278,26 @@ def plot_correctness_assessment(stats, file_name, plots_dir):
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     
-    # Add value labels on bars
-    for i, bars in enumerate([r1, r2, r3]):
+    # Add value labels and counts inside bars
+    for i, bars in enumerate([bars1, bars2, bars3]):
         values = [correct_pct, partially_pct, incorrect_pct][i]
-        for j, bar in enumerate(bars):
-            if values[j] > 0:
-                plt.text(bar, values[j] + 2, f'{values[j]:.1f}%', 
+        counts_list = [correct_counts, partially_counts, incorrect_counts][i]
+        
+        for j, (bar, value, count) in enumerate(zip(bars, values, counts_list)):
+            # Add percentage on top
+            if value > 0:
+                plt.text(bar.get_x() + bar.get_width()/2, value + 2, f'{value:.1f}%', 
                         ha='center', va='bottom', fontsize=9)
+                
+                # Add count inside bar if bar is tall enough
+                if value > 10:  # Only add if bar is tall enough
+                    plt.text(bar.get_x() + bar.get_width()/2, value/2,
+                            f'n={count}', ha='center', va='center', 
+                            color='white', fontweight='bold', fontsize=8)
+    
+    # Add total count beneath model name
+    for i, (model, count) in enumerate(zip(models, counts)):
+        plt.text(r2[i], -5, f'total={count}', ha='center', va='top', fontsize=8)
     
     plt.tight_layout()
     
@@ -288,6 +314,7 @@ def plot_comparison_legibility(all_stats, section, plots_dir):
     file_names = []
     avg_scores = []
     std_devs = []
+    counts = []
     
     for file_name, stats in all_stats.items():
         section_stats = stats["legibility"].get(section, {})
@@ -297,6 +324,7 @@ def plot_comparison_legibility(all_stats, section, plots_dir):
             file_names.append(file_name)
             avg_scores.append(avg_score)
             std_devs.append(section_stats.get("std_dev", 0))
+            counts.append(section_stats.get("count", 0))
     
     if not file_names:
         print(f"No valid data to plot comparison for {section}")
@@ -314,10 +342,17 @@ def plot_comparison_legibility(all_stats, section, plots_dir):
     # Create bars
     bars = plt.bar(file_names, avg_scores, yerr=std_devs, alpha=0.8, color=bar_color)
     
-    # Add value labels
-    for bar, score in zip(bars, avg_scores):
+    # Add value labels and counts inside bars
+    for bar, score, count in zip(bars, avg_scores, counts):
+        # Add score on top
         plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
                 f'{score:.2f}', ha='center', va='bottom', fontsize=9)
+        
+        # Add count inside bar if bar is tall enough
+        if bar.get_height() > 0.5:
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
+                    f'n={count}', ha='center', va='center', 
+                    color='white', fontweight='bold', fontsize=9)
     
     # Customize plot
     plt.title(f'Comparison of {model.capitalize()} {component.capitalize()} Legibility Scores', fontsize=14)
@@ -342,21 +377,51 @@ def plot_comparison_correctness(all_stats, model, plots_dir):
     correct_pcts = []
     partially_pcts = []
     incorrect_pcts = []
+    correct_counts = []
+    partially_counts = []
+    incorrect_counts = []
+    total_counts = []
     
     for file_name, stats in all_stats.items():
         model_stats = stats["correctness"].get(model, {})
         correct_pcts.append(model_stats.get("correct_percentage", 0))
         partially_pcts.append(model_stats.get("partially_percentage", 0))
         incorrect_pcts.append(model_stats.get("incorrect_percentage", 0))
+        correct_counts.append(model_stats.get("correct", 0))
+        partially_counts.append(model_stats.get("partially_correct", 0))
+        incorrect_counts.append(model_stats.get("incorrect", 0))
+        total_counts.append(model_stats.get("total", 0))
     
     # Define bar width and positions
     x = np.arange(len(file_names))
     width = 0.25
     
     # Create bars
-    plt.bar(x - width, correct_pcts, width, label='Correct', color='#2ecc71', alpha=0.8)
-    plt.bar(x, partially_pcts, width, label='Partially Correct', color='#f39c12', alpha=0.8)
-    plt.bar(x + width, incorrect_pcts, width, label='Incorrect', color='#e74c3c', alpha=0.8)
+    bars1 = plt.bar(x - width, correct_pcts, width, label='Correct', color='#2ecc71', alpha=0.8)
+    bars2 = plt.bar(x, partially_pcts, width, label='Partially Correct', color='#f39c12', alpha=0.8)
+    bars3 = plt.bar(x + width, incorrect_pcts, width, label='Incorrect', color='#e74c3c', alpha=0.8)
+    
+    # Add value labels and counts inside bars
+    for i, (bars, values, counts) in enumerate([
+            (bars1, correct_pcts, correct_counts),
+            (bars2, partially_pcts, partially_counts),
+            (bars3, incorrect_pcts, incorrect_counts)
+        ]):
+        for j, (bar, value, count) in enumerate(zip(bars, values, counts)):
+            # Add percentage on top if value is significant
+            if value > 0:
+                plt.text(bar.get_x() + bar.get_width()/2, value + 2, f'{value:.1f}%', 
+                        ha='center', va='bottom', fontsize=9)
+                
+                # Add count inside bar if bar is tall enough
+                if value > 10:  # Only add if bar is tall enough
+                    plt.text(bar.get_x() + bar.get_width()/2, value/2,
+                            f'n={count}', ha='center', va='center', 
+                            color='white', fontweight='bold', fontsize=8)
+    
+    # Add total counts beneath the file names
+    for i, count in enumerate(total_counts):
+        plt.text(i, -5, f'total={count}', ha='center', va='top', fontsize=8)
     
     # Customize plot
     plt.title(f'Comparison of {model.capitalize()} Correctness Assessments', fontsize=14)
@@ -365,6 +430,7 @@ def plot_comparison_correctness(all_stats, model, plots_dir):
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.ylim(0, 100)
+    plt.subplots_adjust(bottom=0.2)  # Make room for counts text
     plt.tight_layout()
     
     # Save plot
@@ -525,6 +591,10 @@ def plot_claude_correctness(stats, file_name, plots_dir):
     correct_pct = [stats["correctness"][section]["correct_percentage"] for section in sections]
     partially_pct = [stats["correctness"][section]["partially_percentage"] for section in sections]
     incorrect_pct = [stats["correctness"][section]["incorrect_percentage"] for section in sections]
+    correct_counts = [stats["correctness"][section]["correct"] for section in sections]
+    partially_counts = [stats["correctness"][section]["partially_correct"] for section in sections]
+    incorrect_counts = [stats["correctness"][section]["incorrect"] for section in sections]
+    total_counts = [stats["correctness"][section]["total"] for section in sections]
     
     # Define bar width and positions
     bar_width = 0.25
@@ -533,26 +603,36 @@ def plot_claude_correctness(stats, file_name, plots_dir):
     r3 = [x + bar_width for x in r2]
     
     # Create bars
-    plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
-    plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
-    plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
+    bars1 = plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
+    bars2 = plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
+    bars3 = plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
     
     # Add labels and customize plot
     plt.xlabel('Reasoning Sections', fontsize=12)
     plt.ylabel('Percentage (%)', fontsize=12)
-    plt.title(f'Claude Answer Correctness Assessment - {file_name}', fontsize=14)
+    plt.title(f'Claude Answer Correctness Assessment - {file_name} n={total_counts[0]}', fontsize=14)
     plt.xticks([r + bar_width for r in range(len(sections))], [s.replace("_", " ").capitalize() for s in sections], rotation=45, ha='right')
     plt.ylim(0, 100)
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     
-    # Add value labels on bars
-    for i, bars in enumerate([r1, r2, r3]):
-        values = [correct_pct, partially_pct, incorrect_pct][i]
-        for j, bar in enumerate(bars):
-            if values[j] > 0:
-                plt.text(bar, values[j] + 2, f'{values[j]:.1f}%', 
+    # Add value labels and counts inside bars
+    for i, (bars, values, counts) in enumerate([
+            (bars1, correct_pct, correct_counts),
+            (bars2, partially_pct, partially_counts),
+            (bars3, incorrect_pct, incorrect_counts)
+        ]):
+        for j, (bar, value, count) in enumerate(zip(bars, values, counts)):
+            # Add percentage on top if value is significant
+            if value > 0:
+                plt.text(bar.get_x() + bar.get_width()/2, value + 2, f'{value:.1f}%', 
                         ha='center', va='bottom', fontsize=9)
+                
+                # Add count inside bar if bar is tall enough
+                if value > 5:  # Only add if bar is tall enough
+                    plt.text(bar.get_x() + bar.get_width()/2, value/2,
+                            f'n={count}', ha='center', va='center', 
+                            color='white', fontweight='bold', fontsize=8)
     
     plt.tight_layout()
     
