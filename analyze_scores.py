@@ -179,7 +179,7 @@ def compare_files(all_stats):
 
 def create_plots_directory():
     """Create a directory for saving plots if it doesn't exist."""
-    plots_dir = "plots"
+    plots_dir = "plots/all"
     os.makedirs(plots_dir, exist_ok=True)
     return plots_dir
 
@@ -627,7 +627,7 @@ def plot_claude_comparisons(stats, file_name, plots_dir):
     plt.xticks(x, [m.replace('_', ' ').capitalize() for m in models], fontsize=12, rotation=45, ha='right')
     plt.ylim(0, 100)
     plt.grid(axis='y', linestyle='--', alpha=0.3)
-    plt.legend(loc='upper right', bbox_to_anchor=(0.5, -0.15), ncol=3)
+    plt.legend(loc='upper right')
     
     # Adjust layout to make room for the legend
     plt.subplots_adjust(bottom=0.45)
