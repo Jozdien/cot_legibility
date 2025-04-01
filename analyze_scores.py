@@ -3,6 +3,7 @@ import json
 import glob
 import argparse
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.ticker import MaxNLocator
@@ -100,7 +101,8 @@ def analyze_scores(data):
     
     return {
         "legibility": legibility_stats,
-        "correctness": correctness_stats
+        "correctness": correctness_stats,
+        "raw_legibility_scores": section_scores
     }
 
 def print_summary(stats, file_name):
@@ -183,13 +185,16 @@ def create_plots_directory():
     os.makedirs(plots_dir, exist_ok=True)
     return plots_dir
 
-def plot_legibility_scores(stats, file_name, plots_dir):
-    """Create and save bar charts for legibility scores."""
+def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"):
+    """
+    Create and save bar charts for legibility scores with model names grouped under x-axis.
+    """
     # Extract data for plotting
     sections = []
     avg_scores = []
     std_devs = []
     counts = []
+    raw_scores = stats.get("raw_legibility_scores", {})
     
     for section, section_stats in stats["legibility"].items():
         if section_stats["avg_score"] is not None:
@@ -203,42 +208,101 @@ def plot_legibility_scores(stats, file_name, plots_dir):
         return
     
     # Create figure
-    plt.figure(figsize=(12, 6))
-    
-    # Create bar colors based on model names
+    fig, ax = plt.subplots(figsize=(12, 6))
     colors = {'deepseek': '#3498db', 'cutoff': '#2ecc71', 
               'anthropic': '#9b59b6', 'openai': '#e74c3c'}
     
+    # Extract info from section names
     bar_colors = []
+    x_labels = []
+    models = []
+    
     for section in sections:
-        model = section.split('_')[0]
-        bar_colors.append(colors.get(model, '#7f8c8d'))
-    
-    # Plot bars with error bars
-    bars = plt.bar(sections, avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
-    
-    # Add value labels on top of each bar and count inside each bar
-    for bar, score, count in zip(bars, avg_scores, counts):
-        # Add score on top
-        plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
-                f'{score:.2f}', ha='center', va='bottom', fontsize=9)
+        parts = section.split('_')
+        model, eval_type = parts[0], parts[1]  # e.g., 'deepseek', 'response'
         
-        # Add count inside bar (only if bar is tall enough)
-        if bar.get_height() > 0.5:  # Only add if bar is tall enough
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
-                    f'n={count}', ha='center', va='center', fontsize=9, 
-                    color='white', fontweight='bold')
+        bar_colors.append(colors.get(model, '#7f8c8d'))
+        x_labels.append(eval_type.capitalize()) if eval_type == 'reasoning' else x_labels.append('Answer')
+        models.append(model)
+    
+    # Plot bars with appropriate display style
+    if std_display == "error_bars":
+        bars = ax.bar(range(len(sections)), avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
+    elif std_display == "shaded":
+        bars = ax.bar(range(len(sections)), avg_scores, alpha=0.8, color=bar_colors)
+        for i, (avg, std) in enumerate(zip(avg_scores, std_devs)):
+            lower, upper = max(1, avg - std), min(9, avg + std)
+            ax.fill_between([i-0.4, i+0.4], [lower, lower], [upper, upper], 
+                           color=bar_colors[i], alpha=0.3)
+    elif std_display == "violin":
+        try:
+            bars = ax.bar(range(len(sections)), avg_scores, alpha=0.4, color=bar_colors)
+            violin_data = []
+            
+            for i, section in enumerate(sections):
+                if section in raw_scores and len(raw_scores[section]) > 1:
+                    valid_scores = [float(score) for score in raw_scores[section]
+                                if isinstance(score, (int, float))
+                                or (isinstance(score, str) and score.replace('.', '', 1).isdigit())]
+                    violin_data.append(valid_scores if valid_scores else [avg_scores[i]])
+                else:
+                    violin_data.append([avg_scores[i] - 0.1, avg_scores[i], avg_scores[i] + 0.1])
+            
+            violin_parts = ax.violinplot(
+                violin_data,
+                range(len(sections)),
+                showmeans=False,
+                showmedians=False,
+                showextrema=False,
+                points=200,
+                bw_method=0.5
+            )
+            for i, pc in enumerate(violin_parts['bodies']):
+                pc.set_facecolor(bar_colors[i])
+                pc.set_alpha(0.5)
+                pc.set_edgecolor('none')
+        except Exception as e:
+            print(f"Warning: Could not create violin plots, falling back to error bars: {e}")
+            bars = ax.bar(range(len(sections)), avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
+    
+    # Add value labels and counts
+    for bar, score, count in zip(bars, avg_scores, counts):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
+               f'{score:.2f}', ha='center', va='bottom', fontsize=9)
+        if bar.get_height() > 0.5:
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
+                   f'n={count}', ha='center', va='center', fontsize=9, 
+                   color='white', fontweight='bold')
+    
+    # Set up x-axis with eval_type labels
+    ax.set_xticks(range(len(sections)))
+    ax.set_xticklabels(x_labels)
+    
+    # Group models below x-axis
+    model_groups = {}
+    for i, model in enumerate(models):
+        if model not in model_groups:
+            model_groups[model] = []
+        model_groups[model].append(i)
+    
+    # Add model labels as group headers
+    for model, positions in model_groups.items():
+        mid_point = sum(positions) / len(positions)
+        ax.annotate(model.capitalize(), xy=(mid_point, -0.1), xycoords=('data', 'axes fraction'),
+                   ha='center', va='top', fontsize=11, fontweight='bold',
+                   color=colors.get(model, '#7f8c8d'))
     
     # Customize plot
-    plt.title(f'Average Legibility Scores - {file_name}', fontsize=14)
-    plt.ylabel('Average Score', fontsize=12)
-    plt.ylim(0, max(avg_scores) * 1.2)  # Add some headroom for the error bars
-    plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
+    ax.set_title(f'Average Legibility Scores - {file_name}', fontsize=14)
+    ax.set_ylabel('Average Score', fontsize=12)
+    ax.set_ylim(0, 9.5)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # Add extra space for model annotations
+    plt.subplots_adjust(bottom=0.15)
     
     # Save plot
-    plot_path = os.path.join(plots_dir, f"{file_name}_legibility_scores.png")
+    plot_path = os.path.join(plots_dir, f"{file_name}_legibility_scores_{std_display}.png")
     plt.savefig(plot_path)
     plt.close()
     print(f"Legibility scores plot saved to {plot_path}")
@@ -799,7 +863,7 @@ def main():
                 # Generate plots if requested
                 if args.plots:
                     plots_dir = create_plots_directory()
-                    plot_legibility_scores(stats, file_name, plots_dir)
+                    plot_legibility_scores(stats, file_name, plots_dir, std_display="violin")
                     plot_correctness_assessment(stats, file_name, plots_dir)
                 
             except Exception as e:
