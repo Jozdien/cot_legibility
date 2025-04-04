@@ -3,10 +3,13 @@ import json
 import glob
 import argparse
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib.font_manager as fm
+from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator
+
+fm.fontManager.addfont('fonts/Montserrat-Regular.ttf')
+plt.rcParams['font.family'] = 'Montserrat'
 
 def load_score_file(file_path):
     """Load a score JSON file and return the data."""
@@ -188,6 +191,7 @@ def create_plots_directory():
 def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"):
     """
     Create and save bar charts for legibility scores with model names grouped under x-axis.
+    Differentiates eval_types (answer vs reasoning) with different shading patterns.
     """
     # Extract data for plotting
     sections = []
@@ -214,31 +218,47 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"
     
     # Extract info from section names
     bar_colors = []
-    x_labels = []
     models = []
+    hatches = []
     
     for section in sections:
         parts = section.split('_')
         model, eval_type = parts[0], parts[1]  # e.g., 'deepseek', 'response'
         
         bar_colors.append(colors.get(model, '#7f8c8d'))
-        x_labels.append(eval_type.capitalize()) if eval_type == 'reasoning' else x_labels.append('Answer')
         models.append(model)
+        
+        # Assign hatching pattern based on eval_type
+        if eval_type == 'reasoning':
+            hatches.append('///')  # Reduced density hatching (single slash instead of triple)
+        else:
+            hatches.append('')  # Solid for answers
     
-    # Plot bars with appropriate display style
+    # Set the hatch linewidth for the entire figure
+    plt.rcParams['hatch.linewidth'] = 0.3  # Thinner hatch lines
+    
+    # Plot bars with appropriate display style and hatching
     if std_display == "error_bars":
-        bars = ax.bar(range(len(sections)), avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
+        bars = ax.bar(range(len(sections)), avg_scores, alpha=1, color=bar_colors)
+        error_bars = ax.errorbar(range(len(sections)), avg_scores, yerr=std_devs, capsize=5, alpha=0.5, ecolor='black', linestyle='none')
+        # Apply hatching after creating bars
+        for bar, hatch in zip(bars, hatches):
+            bar.set_hatch(hatch)
+    
     elif std_display == "shaded":
-        bars = ax.bar(range(len(sections)), avg_scores, alpha=0.8, color=bar_colors)
+        bars = ax.bar(range(len(sections)), avg_scores, alpha=1, color=bar_colors)
+        # Apply hatching after creating bars
+        for bar, hatch in zip(bars, hatches):
+            bar.set_hatch(hatch)
+                
         for i, (avg, std) in enumerate(zip(avg_scores, std_devs)):
             lower, upper = max(1, avg - std), min(9, avg + std)
-            ax.fill_between([i-0.4, i+0.4], [lower, lower], [upper, upper], 
+            fill = ax.fill_between([i-0.4, i+0.391], [lower, lower], [upper, upper], 
                            color=bar_colors[i], alpha=0.3)
+            
     elif std_display == "violin":
         try:
-            bars = ax.bar(range(len(sections)), avg_scores, alpha=0.4, color=bar_colors)
             violin_data = []
-            
             for i, section in enumerate(sections):
                 if section in raw_scores and len(raw_scores[section]) > 1:
                     valid_scores = [float(score) for score in raw_scores[section]
@@ -247,7 +267,6 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"
                     violin_data.append(valid_scores if valid_scores else [avg_scores[i]])
                 else:
                     violin_data.append([avg_scores[i] - 0.1, avg_scores[i], avg_scores[i] + 0.1])
-            
             violin_parts = ax.violinplot(
                 violin_data,
                 range(len(sections)),
@@ -255,28 +274,26 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"
                 showmedians=False,
                 showextrema=False,
                 points=200,
-                bw_method=0.5
+                bw_method=0.5,
             )
             for i, pc in enumerate(violin_parts['bodies']):
                 pc.set_facecolor(bar_colors[i])
-                pc.set_alpha(0.5)
-                pc.set_edgecolor('none')
+                if hatches[i]:
+                    pc.set_hatch(hatches[i])
+                pc.set_alpha(1)
+                pc.set_edgecolor('black')
+                pc.set_linewidth(0.5)
         except Exception as e:
             print(f"Warning: Could not create violin plots, falling back to error bars: {e}")
             bars = ax.bar(range(len(sections)), avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
+            # Apply hatching after creating bars
+            for bar, hatch in zip(bars, hatches):
+                bar.set_hatch(hatch)
     
-    # Add value labels and counts
-    for bar, score, count in zip(bars, avg_scores, counts):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
-               f'{score:.2f}', ha='center', va='bottom', fontsize=9)
-        if bar.get_height() > 0.5:
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
-                   f'n={count}', ha='center', va='center', fontsize=9, 
-                   color='white', fontweight='bold')
-    
-    # Set up x-axis with eval_type labels
+    # Set up x-axis without labels (replaced by legend)
     ax.set_xticks(range(len(sections)))
-    ax.set_xticklabels(x_labels)
+    ax.set_xticklabels([''] * len(sections))  # Empty labels since we'll use the legend
+    ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     
     # Group models below x-axis
     model_groups = {}
@@ -288,13 +305,20 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"
     # Add model labels as group headers
     for model, positions in model_groups.items():
         mid_point = sum(positions) / len(positions)
-        ax.annotate(model.capitalize(), xy=(mid_point, -0.1), xycoords=('data', 'axes fraction'),
-                   ha='center', va='top', fontsize=11, fontweight='bold',
-                   color=colors.get(model, '#7f8c8d'))
+        ax.annotate(model.capitalize(), xy=(mid_point, -0.03), xycoords=('data', 'axes fraction'),
+                   ha='center', va='top', fontsize=11)
+    
+    # Create custom legend for eval_types with thinner hatching
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='gray', edgecolor='black', label='Answer'),
+        Patch(facecolor='gray', hatch='///', edgecolor='black', alpha=0.75, label='Reasoning')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right')
     
     # Customize plot
-    ax.set_title(f'Average Legibility Scores - {file_name}', fontsize=14)
-    ax.set_ylabel('Average Score', fontsize=12)
+    ax.set_title(f'Illegibility In Various Settings (n={min(counts)})', fontsize=14)
+    ax.set_ylabel('Illegibility Score', fontsize=12)
     ax.set_ylim(0, 9.5)
     ax.grid(axis='y', linestyle='--', alpha=0.7)
     
@@ -818,6 +842,8 @@ def main():
                         help='Process a specific Claude answers score file from claude_answers/scores directory')
     parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
                         help='Type of analysis to run (regular or claude)')
+    parser.add_argument('--std-display', type=str, choices=['error_bars', 'shaded', 'violin'], default='shaded',
+                        help='Type of standard deviation display (error_bars, shaded, violin)')
     
     args = parser.parse_args()
     
@@ -863,7 +889,7 @@ def main():
                 # Generate plots if requested
                 if args.plots:
                     plots_dir = create_plots_directory()
-                    plot_legibility_scores(stats, file_name, plots_dir, std_display="violin")
+                    plot_legibility_scores(stats, file_name, plots_dir, std_display=args.std_display)
                     plot_correctness_assessment(stats, file_name, plots_dir)
                 
             except Exception as e:
