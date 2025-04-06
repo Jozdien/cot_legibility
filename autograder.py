@@ -271,7 +271,7 @@ def process_file(file_path, dataset, client):
     
     # Get the actual answer from the dataset
     if question:
-        actual_answer = get_actual_answer(question.strip().rstrip('.'), dataset)
+        actual_answer = get_actual_answer(question, dataset)
     else:
         actual_answer = "No matching answer found"
     

@@ -5,262 +5,365 @@ import anthropic
 from openai import OpenAI
 from datetime import datetime
 import os
+import re # Import regex module for sanitization
 from dotenv import load_dotenv
 from datasets import load_from_disk
+import logging # Use logging for better output management
 
 load_dotenv()
 
-# Load the GPQA dataset
-dataset_path = "data/gpqa_diamond"
-gpqa_dataset = load_from_disk(dataset_path)
-print(f"Dataset contains {len(gpqa_dataset)} questions")
+# --- Configuration ---
+DATASET_PATH = "data/gpqa_diamond"
+OUTPUT_DIR_BASE = "r1_rollouts"
+DEEPSEEK_MODEL = "deepseek-reasoner"
+ANTHROPIC_MODEL = "claude-3-opus-20240229" # Example: Using Opus for paraphrase
+OPENAI_MODEL = "gpt-4o"
+
+# --- Initialize Clients ---
+# Use a dictionary for easier management if more clients are added
+clients = {
+    "deepseek": OpenAI(
+        base_url="https://api.deepseek.com/beta",
+        api_key=os.getenv('DEEPSEEK_API_KEY'),
+    ),
+    "openrouter": OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.getenv('OPENROUTER_API_KEY'),
+    ),
+    "anthropic": anthropic.Anthropic(
+        api_key=os.getenv('ANTHROPIC_API_KEY'),
+    ),
+    "openai": OpenAI(api_key=os.getenv('OPENAI_API_KEY')) # Assuming OPENAI_API_KEY is set
+}
+
+# --- Logging Setup ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- Helper Functions ---
+
+def sanitize_filename(text, max_len=30):
+    """Sanitizes text to be safe for filenames."""
+    # Remove non-alphanumeric characters, replace spaces with underscores
+    sanitized = re.sub(r'[^a-zA-Z0-9_\s-]', '', text).strip()
+    sanitized = re.sub(r'\s+', '_', sanitized)
+    # Truncate and ensure it's not empty
+    truncated = sanitized[:max_len].rstrip('_')
+    return truncated if truncated else "untitled"
 
 def write_to_file(content, file):
+    """Appends content block to the specified file."""
     file.write(f"{content}\n\n---\n\n")
     file.flush()
 
-# Initialize clients
-deepseek_client = OpenAI(
-    base_url="https://api.deepseek.com/beta",
-    api_key=os.getenv('DEEPSEEK_API_KEY'),
-)
+def extract_reasoning(completion, provider):
+    """Extracts reasoning content based on the provider."""
+    if provider == "deepseek":
+        # Check if reasoning_content exists and is not None
+        return getattr(getattr(completion.choices[0].message, 'reasoning_content', None), 'strip', lambda: "")() or ""
+    elif provider == "openrouter":
+        # Check if reasoning exists and is not None
+        return getattr(getattr(completion.choices[0].message, 'reasoning', None), 'strip', lambda: "")() or ""
+    else:
+        logging.warning(f"Unknown provider '{provider}' for reasoning extraction.")
+        return "" # Return empty string if provider unknown or reasoning missing
 
-openrouter_client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv('OPENROUTER_API_KEY'),
-)
+def get_completion_deepseek_with_fallback(model, messages, prefix=None, openrouter_only=False):
+    """Attempts DeepSeek API, falls back to OpenRouter, or uses OpenRouter directly."""
+    start_time = perf_counter()
 
-anthropic_client = anthropic.Anthropic(
-    api_key=os.getenv('ANTHROPIC_API_KEY'),
-)
+    # --- Attempt DeepSeek (if not openrouter_only) ---
+    if not openrouter_only:
+        deepseek_messages = messages.copy()
+        if prefix:
+            # DeepSeek's specific prefix format (ensure this is correct based on their API docs)
+            deepseek_messages.append({"role": "assistant", "prefix": True, "content": "", "reasoning_content": prefix})
 
-openai_client = OpenAI()
+        try:
+            completion = clients["deepseek"].chat.completions.create(
+                model=model,
+                messages=deepseek_messages,
+            )
+            provider = "deepseek"
+            logging.info(f"DeepSeek API ({model}) succeeded in {perf_counter() - start_time:.2f}s.")
+            return completion, provider
+        except Exception as e:
+            logging.warning(f"DeepSeek API error for model {model}: {e}. Falling back to OpenRouter.")
 
-def get_completion_deepseek_with_fallback(model, messages, prefix=None):
-    """
-    Attempt to use DeepSeek API first, then fall back to OpenRouter if it fails.
-    """
-    # Prepare the payload for DeepSeek
-    deepseek_messages = messages.copy()
-    if prefix:
-        deepseek_messages.append({
-            "role": "assistant",
-            "prefix": True,
-            "content": "",
-            "reasoning_content": prefix
-        })
-    
-    try:
-        # Try DeepSeek API first
-        completion = deepseek_client.chat.completions.create(
-            model=model,
-            messages=deepseek_messages,
-        )
-        # If we get here, the request succeeded
-        print("DeepSeek API worked.")
-        return completion, "deepseek"
-    
-    except Exception as e:
-        print(f"DeepSeek API error: {e}")
-        print("Falling back to OpenRouter API...")
-        
-    # Prepare OpenRouter messages - format differs slightly
+    # --- Use OpenRouter (fallback or direct) ---
     openrouter_messages = messages.copy()
     if prefix:
-        # For OpenRouter, we use a different approach since it doesn't support prefix directly
-        openrouter_messages.append({
-            "role": "assistant",
-            "content": f"<think>\n{prefix}"
-        })
-    
-    # Try OpenRouter as fallback
+        # OpenRouter uses a different approach for "prefix" - prepend to assistant's turn
+        # Adjusting based on typical <think> tag usage; verify if this matches DeepSeek's behavior
+        # A safer approach might be to just include the prefix in the prompt or history.
+        # Using <think> tag as in the original code.
+        openrouter_messages.append({"role": "assistant", "content": f"<think>\n{prefix}"})
+
     try:
-        model = "deepseek/deepseek-r1" if model == "deepseek-reasoner" else model
-        completion = openrouter_client.chat.completions.create(
-            model=model,
+        # Map DeepSeek model names if necessary for OpenRouter
+        openrouter_model_name = "deepseek/deepseek-r1" if model == "deepseek-reasoner" else model # Adjust if needed
+        completion = clients["openrouter"].chat.completions.create(
+            model=openrouter_model_name,
             messages=openrouter_messages,
             extra_body={
                 "include_reasoning": True,
-                "provider": {
-                    "order": ["Nebius"],
-                    "allow_fallbacks": False
-                }
+                # Provider preference might change/be removed depending on OpenRouter API updates
+                # "provider": {"order": ["Nebius"], "allow_fallbacks": False}
             },
         )
-        return completion, "openrouter"
+        provider = "openrouter"
+        logging.info(f"OpenRouter API ({openrouter_model_name}) succeeded in {perf_counter() - start_time:.2f}s.")
+        return completion, provider
     except Exception as e:
-        print(f"OpenRouter API error: {e}")
-        raise Exception("Both DeepSeek and OpenRouter APIs failed")
+        error_msg = f"OpenRouter API error for model {openrouter_model_name}" if openrouter_only else f"Both DeepSeek and OpenRouter failed for model {model}"
+        logging.error(f"{error_msg}: {e}")
+        raise Exception(error_msg) from e # Re-raise to be caught by the main loop
 
 def get_completion_anthropic(model, messages):
-    completion = anthropic_client.messages.create(
+    start_time = perf_counter()
+    completion = clients["anthropic"].messages.create(
         model=model,
-        max_tokens=1024,
+        max_tokens=1500, # Increased max_tokens slightly
         messages=messages
     )
+    logging.info(f"Anthropic API ({model}) succeeded in {perf_counter() - start_time:.2f}s.")
     return completion
 
 def get_completion_openai(model, messages):
-    completion = openai_client.chat.completions.create(
+    start_time = perf_counter()
+    completion = clients["openai"].chat.completions.create(
         model=model,
         messages=messages
     )
+    logging.info(f"OpenAI API ({model}) succeeded in {perf_counter() - start_time:.2f}s.")
     return completion
 
-def process_question(question_text, index, total, cutoff_portion=0.25, output_dir="r1_rollouts"):
+def check_if_output_exists(output_subdir, safe_question_prefix):
+    """Checks if a file matching the question prefix exists in the output directory."""
+    if not os.path.exists(output_subdir):
+        return False
     try:
-        # Print question information at the start
-        print(f"\nProcessing question {index}/{total}: {question_text[:50]}...")
-        
-        # Create directories if they don't exist
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # Sanitize question text for filename
-        safe_question = "".join(c if c.isalnum() else "_" for c in question_text[:30])
-        
-        # Create a temp file with timestamp and question preview
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        temp_file_path = f"{output_dir}/cutoff_{cutoff_portion}_deepseek_openrouter/r1_faithful_cot_{timestamp}_{safe_question}.md"
+        for filename in os.listdir(output_subdir):
+            # Check if filename ends with the specific pattern _safequestion.md
+            if filename.endswith(f"_{safe_question_prefix}.md"):
+                # More robust check: use regex to match the full pattern
+                # pattern = re.compile(r"r1_faithful_cot_\d{8}_\d{6}_" + re.escape(safe_question_prefix) + r"\.md")
+                # if pattern.match(filename):
+                # For simplicity, the endswith check is kept as per the original request's implication.
+                 return True
+    except OSError as e:
+        logging.error(f"Error checking directory {output_subdir}: {e}")
+    return False
 
-        with open(temp_file_path, 'w') as f:
-            write_to_file(f"# Original Question\n\n{question_text}", f)
-            
-            deepseek_model = "deepseek-reasoner"
-            anthropic_model = "claude-3-7-sonnet-latest"
-            openai_model = "gpt-4o"
 
-            messages = [
-                {
-                    "role": "user",
-                    "content": question_text
-                }
-            ]
+def process_question(question_text, index, total, cutoff_portion, output_subdir, openrouter_only):
+    """Processes a single question: gets completions, paraphrases, and final rollouts."""
+    process_start_time = perf_counter()
+    logging.info(f"[{index}/{total}] Starting processing: {question_text[:60]}...")
 
-            # Initial DeepSeek completion with fallback
-            start_time_initial_deepseek = perf_counter()
-            deepseek_completion, provider = get_completion_deepseek_with_fallback(deepseek_model, messages)
-            
-            # Handle differences in response format between DeepSeek and OpenRouter
-            if provider == "deepseek":
-                deepseek_reasoning = deepseek_completion.choices[0].message.reasoning_content
-            else:  # openrouter
-                deepseek_reasoning = deepseek_completion.choices[0].message.reasoning
-            
-            cut_off_deepseek_reasoning = deepseek_reasoning[:int(len(deepseek_reasoning) * cutoff_portion)]
-            
-            write_to_file(f"# DeepSeek response (via {provider})\n\n{deepseek_completion.choices[0].message.content}", f)
-            write_to_file(f"# DeepSeek reasoning (via {provider})\n\n{deepseek_reasoning}", f)
-            write_to_file(f"# Cut off deepseek reasoning\n\n{cut_off_deepseek_reasoning}", f)
-            end_time_initial_deepseek = perf_counter()
-            print(f"[{index}/{total}] Initial DeepSeek completion time: {end_time_initial_deepseek - start_time_initial_deepseek:.2f} seconds")
+    safe_question_prefix = sanitize_filename(question_text)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file_path = os.path.join(output_subdir, f"r1_faithful_cot_{timestamp}_{safe_question_prefix}.md")
 
-            # Create paraphrase request
-            paraphrase_request = f"""Hi! Please rephrase the following text while preserving the meaning; do not try to shorten the text. Only return the paraphrased text, don't preamble.\n\n\"\"\"{cut_off_deepseek_reasoning}\"\"\""""
-            paraphrase_request_messages = [
-                {
-                    "role": "user",
-                    "content": paraphrase_request
-                }
-            ]
+    try:
+        os.makedirs(output_subdir, exist_ok=True) # Ensure dir exists before writing
 
-            # Get completions from other models
-            start_time_anthropic = perf_counter()
-            anthropic_completion = get_completion_anthropic(anthropic_model, paraphrase_request_messages)
-            end_time_anthropic = perf_counter()
-            print(f"[{index}/{total}] Anthropic completion time: {end_time_anthropic - start_time_anthropic:.2f} seconds")
+        with open(output_file_path, 'w', encoding='utf-8') as f: # Use UTF-8 encoding
+            write_to_file(f"# Original Question (Index: {index})\n\n{question_text}", f)
 
-            start_time_openai = perf_counter()
-            openai_completion = get_completion_openai(openai_model, paraphrase_request_messages)
-            end_time_openai = perf_counter()
-            print(f"[{index}/{total}] OpenAI completion time: {end_time_openai - start_time_openai:.2f} seconds")
+            messages = [{"role": "user", "content": question_text}]
 
-            write_to_file(f"# Anthropic completion\n\n{anthropic_completion.content[0].text}", f)
-            write_to_file(f"# OpenAI completion\n\n{openai_completion.choices[0].message.content}", f)
+            # 1. Initial DeepSeek/OpenRouter completion
+            initial_completion, initial_provider = get_completion_deepseek_with_fallback(
+                DEEPSEEK_MODEL, messages, openrouter_only=openrouter_only
+            )
+            initial_response = initial_completion.choices[0].message.content or ""
+            initial_reasoning = extract_reasoning(initial_completion, initial_provider)
 
-            # Get prefixes for final completions
-            cutoff_prefix = cut_off_deepseek_reasoning
-            anthropic_prefix = anthropic_completion.content[0].text
-            openai_prefix = openai_completion.choices[0].message.content
-
-            # Final completions with fallback
-            start_time_final_deepseek = perf_counter()
-
-            cutoff_deepseek_completion, cutoff_provider = get_completion_deepseek_with_fallback(deepseek_model, messages, prefix=cutoff_prefix)
-            write_to_file(f"# cutoff_deepseek_completion (via {cutoff_provider})\n\n{str(cutoff_deepseek_completion)}", f)
-            write_to_file(f"# cutoff_deepseek_completion response\n\n{cutoff_deepseek_completion.choices[0].message.content}", f)
-            
-            if cutoff_provider == "deepseek":
-                cutoff_reasoning = cutoff_deepseek_completion.choices[0].message.reasoning_content
+            if not initial_reasoning:
+                 logging.warning(f"[{index}/{total}] Initial reasoning from {initial_provider} was empty.")
+                 # Decide how to handle empty reasoning: skip?, use response?, use placeholder?
+                 # For now, we'll proceed, but cutoff/paraphrase might be meaningless.
+                 cutoff_reasoning = ""
             else:
-                cutoff_reasoning = cutoff_deepseek_completion.choices[0].message.reasoning
-            write_to_file(f"# cutoff_deepseek_completion reasoning\n\n{cutoff_reasoning}", f)
+                 cutoff_point = int(len(initial_reasoning) * cutoff_portion)
+                 cutoff_reasoning = initial_reasoning[:cutoff_point]
 
-            paraphrased_deepseek_completion_anthropic, anthropic_provider = get_completion_deepseek_with_fallback(deepseek_model, messages, prefix=anthropic_prefix)
-            write_to_file(f"# paraphrased_deepseek_completion_anthropic (via {anthropic_provider})\n\n{str(paraphrased_deepseek_completion_anthropic)}", f)
-            write_to_file(f"# paraphrased_deepseek_completion_anthropic response\n\n{paraphrased_deepseek_completion_anthropic.choices[0].message.content}", f)
-            
-            if anthropic_provider == "deepseek":
-                anthropic_reasoning = paraphrased_deepseek_completion_anthropic.choices[0].message.reasoning_content
+            write_to_file(f"# Initial {DEEPSEEK_MODEL} response (via {initial_provider})\n\n{initial_response}", f)
+            write_to_file(f"# Initial {DEEPSEEK_MODEL} reasoning (via {initial_provider})\n\n{initial_reasoning}", f)
+            write_to_file(f"# Cut-off reasoning ({cutoff_portion*100}%)\n\n{cutoff_reasoning}", f)
+
+            # 2. Paraphrase the cut-off reasoning
+            paraphrase_request_messages = [{
+                "role": "user",
+                "content": f"Please rephrase the following text while preserving the meaning. Do not try to shorten the text significantly. Only return the paraphrased text, without any preamble or explanation.\n\n---\n{cutoff_reasoning}\n---"
+            }]
+
+            # Get paraphrases only if there's reasoning to paraphrase
+            anthropic_paraphrase = ""
+            openai_paraphrase = ""
+            if cutoff_reasoning:
+                try:
+                    anthropic_completion = get_completion_anthropic(ANTHROPIC_MODEL, paraphrase_request_messages)
+                    # Extract text carefully, handling potential list structure
+                    if anthropic_completion.content and isinstance(anthropic_completion.content, list):
+                         anthropic_paraphrase = anthropic_completion.content[0].text or ""
+                    write_to_file(f"# Anthropic ({ANTHROPIC_MODEL}) paraphrase\n\n{anthropic_paraphrase}", f)
+                except Exception as e:
+                    logging.error(f"[{index}/{total}] Anthropic paraphrase failed: {e}")
+                    write_to_file(f"# Anthropic ({ANTHROPIC_MODEL}) paraphrase\n\nERROR: {e}", f)
+
+                try:
+                    openai_completion = get_completion_openai(OPENAI_MODEL, paraphrase_request_messages)
+                    openai_paraphrase = openai_completion.choices[0].message.content or ""
+                    write_to_file(f"# OpenAI ({OPENAI_MODEL}) paraphrase\n\n{openai_paraphrase}", f)
+                except Exception as e:
+                    logging.error(f"[{index}/{total}] OpenAI paraphrase failed: {e}")
+                    write_to_file(f"# OpenAI ({OPENAI_MODEL}) paraphrase\n\nERROR: {e}", f)
             else:
-                anthropic_reasoning = paraphrased_deepseek_completion_anthropic.choices[0].message.reasoning
-            write_to_file(f"# paraphrased_deepseek_completion_anthropic reasoning\n\n{anthropic_reasoning}", f)
+                 logging.warning(f"[{index}/{total}] Skipping paraphrase due to empty cut-off reasoning.")
+                 write_to_file(f"# Paraphrasing Skipped (Empty Input)", f)
 
-            paraphrased_deepseek_completion_openai, openai_provider = get_completion_deepseek_with_fallback(deepseek_model, messages, prefix=openai_prefix)
-            write_to_file(f"# paraphrased_deepseek_completion_openai (via {openai_provider})\n\n{str(paraphrased_deepseek_completion_openai)}", f)
-            write_to_file(f"# paraphrased_deepseek_completion_openai response\n\n{paraphrased_deepseek_completion_openai.choices[0].message.content}", f)
-            
-            if openai_provider == "deepseek":
-                openai_reasoning = paraphrased_deepseek_completion_openai.choices[0].message.reasoning_content
-            else:
-                openai_reasoning = paraphrased_deepseek_completion_openai.choices[0].message.reasoning
-            write_to_file(f"# paraphrased_deepseek_completion_openai reasoning\n\n{openai_reasoning}", f)
 
-            end_time_final_deepseek = perf_counter()
-            print(f"[{index}/{total}] Final DeepSeek completions time: {end_time_final_deepseek - start_time_final_deepseek:.2f} seconds")
-            print(f"[{index}/{total}] Total time: {end_time_final_deepseek - start_time_initial_deepseek:.2f} seconds")
+            # 3. Final DeepSeek/OpenRouter completions using prefixes
+            prefixes = {
+                "cutoff": cutoff_reasoning,
+                "anthropic_paraphrase": anthropic_paraphrase,
+                "openai_paraphrase": openai_paraphrase
+            }
+            final_results = {}
 
-        return temp_file_path
+            for name, prefix_content in prefixes.items():
+                if not prefix_content and name != "cutoff": # Allow empty cutoff prefix if original reasoning was empty
+                    logging.warning(f"[{index}/{total}] Skipping final completion for '{name}' due to empty prefix.")
+                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix) - SKIPPED (Empty Prefix)", f)
+                    continue
+                try:
+                    start_final = perf_counter()
+                    final_completion, final_provider = get_completion_deepseek_with_fallback(
+                        DEEPSEEK_MODEL, messages, prefix=prefix_content, openrouter_only=openrouter_only
+                    )
+                    final_response = final_completion.choices[0].message.content or ""
+                    final_reasoning = extract_reasoning(final_completion, final_provider)
+
+                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix via {final_provider}) response\n\n{final_response}", f)
+                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix via {final_provider}) reasoning\n\n{final_reasoning}", f)
+                    # Optional: Write full completion object for debugging
+                    # write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix via {final_provider}) raw completion\n\n{str(final_completion)}", f)
+
+                    final_results[name] = {'response': final_response, 'reasoning': final_reasoning, 'provider': final_provider}
+                    logging.info(f"[{index}/{total}] Final completion '{name}' took {perf_counter() - start_final:.2f}s")
+
+                except Exception as e:
+                    logging.error(f"[{index}/{total}] Final completion with prefix '{name}' failed: {e}")
+                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix) - ERROR\n\n{e}", f)
+
+
+        total_time = perf_counter() - process_start_time
+        logging.info(f"[{index}/{total}] Successfully processed. Total time: {total_time:.2f}s. Output: {output_file_path}")
+        return output_file_path
+
     except Exception as e:
-        print(f"[{index}/{total}] Error processing question: {e}")
-        return None
+        logging.exception(f"[{index}/{total}] UNHANDLED error processing question: {question_text[:60]}... - {e}")
+        # Optionally delete the potentially incomplete file
+        if os.path.exists(output_file_path):
+             try: os.remove(output_file_path)
+             except OSError: pass
+        return None # Indicate failure
 
 def main():
-    # Define how many questions to process
-    num_questions = 200  # Change this as needed
-    
-    # Define how many questions to process concurrently
-    max_concurrent_workers = 10  # Adjust this as needed
+    # --- Main Configuration ---
+    num_questions_to_process = 200  # Max questions to attempt
+    max_concurrent_workers = 10   # Parallel processing threads
+    cutoff_portion = 0.25         # Portion of initial reasoning to keep/paraphrase
+    openrouter_only = True        # True: Use OpenRouter only. False: Try DeepSeek first.
+    override_existing = False     # True: Process all questions. False: Skip if output file exists.
 
-    # How much of the reasoning to keep after cutoff
-    cutoff_portion = 0.25
-    
-    # Option 1: Random sample
-    # indices = random.sample(range(len(gpqa_dataset)), min(num_questions, len(gpqa_dataset)))
-    
-    # Option 2: Sequential processing
-    indices = list(range(min(num_questions, len(gpqa_dataset))))
-    
-    # Create a list of questions to process
-    questions = [(i+1, idx, gpqa_dataset[idx]['Question']) for i, idx in enumerate(indices)]
-    total = len(questions)
-    
-    # Process questions in parallel using ThreadPoolExecutor
+    # --- Load Dataset ---
+    try:
+        gpqa_dataset = load_from_disk(DATASET_PATH)
+        logging.info(f"Dataset loaded from {DATASET_PATH}. Contains {len(gpqa_dataset)} questions.")
+    except Exception as e:
+        logging.error(f"Failed to load dataset from {DATASET_PATH}: {e}")
+        return
+
+    # --- Determine Output Directory ---
+    api_source_tag = "openrouter" if openrouter_only else "deepseek_openrouter"
+    output_subdir = os.path.join(OUTPUT_DIR_BASE, f"cutoff_{cutoff_portion}_{api_source_tag}")
+    logging.info(f"Output will be saved to: {output_subdir}")
+    # No need to create dir here, process_question handles it.
+
+    # --- Prepare List of Questions to Process ---
+    questions_to_process = []
+    indices_to_consider = list(range(min(num_questions_to_process, len(gpqa_dataset))))
+    skipped_count = 0
+
+    for i, dataset_index in enumerate(indices_to_consider):
+        question_data = gpqa_dataset[dataset_index]
+        question_text = question_data['Question']
+        current_index = i + 1 # User-friendly 1-based index
+
+        if not override_existing:
+            safe_q_prefix = sanitize_filename(question_text)
+            if check_if_output_exists(output_subdir, safe_q_prefix):
+                logging.info(f"[{current_index}/{len(indices_to_consider)}] Skipping question (output exists): {question_text[:60]}...")
+                skipped_count += 1
+                continue # Skip to the next question
+
+        # If not overriding or file doesn't exist, add to list
+        questions_to_process.append(
+            (current_index, question_text) # Pass only needed info
+        )
+
+    total_to_run = len(questions_to_process)
+    if skipped_count > 0:
+        logging.info(f"Skipped {skipped_count} questions because output files already exist (override_existing=False).")
+    if total_to_run == 0:
+        logging.info("No questions left to process.")
+        return
+    logging.info(f"Starting processing for {total_to_run} questions...")
+
+
+    # --- Process Questions Concurrently ---
+    processed_count = 0
+    failed_count = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent_workers) as executor:
-        # Submit all tasks to the executor
-        future_to_question = {
-            executor.submit(process_question, question, index, total, cutoff_portion): (index, question) 
-            for index, _, question in questions
+        # Create futures
+        future_to_info = {
+            executor.submit(
+                process_question,
+                q_text,
+                idx,          # Pass the 1-based index for logging
+                total_to_run, # Pass the count of questions actually being run
+                cutoff_portion,
+                output_subdir,
+                openrouter_only
+            ): (idx, q_text)
+            for idx, q_text in questions_to_process
         }
-        
-        # Process results as they complete
-        for future in concurrent.futures.as_completed(future_to_question):
-            index, question = future_to_question[future]
+
+        # Process completed futures
+        for future in concurrent.futures.as_completed(future_to_info):
+            idx, q_text = future_to_info[future]
             try:
-                output_file = future.result()
-                if output_file:
-                    print(f"[{index}/{total}] Results written to: {output_file}")
+                result_path = future.result()
+                if result_path:
+                    processed_count += 1
+                    # Logging is now done inside process_question on success
+                else:
+                    failed_count += 1
+                    # Error logging is done inside process_question on failure
             except Exception as e:
-                print(f"[{index}/{total}] Error processing question: {e}")
+                # This catches errors from the submit call itself or unexpected ones
+                failed_count += 1
+                logging.error(f"[{idx}/{total_to_run}] Future returned an unexpected error for question: {q_text[:60]}... - {e}", exc_info=True)
+
+
+    logging.info(f"\n--- Processing Complete ---")
+    logging.info(f"Attempted: {total_to_run} questions")
+    logging.info(f"Successfully processed: {processed_count}")
+    logging.info(f"Failed: {failed_count}")
+    logging.info(f"Skipped (already existed): {skipped_count}")
+    logging.info(f"Output directory: {output_subdir}")
 
 if __name__ == "__main__":
     main()

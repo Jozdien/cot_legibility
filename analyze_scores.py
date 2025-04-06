@@ -188,10 +188,11 @@ def create_plots_directory():
     os.makedirs(plots_dir, exist_ok=True)
     return plots_dir
 
-def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"):
+def plot_legibility_scores(stats, file_name, plots_dir, std_display=None):
     """
     Create and save bar charts for legibility scores with model names grouped under x-axis.
     Differentiates eval_types (answer vs reasoning) with different shading patterns.
+    If std_display is None, generates all three plot types (error_bars, shaded, violin).
     """
     # Extract data for plotting
     sections = []
@@ -211,10 +212,9 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"
         print(f"No valid legibility scores to plot for {file_name}")
         return
     
-    # Create figure
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Create color and style mappings
     colors = {'deepseek': '#3498db', 'cutoff': '#2ecc71', 
-              'anthropic': '#9b59b6', 'openai': '#e74c3c'}
+              'openai': '#9b59b6', 'anthropic': '#e74c3c'}
     
     # Extract info from section names
     bar_colors = []
@@ -224,112 +224,117 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display="error_bars"
     for section in sections:
         parts = section.split('_')
         model, eval_type = parts[0], parts[1]  # e.g., 'deepseek', 'response'
-        
-        bar_colors.append(colors.get(model, '#7f8c8d'))
+        bar_colors.append(colors.get(model.lower(), '#7f8c8d'))
+
+        model = 'Default' if model == 'deepseek' else model
+        model = 'With Cutoff' if model == 'cutoff' else model
+        model = 'With GPT-4o Paraphrase' if model == 'openai' else model
+        model = 'With Claude Paraphrase' if model == 'anthropic' else model
         models.append(model)
         
         # Assign hatching pattern based on eval_type
         if eval_type == 'reasoning':
-            hatches.append('///')  # Reduced density hatching (single slash instead of triple)
+            hatches.append('///')  # Reduced density hatching
         else:
             hatches.append('')  # Solid for answers
     
-    # Set the hatch linewidth for the entire figure
+    # Set the hatch linewidth for all plots
     plt.rcParams['hatch.linewidth'] = 0.3  # Thinner hatch lines
     
-    # Plot bars with appropriate display style and hatching
-    if std_display == "error_bars":
-        bars = ax.bar(range(len(sections)), avg_scores, alpha=1, color=bar_colors)
-        error_bars = ax.errorbar(range(len(sections)), avg_scores, yerr=std_devs, capsize=5, alpha=0.5, ecolor='black', linestyle='none')
-        # Apply hatching after creating bars
-        for bar, hatch in zip(bars, hatches):
-            bar.set_hatch(hatch)
+    # Define display types to generate
+    display_types = ["error_bars", "shaded", "violin"] if std_display is None else [std_display]
     
-    elif std_display == "shaded":
-        bars = ax.bar(range(len(sections)), avg_scores, alpha=1, color=bar_colors)
-        # Apply hatching after creating bars
-        for bar, hatch in zip(bars, hatches):
-            bar.set_hatch(hatch)
-                
-        for i, (avg, std) in enumerate(zip(avg_scores, std_devs)):
-            lower, upper = max(1, avg - std), min(9, avg + std)
-            fill = ax.fill_between([i-0.4, i+0.391], [lower, lower], [upper, upper], 
-                           color=bar_colors[i], alpha=0.3)
-            
-    elif std_display == "violin":
-        try:
-            violin_data = []
-            for i, section in enumerate(sections):
-                if section in raw_scores and len(raw_scores[section]) > 1:
-                    valid_scores = [float(score) for score in raw_scores[section]
-                                if isinstance(score, (int, float))
-                                or (isinstance(score, str) and score.replace('.', '', 1).isdigit())]
-                    violin_data.append(valid_scores if valid_scores else [avg_scores[i]])
-                else:
-                    violin_data.append([avg_scores[i] - 0.1, avg_scores[i], avg_scores[i] + 0.1])
-            violin_parts = ax.violinplot(
-                violin_data,
-                range(len(sections)),
-                showmeans=False,
-                showmedians=False,
-                showextrema=False,
-                points=200,
-                bw_method=0.5,
-            )
-            for i, pc in enumerate(violin_parts['bodies']):
-                pc.set_facecolor(bar_colors[i])
-                if hatches[i]:
-                    pc.set_hatch(hatches[i])
-                pc.set_alpha(1)
-                pc.set_edgecolor('black')
-                pc.set_linewidth(0.5)
-        except Exception as e:
-            print(f"Warning: Could not create violin plots, falling back to error bars: {e}")
-            bars = ax.bar(range(len(sections)), avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
-            # Apply hatching after creating bars
+    # Create each type of plot
+    for display_type in display_types:
+        # Create new figure for each plot type
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        if display_type == "error_bars":
+            bars = ax.bar(range(len(sections)), avg_scores, alpha=1, color=bar_colors)
+            error_bars = ax.errorbar(range(len(sections)), avg_scores, yerr=std_devs, capsize=5, alpha=0.7, ecolor='black', linestyle='none')
             for bar, hatch in zip(bars, hatches):
                 bar.set_hatch(hatch)
-    
-    # Set up x-axis without labels (replaced by legend)
-    ax.set_xticks(range(len(sections)))
-    ax.set_xticklabels([''] * len(sections))  # Empty labels since we'll use the legend
-    ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-    
-    # Group models below x-axis
-    model_groups = {}
-    for i, model in enumerate(models):
-        if model not in model_groups:
-            model_groups[model] = []
-        model_groups[model].append(i)
-    
-    # Add model labels as group headers
-    for model, positions in model_groups.items():
-        mid_point = sum(positions) / len(positions)
-        ax.annotate(model.capitalize(), xy=(mid_point, -0.03), xycoords=('data', 'axes fraction'),
-                   ha='center', va='top', fontsize=11)
-    
-    # Create custom legend for eval_types with thinner hatching
-    from matplotlib.patches import Patch
-    legend_elements = [
-        Patch(facecolor='gray', edgecolor='black', label='Answer'),
-        Patch(facecolor='gray', hatch='///', edgecolor='black', alpha=0.75, label='Reasoning')
-    ]
-    ax.legend(handles=legend_elements, loc='upper right')
-    
-    # Customize plot
-    ax.set_title(f'Illegibility In Various Settings (n={min(counts)})', fontsize=14)
-    ax.set_ylabel('Illegibility Score', fontsize=12)
-    ax.set_ylim(0, 9.5)
-    ax.grid(axis='y', linestyle='--', alpha=0.7)
-    
-    # Add extra space for model annotations
-    plt.subplots_adjust(bottom=0.15)
-    
-    # Save plot
-    plot_path = os.path.join(plots_dir, f"{file_name}_legibility_scores_{std_display}.png")
-    plt.savefig(plot_path)
-    plt.close()
-    print(f"Legibility scores plot saved to {plot_path}")
+        elif display_type == "shaded":
+            bars = ax.bar(range(len(sections)), avg_scores, alpha=1, color=bar_colors)
+            for bar, hatch in zip(bars, hatches):
+                bar.set_hatch(hatch)
+            for i, (avg, std) in enumerate(zip(avg_scores, std_devs)):
+                lower, upper = max(1, avg - std), min(9, avg + std)
+                fill = ax.fill_between([i-0.4, i+0.391], [lower, lower], [upper, upper], 
+                               color=bar_colors[i], alpha=0.3)
+                fill.set_hatch(hatches[i])
+        elif display_type == "violin":
+            try:
+                violin_data = []
+                for i, section in enumerate(sections):
+                    if section in raw_scores and len(raw_scores[section]) > 1:
+                        valid_scores = [float(score) for score in raw_scores[section]
+                                    if isinstance(score, (int, float))
+                                    or (isinstance(score, str) and score.replace('.', '', 1).isdigit())]
+                        violin_data.append(valid_scores if valid_scores else [avg_scores[i]])
+                    else:
+                        violin_data.append([avg_scores[i] - 0.1, avg_scores[i], avg_scores[i] + 0.1])
+                violin_parts = ax.violinplot(
+                    violin_data,
+                    range(len(sections)),
+                    showmeans=False,
+                    showmedians=False,
+                    showextrema=False,
+                    points=200,
+                    bw_method=0.5,
+                )
+                for i, pc in enumerate(violin_parts['bodies']):
+                    pc.set_facecolor(bar_colors[i])
+                    if hatches[i]:
+                        pc.set_hatch(hatches[i])
+                    pc.set_alpha(1)
+                    pc.set_edgecolor('black')
+                    pc.set_linewidth(0.5)
+            except Exception as e:
+                print(f"Warning: Could not create violin plots, falling back to error bars: {e}")
+                bars = ax.bar(range(len(sections)), avg_scores, yerr=std_devs, alpha=0.8, color=bar_colors)
+                for bar, hatch in zip(bars, hatches):
+                    bar.set_hatch(hatch)
+        
+        # Set up x-axis without labels (replaced by legend)
+        ax.set_xticks(range(len(sections)))
+        ax.set_xticklabels([''] * len(sections))  # Empty labels since we'll use the legend
+        ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+        
+        # Group models below x-axis
+        model_groups = {}
+        for i, model in enumerate(models):
+            if model not in model_groups:
+                model_groups[model] = []
+            model_groups[model].append(i)
+        
+        # Add model labels as group headers
+        for model, positions in model_groups.items():
+            mid_point = sum(positions) / len(positions)
+            ax.annotate(model, xy=(mid_point, -0.03), xycoords=('data', 'axes fraction'),
+                       ha='center', va='top', fontsize=11)
+        
+        # Create custom legend for eval_types with thinner hatching
+        from matplotlib.patches import Patch
+        legend_elements = [
+            Patch(facecolor='gray', edgecolor='black', label='Answer'),
+            Patch(facecolor='gray', hatch='///', edgecolor='black', alpha=0.75, label='Reasoning')
+        ]
+        ax.legend(handles=legend_elements, loc='upper right')
+        
+        # Customize plot
+        ax.set_title(f'Illegibility In Various Settings (n={min(counts)})', fontsize=14)
+        ax.set_ylabel('Illegibility Score', fontsize=12)
+        ax.set_ylim(0, 9.5)
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        plt.tight_layout()
+        
+        # Save plot
+        plot_path = os.path.join(plots_dir, f"{file_name}_legibility_scores_{display_type}.png")
+        plt.savefig(plot_path)
+        plt.close()
+        print(f"Legibility scores plot ({display_type}) saved to {plot_path}")
 
 def plot_correctness_assessment(stats, file_name, plots_dir):
     """Create and save bar charts for correctness assessments."""
@@ -356,12 +361,15 @@ def plot_correctness_assessment(stats, file_name, plots_dir):
     bars1 = plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
     bars2 = plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
     bars3 = plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
+
+    # Format x-axis labels
+    model_map = {'deepseek': 'Default', 'cutoff': 'With Cutoff', 'openai': 'With GPT-4o Paraphrase', 'anthropic': 'With Claude Paraphrase'}
+    models = [model_map.get(model, model) for model in models]
     
     # Add labels and customize plot
-    plt.xlabel('Models', fontsize=12)
     plt.ylabel('Percentage (%)', fontsize=12)
-    plt.title(f'Correctness Assessment - {file_name}', fontsize=14)
-    plt.xticks([r + bar_width for r in range(len(models))], [m.capitalize() for m in models])
+    plt.title(f'Correctness Assessment for r1 (n={min(counts)})', fontsize=14)
+    plt.xticks([r + bar_width for r in range(len(models))], [m for m in models])
     plt.ylim(0, 100)
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -376,20 +384,9 @@ def plot_correctness_assessment(stats, file_name, plots_dir):
             if value > 0:
                 plt.text(bar.get_x() + bar.get_width()/2, value + 2, f'{value:.1f}%', 
                         ha='center', va='bottom', fontsize=9)
-                
-                # Add count inside bar if bar is tall enough
-                if value > 10:  # Only add if bar is tall enough
-                    plt.text(bar.get_x() + bar.get_width()/2, value/2,
-                            f'n={count}', ha='center', va='center', 
-                            color='white', fontweight='bold', fontsize=8)
-    
-    # Add total count beneath model name
-    for i, (model, count) in enumerate(zip(models, counts)):
-        plt.text(r2[i], -5, f'total={count}', ha='center', va='top', fontsize=8)
     
     plt.tight_layout()
-    
-    # Save plot
+
     plot_path = os.path.join(plots_dir, f"{file_name}_correctness_assessment.png")
     plt.savefig(plot_path)
     plt.close()
@@ -842,7 +839,7 @@ def main():
                         help='Process a specific Claude answers score file from claude_answers/scores directory')
     parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
                         help='Type of analysis to run (regular or claude)')
-    parser.add_argument('--std-display', type=str, choices=['error_bars', 'shaded', 'violin'], default='shaded',
+    parser.add_argument('--std-display', type=str, choices=['error_bars', 'shaded', 'violin'], default=None,
                         help='Type of standard deviation display (error_bars, shaded, violin)')
     
     args = parser.parse_args()
