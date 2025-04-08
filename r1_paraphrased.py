@@ -16,7 +16,7 @@ load_dotenv()
 DATASET_PATH = "data/gpqa_diamond"
 OUTPUT_DIR_BASE = "r1_rollouts"
 DEEPSEEK_MODEL = "deepseek-reasoner"
-ANTHROPIC_MODEL = "claude-3-opus-20240229" # Example: Using Opus for paraphrase
+ANTHROPIC_MODEL = "claude-3-7-sonnet-latest" # Example: Using Opus for paraphrase
 OPENAI_MODEL = "gpt-4o"
 
 # --- Initialize Clients ---
@@ -44,10 +44,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def sanitize_filename(text, max_len=30):
     """Sanitizes text to be safe for filenames."""
     # Remove non-alphanumeric characters, replace spaces with underscores
-    sanitized = re.sub(r'[^a-zA-Z0-9_\s-]', '', text).strip()
+    sanitized = re.sub(r'[^a-zA-Z0-9_\s-]', '_', text).strip()
     sanitized = re.sub(r'\s+', '_', sanitized)
+    sanitized = re.sub(r'-', '_', sanitized)
     # Truncate and ensure it's not empty
-    truncated = sanitized[:max_len].rstrip('_')
+    truncated = sanitized[:max_len]
     return truncated if truncated else "untitled"
 
 def write_to_file(content, file):
@@ -168,7 +169,7 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
         os.makedirs(output_subdir, exist_ok=True) # Ensure dir exists before writing
 
         with open(output_file_path, 'w', encoding='utf-8') as f: # Use UTF-8 encoding
-            write_to_file(f"# Original Question (Index: {index})\n\n{question_text}", f)
+            write_to_file(f"# Original Question", f)
 
             messages = [{"role": "user", "content": question_text}]
 
@@ -188,9 +189,10 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
                  cutoff_point = int(len(initial_reasoning) * cutoff_portion)
                  cutoff_reasoning = initial_reasoning[:cutoff_point]
 
-            write_to_file(f"# Initial {DEEPSEEK_MODEL} response (via {initial_provider})\n\n{initial_response}", f)
-            write_to_file(f"# Initial {DEEPSEEK_MODEL} reasoning (via {initial_provider})\n\n{initial_reasoning}", f)
-            write_to_file(f"# Cut-off reasoning ({cutoff_portion*100}%)\n\n{cutoff_reasoning}", f)
+            # Using header format from second file
+            write_to_file(f"# DeepSeek response (via {initial_provider})\n\n{initial_response}", f)
+            write_to_file(f"# DeepSeek reasoning (via {initial_provider})\n\n{initial_reasoning}", f)
+            write_to_file(f"# Cut off deepseek reasoning\n\n{cutoff_reasoning}", f)
 
             # 2. Paraphrase the cut-off reasoning
             paraphrase_request_messages = [{
@@ -207,18 +209,18 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
                     # Extract text carefully, handling potential list structure
                     if anthropic_completion.content and isinstance(anthropic_completion.content, list):
                          anthropic_paraphrase = anthropic_completion.content[0].text or ""
-                    write_to_file(f"# Anthropic ({ANTHROPIC_MODEL}) paraphrase\n\n{anthropic_paraphrase}", f)
+                    write_to_file(f"# Anthropic completion\n\n{anthropic_paraphrase}", f)
                 except Exception as e:
                     logging.error(f"[{index}/{total}] Anthropic paraphrase failed: {e}")
-                    write_to_file(f"# Anthropic ({ANTHROPIC_MODEL}) paraphrase\n\nERROR: {e}", f)
+                    write_to_file(f"# Anthropic completion\n\nERROR: {e}", f)
 
                 try:
                     openai_completion = get_completion_openai(OPENAI_MODEL, paraphrase_request_messages)
                     openai_paraphrase = openai_completion.choices[0].message.content or ""
-                    write_to_file(f"# OpenAI ({OPENAI_MODEL}) paraphrase\n\n{openai_paraphrase}", f)
+                    write_to_file(f"# OpenAI completion\n\n{openai_paraphrase}", f)
                 except Exception as e:
                     logging.error(f"[{index}/{total}] OpenAI paraphrase failed: {e}")
-                    write_to_file(f"# OpenAI ({OPENAI_MODEL}) paraphrase\n\nERROR: {e}", f)
+                    write_to_file(f"# OpenAI completion\n\nERROR: {e}", f)
             else:
                  logging.warning(f"[{index}/{total}] Skipping paraphrase due to empty cut-off reasoning.")
                  write_to_file(f"# Paraphrasing Skipped (Empty Input)", f)
@@ -235,7 +237,12 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
             for name, prefix_content in prefixes.items():
                 if not prefix_content and name != "cutoff": # Allow empty cutoff prefix if original reasoning was empty
                     logging.warning(f"[{index}/{total}] Skipping final completion for '{name}' due to empty prefix.")
-                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix) - SKIPPED (Empty Prefix)", f)
+                    if name == "anthropic_paraphrase":
+                        write_to_file(f"# paraphrased_deepseek_completion_anthropic - SKIPPED (Empty Prefix)", f)
+                    elif name == "openai_paraphrase":
+                        write_to_file(f"# paraphrased_deepseek_completion_openai - SKIPPED (Empty Prefix)", f)
+                    else:
+                        write_to_file(f"# {name}_deepseek_completion - SKIPPED (Empty Prefix)", f)
                     continue
                 try:
                     start_final = perf_counter()
@@ -245,17 +252,26 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
                     final_response = final_completion.choices[0].message.content or ""
                     final_reasoning = extract_reasoning(final_completion, final_provider)
 
-                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix via {final_provider}) response\n\n{final_response}", f)
-                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix via {final_provider}) reasoning\n\n{final_reasoning}", f)
-                    # Optional: Write full completion object for debugging
-                    # write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix via {final_provider}) raw completion\n\n{str(final_completion)}", f)
+                    # Using exact header format from second file
+                    if name == "cutoff":
+                        write_to_file(f"# cutoff_deepseek_completion (via {final_provider})\n\n{str(final_completion)}", f)
+                        write_to_file(f"# cutoff_deepseek_completion response\n\n{final_response}", f)
+                        write_to_file(f"# cutoff_deepseek_completion reasoning\n\n{final_reasoning}", f)
+                    elif name == "anthropic_paraphrase":
+                        write_to_file(f"# paraphrased_deepseek_completion_anthropic (via {final_provider})\n\n{str(final_completion)}", f)
+                        write_to_file(f"# paraphrased_deepseek_completion_anthropic response\n\n{final_response}", f)
+                        write_to_file(f"# paraphrased_deepseek_completion_anthropic reasoning\n\n{final_reasoning}", f)
+                    elif name == "openai_paraphrase":
+                        write_to_file(f"# paraphrased_deepseek_completion_openai (via {final_provider})\n\n{str(final_completion)}", f)
+                        write_to_file(f"# paraphrased_deepseek_completion_openai response\n\n{final_response}", f)
+                        write_to_file(f"# paraphrased_deepseek_completion_openai reasoning\n\n{final_reasoning}", f)
 
                     final_results[name] = {'response': final_response, 'reasoning': final_reasoning, 'provider': final_provider}
                     logging.info(f"[{index}/{total}] Final completion '{name}' took {perf_counter() - start_final:.2f}s")
 
                 except Exception as e:
                     logging.error(f"[{index}/{total}] Final completion with prefix '{name}' failed: {e}")
-                    write_to_file(f"# Final {DEEPSEEK_MODEL} ({name} prefix) - ERROR\n\n{e}", f)
+                    write_to_file(f"# {name}_deepseek_completion - ERROR\n\n{e}", f)
 
 
         total_time = perf_counter() - process_start_time
