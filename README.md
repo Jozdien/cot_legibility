@@ -42,6 +42,15 @@ Run with:
 python claude_answers.py --mode <mode> --dir <directory> --limit <limit> --results <results_file> --dataset <dataset_file>
 ```
 
+### `get_claude_baseline.py`
+
+Generates a baseline for gpqa_diamond using Claude and grades correctness of the answers, and saves to claude_answers/ and claude_answers/scores/ directories.
+
+Run with:
+```bash
+python get_claude_baseline.py
+```
+
 ### `analyze_scores.py`
 
 Makes plots. In `regular` mode, it makes plots of scores from scores/ directory. In `claude` mode, it makes plots of scores from a specific Claude answers score file.
