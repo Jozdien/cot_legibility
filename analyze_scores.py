@@ -707,7 +707,21 @@ def plot_claude_correctness(stats, file_name, plots_dir, claude_baseline=None):
     section_labels = []
     for s in sections:
         if s == "claude":
-            section_labels.append("Claude 3.5")
+            section_labels.append("Baseline")
+        elif s == "DeepSeek reasoning":
+            section_labels.append("With r1 CoT")
+        elif s == "Cut off deepseek reasoning":
+            section_labels.append("With cutoff r1 CoT")
+        elif s == "Anthropic completion":
+            section_labels.append("With Claude paraphrase")
+        elif s == "OpenAI completion":
+            section_labels.append("With GPT paraphrase")
+        elif s == "cutoff_deepseek_completion reasoning":
+            section_labels.append("With r1 reasoning after cutoff")
+        elif s == "paraphrased_deepseek_completion_anthropic reasoning":
+            section_labels.append("With r1 reasoning after Claude paraphrase")
+        elif s == "paraphrased_deepseek_completion_openai reasoning":
+            section_labels.append("With r1 reasoning after GPT paraphrase")
         else:
             section_labels.append(f"With {s.replace('_', ' ').capitalize()}")
     
@@ -874,7 +888,7 @@ def main():
                         help='Generate plots of the results')
     parser.add_argument('--claude-file', type=str, default=None,
                         help='Process a specific Claude answers score file from claude_answers/scores directory')
-    parser.add_argument('--claude-baseline', type=str, default=None,
+    parser.add_argument('--claude-baseline', type=str, default='claude_answers/scores/claude_baseline_scores.json',
                         help='Include baseline Claude 3.5 scores in the comparisons')
     parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
                         help='Type of analysis to run (regular or claude)')
