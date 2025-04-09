@@ -715,7 +715,7 @@ def plot_claude_correctness(stats, file_name, plots_dir, claude_baseline=None):
         elif s == "Anthropic completion":
             section_labels.append("With Claude paraphrase")
         elif s == "OpenAI completion":
-            section_labels.append("With GPT paraphrase")
+            section_labels.append("With GPT-4o paraphrase")
         elif s == "cutoff_deepseek_completion reasoning":
             section_labels.append("With r1 reasoning after cutoff")
         elif s == "paraphrased_deepseek_completion_anthropic reasoning":
