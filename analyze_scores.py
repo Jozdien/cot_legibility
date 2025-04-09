@@ -666,7 +666,7 @@ def print_claude_summary(stats, file_name):
         else:
             print(f"{section}: No assessments found")
 
-def plot_claude_correctness(stats, file_name, plots_dir):
+def plot_claude_correctness(stats, file_name, plots_dir, claude_baseline=None):
     """Create and save bar charts for Claude correctness assessments."""
     # Create plot
     plt.figure(figsize=(14, 8))
@@ -680,6 +680,18 @@ def plot_claude_correctness(stats, file_name, plots_dir):
     partially_counts = [stats["correctness"][section]["partially_correct"] for section in sections]
     incorrect_counts = [stats["correctness"][section]["incorrect"] for section in sections]
     total_counts = [stats["correctness"][section]["total"] for section in sections]
+
+    # Add Claude stats if provided
+    if claude_baseline is not None:
+        # Add Claude as an additional section
+        sections.insert(0, "claude")
+        correct_pct.insert(0, claude_baseline["correct_pct"])
+        partially_pct.insert(0, claude_baseline["partially_pct"])
+        incorrect_pct.insert(0, claude_baseline["incorrect_pct"])
+        correct_counts.insert(0, claude_baseline["correct"])
+        partially_counts.insert(0, claude_baseline["partially_correct"])
+        incorrect_counts.insert(0, claude_baseline["incorrect"])
+        total_counts.insert(0, claude_baseline["total_valid"])
     
     # Define bar width and positions
     bar_width = 0.25
@@ -691,12 +703,18 @@ def plot_claude_correctness(stats, file_name, plots_dir):
     bars1 = plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
     bars2 = plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
     bars3 = plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
+
+    section_labels = []
+    for s in sections:
+        if s == "claude":
+            section_labels.append("Claude 3.5")
+        else:
+            section_labels.append(f"With {s.replace('_', ' ').capitalize()}")
     
     # Add labels and customize plot
-    plt.xlabel('Reasoning Sections', fontsize=12)
     plt.ylabel('Percentage (%)', fontsize=12)
-    plt.title(f'Claude Answer Correctness Assessment - {file_name} n={total_counts[0]}', fontsize=14)
-    plt.xticks([r + bar_width for r in range(len(sections))], [s.replace("_", " ").capitalize() for s in sections], rotation=45, ha='right')
+    plt.title(f'Correctness of Claude Answers (n={total_counts[0]})', fontsize=14)
+    plt.xticks([r + bar_width for r in range(len(sections))], section_labels, rotation=45, ha='right')
     plt.ylim(0, 100)
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -712,12 +730,6 @@ def plot_claude_correctness(stats, file_name, plots_dir):
             if value > 0:
                 plt.text(bar.get_x() + bar.get_width()/2, value + 2, f'{value:.1f}%', 
                         ha='center', va='bottom', fontsize=9)
-                
-                # Add count inside bar if bar is tall enough
-                if value > 5:  # Only add if bar is tall enough
-                    plt.text(bar.get_x() + bar.get_width()/2, value/2,
-                            f'n={count}', ha='center', va='center', 
-                            color='white', fontweight='bold', fontsize=8)
     
     plt.tight_layout()
     
@@ -726,6 +738,31 @@ def plot_claude_correctness(stats, file_name, plots_dir):
     plt.savefig(plot_path)
     plt.close()
     print(f"Claude correctness assessment plot saved to {plot_path}")
+
+def extract_claude_stats_from_file(claude_scores_file):
+    """Extract Claude stats from the scores file created by our code."""
+    try:
+        with open(claude_scores_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Extract stats from our format
+        summary = data.get("summary", {})
+        percentages = data.get("percentages", {})
+        
+        return {
+            "correct": summary.get("correct", 0),
+            "partially_correct": summary.get("partially_correct", 0),
+            "incorrect": summary.get("incorrect", 0),
+            "N/A": summary.get("N/A", 0),
+            "error": summary.get("error", 0),
+            "total_valid": percentages.get("total_valid", 0),
+            "correct_pct": percentages.get("correct_pct", 0),
+            "partially_pct": percentages.get("partially_pct", 0),
+            "incorrect_pct": percentages.get("incorrect_pct", 0)
+        }
+    except Exception as e:
+        print(f"Error extracting Claude stats from file {claude_scores_file}: {e}")
+        return None
 
 def plot_claude_comparisons(stats, file_name, plots_dir):
     """Create comparison plots for different types of reasoning sections."""
@@ -803,7 +840,7 @@ def plot_claude_comparisons(stats, file_name, plots_dir):
     plt.close()
     print(f"Model comparison plot saved to {plot_path}")
 
-def process_claude_file(file_path, plots=False):
+def process_claude_file(file_path, plots=False, claude_baseline=None):
     """Process a single Claude answers score file and generate analysis."""
     try:
         print(f"Analyzing Claude answers file: {file_path}")
@@ -817,7 +854,7 @@ def process_claude_file(file_path, plots=False):
         # Generate plots if requested
         if plots:
             plots_dir = create_plots_directory()
-            plot_claude_correctness(stats, file_name, plots_dir)
+            plot_claude_correctness(stats, file_name, plots_dir, claude_baseline)
             plot_claude_comparisons(stats, file_name, plots_dir)
             
         return True
@@ -837,6 +874,8 @@ def main():
                         help='Generate plots of the results')
     parser.add_argument('--claude-file', type=str, default=None,
                         help='Process a specific Claude answers score file from claude_answers/scores directory')
+    parser.add_argument('--claude-baseline', type=str, default=None,
+                        help='Include baseline Claude 3.5 scores in the comparisons')
     parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
                         help='Type of analysis to run (regular or claude)')
     parser.add_argument('--std-display', type=str, choices=['error_bars', 'shaded', 'violin'], default=None,
@@ -852,11 +891,16 @@ def main():
         else:
             analysis_type = 'regular'
     
+    claude_baseline = None
+    if args.claude_baseline and os.path.exists(args.claude_baseline):
+        claude_baseline = extract_claude_stats_from_file(args.claude_baseline)
+        print(f"Loaded Claude scores from {args.claude_baseline}")
+    
     if analysis_type == 'claude':
         if args.claude_file:
             claude_file_path = args.claude_file
             if os.path.exists(claude_file_path):
-                process_claude_file(claude_file_path, plots=args.plots)
+                process_claude_file(claude_file_path, plots=args.plots, claude_baseline=claude_baseline)
             else:
                 print(f"Claude answers file not found: {claude_file_path}")
         else:
