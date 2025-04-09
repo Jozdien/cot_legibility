@@ -721,7 +721,7 @@ def plot_claude_correctness(stats, file_name, plots_dir, claude_baseline=None):
         elif s == "paraphrased_deepseek_completion_anthropic reasoning":
             section_labels.append("With r1 reasoning after Claude paraphrase")
         elif s == "paraphrased_deepseek_completion_openai reasoning":
-            section_labels.append("With r1 reasoning after GPT paraphrase")
+            section_labels.append("With r1 reasoning after GPT-4o paraphrase")
         else:
             section_labels.append(f"With {s.replace('_', ' ').capitalize()}")
     
