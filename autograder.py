@@ -290,7 +290,7 @@ def process_file(file_path, dataset, client):
     if 'deepseek_response' in sections:
         answers['deepseek'] = extract_answer_from_text(sections.get('deepseek_response', ''), is_reasoning=False)
     if not answers['deepseek'] and 'deepseek_reasoning' in sections:
-        answers['deepseek'] = extract_answer_from_text(sections.get('Deepseek reasoning', ''), is_reasoning=True)
+        answers['deepseek'] = extract_answer_from_text(sections.get('deepseek_reasoning', ''), is_reasoning=True)
         
     if 'cutoff_response' in sections:
         answers['cutoff'] = extract_answer_from_text(sections.get('cutoff_response', ''), is_reasoning=False)

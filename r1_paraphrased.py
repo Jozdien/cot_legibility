@@ -76,7 +76,6 @@ def get_completion_deepseek_with_fallback(model, messages, prefix=None, openrout
     if not openrouter_only:
         deepseek_messages = messages.copy()
         if prefix:
-            # DeepSeek's specific prefix format (ensure this is correct based on their API docs)
             deepseek_messages.append({"role": "assistant", "prefix": True, "content": "", "reasoning_content": prefix})
 
         try:

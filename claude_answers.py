@@ -100,6 +100,9 @@ def process_rollout_file(file_path):
     for section in SECTIONS_TO_ANALYZE:
         section_name = section.replace("# ", "").strip()
         reasoning = extract_section(content, section)
+
+        if reasoning and "**Final Answer**" in reasoning:
+            reasoning = reasoning.split("**Final Answer**")[0]
         
         if reasoning:
             print(f"  Generating answer from {section_name} reasoning...")
@@ -375,7 +378,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate answers to questions using (partial) reasoning traces with Claude and grade the results')
     parser.add_argument('--mode', type=str, choices=['generate', 'grade', 'both'], default='both',
                         help='Mode to run: generate answers from reasoning, grade answers, or both (default: both)')
-    parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_0.5_openrouter',
+    parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_0.25_deepseek_openrouter',
                         help='Directory containing rollout files with reasoning traces (only used when generating answers)')
     parser.add_argument('--limit', type=int, default=None,
                         help='Maximum number of files to process (only used when generating answers)')
