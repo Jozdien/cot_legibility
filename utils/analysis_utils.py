@@ -150,58 +150,6 @@ def analyze_scores(data):
         "correctness": correctness_results,
         "raw_legibility_scores": legibility_results["raw_scores"]
     }
-
-# def analyze_claude_scores(data):
-#     """Analyze scores from a Claude answers JSON file."""
-#     # Extract section names from the summary
-#     sections = list(data.get("summary", {}).keys())
-    
-#     # Prepare data structure for correctness scores
-#     correctness_stats = {}
-#     for section in sections:
-#         section_summary = data["summary"].get(section, {})
-#         section_percentages = data["percentages"].get(section, {})
-        
-#         # Calculate total
-#         total = sum(section_summary.values())
-        
-#         correctness_stats[section] = {
-#             "correct": section_summary.get("correct", 0),
-#             "partially_correct": section_summary.get("partially_correct", 0),
-#             "incorrect": section_summary.get("incorrect", 0),
-#             "N/A": section_summary.get("N/A", 0),
-#             "error": section_summary.get("error", 0),
-#             "total": total,
-#             "correct_percentage": section_percentages.get("correct_pct", 0),
-#             "partially_percentage": section_percentages.get("partially_pct", 0),
-#             "incorrect_percentage": section_percentages.get("incorrect_pct", 0)
-#         }
-    
-#     return {"correctness": correctness_stats}
-
-# def extract_claude_stats_from_file(claude_scores_file):
-#     """Extract Claude stats from the scores file."""
-#     try:
-#         data = load_json_file(claude_scores_file)
-        
-#         # Extract stats from our format
-#         summary = data.get("summary", {})
-#         percentages = data.get("percentages", {})
-        
-#         return {
-#             "correct": summary.get("correct", 0),
-#             "partially_correct": summary.get("partially_correct", 0),
-#             "incorrect": summary.get("incorrect", 0),
-#             "N/A": summary.get("N/A", 0),
-#             "error": summary.get("error", 0),
-#             "total_valid": percentages.get("total_valid", 0),
-#             "correct_pct": percentages.get("correct_pct", 0),
-#             "partially_pct": percentages.get("partially_pct", 0),
-#             "incorrect_pct": percentages.get("incorrect_pct", 0)
-#         }
-#     except Exception as e:
-#         print(f"Error extracting Claude stats from file {claude_scores_file}: {e}")
-#         return None
     
 def extract_claude_scores(file) -> dict[str, dict[str, int | float]]:
     """
@@ -209,7 +157,7 @@ def extract_claude_scores(file) -> dict[str, dict[str, int | float]]:
 
     Returns a dictionary with the following structure:
     {
-        [section_name]: {
+        "Claude Baseline": {
             "correct": int,
             "partially_correct": int,
             "incorrect": int,
@@ -288,7 +236,7 @@ def print_claude_summary(stats, file_name):
     
     # Print correctness stats
     print("\nCorrectness Assessment:")
-    for section, section_stats in stats["correctness"].items():
+    for section, section_stats in stats.items():
         print(format_correctness_stats(section, section_stats))
 
 def compare_files(all_stats):
@@ -524,38 +472,33 @@ def plot_legibility_with_shading(ax, sections, avg_scores, std_devs, bar_colors,
 
 def plot_legibility_with_violin(ax, sections, avg_scores, std_devs, bar_colors, hatches, raw_scores):
     """Plot legibility scores using violin plots."""
-    try:
-        violin_data = []
-        for i, section in enumerate(sections):
-            if section in raw_scores and len(raw_scores[section]) > 1:
-                valid_scores = [float(score) for score in raw_scores[section]
-                             if isinstance(score, (int, float))
-                             or (isinstance(score, str) and score.replace('.', '', 1).isdigit())]
-                violin_data.append(valid_scores if valid_scores else [avg_scores[i]])
-            else:
-                violin_data.append([avg_scores[i] - 0.1, avg_scores[i], avg_scores[i] + 0.1])
-                
-        violin_parts = ax.violinplot(
-            violin_data,
-            range(len(sections)),
-            showmeans=False,
-            showmedians=False,
-            showextrema=False,
-            points=200,
-            bw_method=0.5,
-        )
-        
-        for i, pc in enumerate(violin_parts['bodies']):
-            pc.set_facecolor(bar_colors[i])
-            if hatches[i]:
-                pc.set_hatch(hatches[i])
-            pc.set_alpha(1)
-            pc.set_edgecolor('black')
-            pc.set_linewidth(0.5)
+    violin_data = []
+    for i, section in enumerate(sections):
+        if section in raw_scores and len(raw_scores[section]) > 1:
+            valid_scores = [float(score) for score in raw_scores[section]
+                            if isinstance(score, (int, float))
+                            or (isinstance(score, str) and score.replace('.', '', 1).isdigit())]
+            violin_data.append(valid_scores if valid_scores else [avg_scores[i]])
+        else:
+            violin_data.append([avg_scores[i] - 0.1, avg_scores[i], avg_scores[i] + 0.1])
             
-    except Exception as e:
-        print(f"Warning: Could not create violin plots, falling back to error bars: {e}")
-        plot_legibility_with_error_bars(ax, sections, avg_scores, std_devs, bar_colors, hatches)
+    violin_parts = ax.violinplot(
+        violin_data,
+        range(len(sections)),
+        showmeans=False,
+        showmedians=False,
+        showextrema=False,
+        points=200,
+        bw_method=0.5,
+    )
+    
+    for i, pc in enumerate(violin_parts['bodies']):
+        pc.set_facecolor(bar_colors[i])
+        if hatches[i]:
+            pc.set_hatch(hatches[i])
+        pc.set_alpha(1)
+        pc.set_edgecolor('black')
+        pc.set_linewidth(0.5)
 
 def plot_correctness_assessment(stats, file_name, plots_dir):
     """Plot correctness assessment for a file."""
@@ -623,10 +566,11 @@ def plot_claude_correctness(stats, file_name, plots_dir, claude_baseline=None):
 
     # Add Claude baseline if provided
     if claude_baseline is not None:
+        claude_baseline = claude_baseline["Claude Baseline"]
         sections.insert(0, "claude")
-        correct_pct.insert(0, claude_baseline["correct_pct"])
-        partially_pct.insert(0, claude_baseline["partially_pct"])
-        incorrect_pct.insert(0, claude_baseline["incorrect_pct"])
+        correct_pct.insert(0, claude_baseline["correct_percentage"])
+        partially_pct.insert(0, claude_baseline["partially_percentage"])
+        incorrect_pct.insert(0, claude_baseline["incorrect_percentage"])
         correct_counts.insert(0, claude_baseline["correct"])
         partially_counts.insert(0, claude_baseline["partially_correct"])
         incorrect_counts.insert(0, claude_baseline["incorrect"])
