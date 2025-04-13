@@ -1,11 +1,6 @@
 import os
-import json
 import glob
 import argparse
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-from matplotlib.patches import Patch
 
 from utils import analysis_utils
 
@@ -16,10 +11,8 @@ def process_regular_file(file_path, plots_dir=None, std_display=None):
     data = analysis_utils.load_json_file(file_path)
     stats = analysis_utils.analyze_scores(data)
     
-    # Print summary
     analysis_utils.print_summary(stats, file_name)
     
-    # Generate plots if requested
     if plots_dir:
         analysis_utils.plot_legibility_scores(stats, file_name, plots_dir, std_display=std_display)
         analysis_utils.plot_correctness_assessment(stats, file_name, plots_dir)
@@ -32,10 +25,8 @@ def process_claude_file(file_path, plots_dir=None, claude_baseline=None):
     file_name = os.path.basename(file_path).replace('.json', '')
     stats = analysis_utils.extract_claude_scores(file_path)
     
-    # Print summary
     analysis_utils.print_claude_summary(stats, file_name)
     
-    # Generate plots if requested
     if plots_dir:
         analysis_utils.plot_claude_correctness(stats, file_name, plots_dir, claude_baseline)
         analysis_utils.plot_claude_comparisons(stats, file_name, plots_dir)
@@ -53,24 +44,16 @@ def process_regular_files(file_pattern, compare=False, plots=False, std_display=
         if file_name and stats:
             all_stats[file_name] = stats
     
-    # If comparison is requested, print comparison tables and plots
     if compare and len(all_stats) > 1:
         analysis_utils.compare_files(all_stats)
         
         if plots:
-            # Plot legibility comparisons
             for section in ["deepseek_response", "deepseek_reasoning", "cutoff_response", "cutoff_reasoning", 
                            "anthropic_response", "anthropic_reasoning", "openai_response", "openai_reasoning"]:
                 analysis_utils.plot_comparison_legibility(all_stats, section, plots_dir)
-            
-            # Plot correctness comparisons
             for model in ["deepseek", "cutoff", "anthropic", "openai"]:
                 analysis_utils.plot_comparison_correctness(all_stats, model, plots_dir)
-            
-            # Plot overall model performance
             analysis_utils.plot_overall_model_performance(all_stats, plots_dir)
-
-# ===== MAIN FUNCTION =====
 
 def parse_arguments():
     """Parse command line arguments."""
