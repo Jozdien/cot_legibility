@@ -134,17 +134,21 @@ def main():
     logging.info(f"Loaded dataset with {len(dataset)} questions")
     
     # Initialize results dictionaries
-    claude_answers = {"answers": {}}
+    claude_answers = {}
     claude_scores = {
         "detailed_results": {},
         "summary": {
-            "correct": 0,
-            "partially_correct": 0,
-            "incorrect": 0,
-            "N/A": 0,
-            "error": 0
+            "Claude Baseline": {
+                "correct": 0,
+                "partially_correct": 0,
+                "incorrect": 0,
+                "N/A": 0,
+                "error": 0
+            }
         },
-        "percentages": {}
+        "percentages": {
+            "Claude Baseline": {}
+        }
     }
     
     # Process all questions (use a subset for testing if needed)
@@ -159,7 +163,7 @@ def main():
         claude_answer = get_claude_answer(question, client)
         
         # Store the answer
-        claude_answers["answers"][question_id] = {
+        claude_answers[question_id] = {
             "question": question,
             "answer": claude_answer
         }
@@ -181,7 +185,7 @@ def main():
     # Calculate percentages
     total_valid = sum(count for key, count in claude_scores["summary"].items() if key not in ["N/A", "error"])
     if total_valid > 0:
-        claude_scores["percentages"] = {
+        claude_scores["percentages"]["Claude Baseline"] = {
             "correct_pct": round(claude_scores["summary"]["correct"] / total_valid * 100, 1),
             "partially_pct": round(claude_scores["summary"]["partially_correct"] / total_valid * 100, 1),
             "incorrect_pct": round(claude_scores["summary"]["incorrect"] / total_valid * 100, 1),
