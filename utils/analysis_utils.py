@@ -900,71 +900,88 @@ def plot_claude_comparisons(stats, file_name, plots_dir):
     plt.close()
     print(f"Model comparison plot saved to {plot_path}")
 
-def plot_legibility_by_correctness(stats, file_name, plots_dir):
+def plot_legibility_by_correctness(stats, file_name, plots_dir, plot_answer=True):
     """Plot legibility scores based on correctness categories."""
-    # Group questions by correctness
-    correct_legibility = {
-        "deepseek_response": [], "deepseek_reasoning": [],
-        "cutoff_response": [], "cutoff_reasoning": [],
-        "anthropic_response": [], "anthropic_reasoning": [],
-        "openai_response": [], "openai_reasoning": []
-    }
-    partially_correct_legibility = {k: [] for k in correct_legibility}
-    incorrect_legibility = {k: [] for k in correct_legibility}
+    # Prepare data structures
+    categories = ["Correct", "Partially Correct", "Incorrect"]
+    all_metrics = [
+        "deepseek_response", "deepseek_reasoning",
+        "cutoff_response", "cutoff_reasoning",
+        "anthropic_response", "anthropic_reasoning",
+        "openai_response", "openai_reasoning"
+    ]
+
+    metrics = []
+    for metric in all_metrics:
+        eval_type = metric.split('_')[1]
+        if eval_type == 'reasoning' or plot_answer:
+            metrics.append(metric)
     
-    # Categorize questions and extract legibility scores
+    # Initialize data dictionaries
+    data_by_category = {cat: {metric: [] for metric in metrics} for cat in categories}
+    
+    # Extract data
     for q_data in stats:
         correctness = q_data.get('correctness', {}).get('deepseek', {}).get('correctness')
         if not correctness:
             continue
             
-        target_dict = correct_legibility if correctness == "correct" else \
-                     partially_correct_legibility if correctness == "partially_correct" else \
-                     incorrect_legibility
+        cat = "Correct" if correctness == "correct" else \
+              "Partially Correct" if correctness == "partially_correct" else \
+              "Incorrect"
         
-        for metric_type in ["response", "reasoning"]:
-            for model in ["deepseek", "cutoff", "anthropic", "openai"]:
-                key = f"{model}_{metric_type}"
-                if key in q_data.get('legibility', {}):
-                    score = q_data['legibility'][key].get('score')
-                    if score is not None and score != "N/A" and isinstance(score, (int, float)):
-                        target_dict[key].append(score)
+        for metric in metrics:
+            if metric in q_data.get('legibility', {}):
+                score = q_data['legibility'][metric].get('score')
+                if score is not None and score != "N/A" and isinstance(score, (int, float)):
+                    data_by_category[cat][metric].append(score)
     
-    # Calculate means and standard deviations
-    categories = ["Correct", "Partially Correct", "Incorrect"]
-    legibility_dicts = [correct_legibility, partially_correct_legibility, incorrect_legibility]
-    
-    # Prepare data for plotting
+    # Plot setup
     x = np.arange(len(categories))
-    width = 0.1
-    metrics = list(correct_legibility.keys())
-    colors = plt.cm.tab10(np.linspace(0, 1, len(metrics)))
+    width = 0.09 if plot_answer else 0.16
+    spacing = 0.01 if plot_answer else 0.05
+    colors = get_model_colors()
     
-    # Create plot
     fig, ax = plt.subplots(figsize=(12, 6))
+    legend_items = []
     
     for i, metric in enumerate(metrics):
-        means = [np.mean(d[metric]) if d[metric] else 0 for d in legibility_dicts]
-        stds = [np.std(d[metric]) if len(d[metric]) > 1 else 0 for d in legibility_dicts]
+        # Get model and eval type
+        parts = metric.split('_')
+        model, eval_type = parts[0], parts[1]
         
-        position = x + (i - len(metrics)/2 + 0.5) * width
-        bars = ax.bar(position, means, width, label=metric, color=colors[i], alpha=0.7)
-        ax.errorbar(position, means, yerr=stds, ecolor='black', capsize=3, alpha=0.7, linestyle='none')
+        color = colors.get(model.lower(), '#7f8c8d')
+        hatch = '///' if eval_type == 'reasoning' else ''
+        display_name = get_model_display_name(model)
         
-        # Add counts
-        for j, pos in enumerate(position):
-            if legibility_dicts[j][metric]:
-                ax.text(pos, 0.5, f"n={len(legibility_dicts[j][metric])}", 
-                       ha='center', va='center', rotation=90, fontsize=8, color='black')
+        # Calculate statistics
+        means = [np.mean(data_by_category[cat][metric]) if data_by_category[cat][metric] else 0 for cat in categories]
+        stds = [np.std(data_by_category[cat][metric]) if len(data_by_category[cat][metric]) > 1 else 0 for cat in categories]
+        
+        # Plot bars with spacing
+        position = x + (i * (width + spacing) - len(metrics) * (width + spacing) / 2 + width/2)
+        bars = ax.bar(position, means, width, color=color, alpha=1)
+        ax.errorbar(position, means, yerr=stds, ecolor='black', capsize=3, alpha=0.7, linestyle='none', linewidth=1)
+        
+        # Apply hatching
+        for bar in bars:
+            bar.set_hatch(hatch)
+            
+        # Add to legend items
+        legend_suffix = "(Reasoning)" if eval_type == 'reasoning' else "(Answer)"
+        legend_items.append((bars[0], f"{display_name} {legend_suffix}"))
     
-    # Add labels and legend
-    ax.set_ylabel('Legibility Score')
-    ax.set_title(f'Legibility by DeepSeek Correctness: {file_name}')
+    # Add styling and labels
+    ax.set_ylabel('Illegibility Score', fontsize=12)
+    ax.set_title(f'Illegibility by Question Hardness (n={len(stats)})', fontsize=14)
     ax.set_xticks(x)
     ax.set_xticklabels(categories)
-    ax.legend(title='Metric', bbox_to_anchor=(1.05, 1), loc='upper left')
     ax.set_ylim(0, 9.5)
     ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # Add legend
+    handles, labels = zip(*legend_items)
+    ax.legend(handles, labels, title="Models", loc='upper left')
     
     plt.tight_layout()
     
@@ -972,4 +989,4 @@ def plot_legibility_by_correctness(stats, file_name, plots_dir):
     plot_path = os.path.join(plots_dir, f"{file_name}_legibility_by_correctness.png")
     plt.savefig(plot_path)
     plt.close()
-    print(f"Legibility by correctness plot saved to {plot_path}")
+    print(f"Illegibility by question hardness plot saved to {plot_path}")
