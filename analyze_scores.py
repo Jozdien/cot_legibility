@@ -16,6 +16,7 @@ def process_regular_file(file_path, plots_dir=None, std_display=None):
     if plots_dir:
         analysis_utils.plot_legibility_scores(stats, file_name, plots_dir, std_display=std_display)
         analysis_utils.plot_correctness_assessment(stats, file_name, plots_dir)
+        analysis_utils.plot_legibility_by_correctness(data, file_name, plots_dir)
     
     return file_name, stats
 
@@ -72,8 +73,6 @@ def parse_arguments():
                         help='Include baseline Claude 3.5 scores in the comparisons')
     parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
                         help='Type of analysis to run (regular or claude)')
-    parser.add_argument('--std-display', type=str, choices=['error_bars', 'shaded', 'violin'], default=None,
-                        help='Type of standard deviation display (error_bars, shaded, violin)')
     
     return parser.parse_args()
 
@@ -86,12 +85,11 @@ def main():
     if analysis_type is None:
         analysis_type = 'claude' if args.claude_file else 'regular'
     
-    claude_baseline = None
-    if args.claude_baseline and os.path.exists(args.claude_baseline):
-        claude_baseline = analysis_utils.extract_claude_scores(args.claude_baseline)
-        print(f"Loaded Claude scores from {args.claude_baseline}")
-    
     if analysis_type == 'claude':
+        claude_baseline = None
+        if args.claude_baseline and os.path.exists(args.claude_baseline):
+            claude_baseline = analysis_utils.extract_claude_scores(args.claude_baseline)
+            print(f"Loaded Claude scores from {args.claude_baseline}")
         if args.claude_file:
             if os.path.exists(args.claude_file):
                 plots_dir = analysis_utils.create_plots_directory() if args.plots else None
@@ -102,7 +100,7 @@ def main():
             print("Error: When using --analysis-type=claude, you must provide a --claude-file")
     else:  # 'regular'
         file_pattern = os.path.join(args.dir, args.pattern)
-        process_regular_files(file_pattern, args.compare, args.plots, args.std_display)
+        process_regular_files(file_pattern, args.compare, args.plots)
 
 if __name__ == "__main__":
     main()

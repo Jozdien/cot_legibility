@@ -899,3 +899,77 @@ def plot_claude_comparisons(stats, file_name, plots_dir):
     plt.savefig(plot_path)
     plt.close()
     print(f"Model comparison plot saved to {plot_path}")
+
+def plot_legibility_by_correctness(stats, file_name, plots_dir):
+    """Plot legibility scores based on correctness categories."""
+    # Group questions by correctness
+    correct_legibility = {
+        "deepseek_response": [], "deepseek_reasoning": [],
+        "cutoff_response": [], "cutoff_reasoning": [],
+        "anthropic_response": [], "anthropic_reasoning": [],
+        "openai_response": [], "openai_reasoning": []
+    }
+    partially_correct_legibility = {k: [] for k in correct_legibility}
+    incorrect_legibility = {k: [] for k in correct_legibility}
+    
+    # Categorize questions and extract legibility scores
+    for q_data in stats:
+        correctness = q_data.get('correctness', {}).get('deepseek', {}).get('correctness')
+        if not correctness:
+            continue
+            
+        target_dict = correct_legibility if correctness == "correct" else \
+                     partially_correct_legibility if correctness == "partially_correct" else \
+                     incorrect_legibility
+        
+        for metric_type in ["response", "reasoning"]:
+            for model in ["deepseek", "cutoff", "anthropic", "openai"]:
+                key = f"{model}_{metric_type}"
+                if key in q_data.get('legibility', {}):
+                    score = q_data['legibility'][key].get('score')
+                    if score is not None and score != "N/A" and isinstance(score, (int, float)):
+                        target_dict[key].append(score)
+    
+    # Calculate means and standard deviations
+    categories = ["Correct", "Partially Correct", "Incorrect"]
+    legibility_dicts = [correct_legibility, partially_correct_legibility, incorrect_legibility]
+    
+    # Prepare data for plotting
+    x = np.arange(len(categories))
+    width = 0.1
+    metrics = list(correct_legibility.keys())
+    colors = plt.cm.tab10(np.linspace(0, 1, len(metrics)))
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    for i, metric in enumerate(metrics):
+        means = [np.mean(d[metric]) if d[metric] else 0 for d in legibility_dicts]
+        stds = [np.std(d[metric]) if len(d[metric]) > 1 else 0 for d in legibility_dicts]
+        
+        position = x + (i - len(metrics)/2 + 0.5) * width
+        bars = ax.bar(position, means, width, label=metric, color=colors[i], alpha=0.7)
+        ax.errorbar(position, means, yerr=stds, ecolor='black', capsize=3, alpha=0.7, linestyle='none')
+        
+        # Add counts
+        for j, pos in enumerate(position):
+            if legibility_dicts[j][metric]:
+                ax.text(pos, 0.5, f"n={len(legibility_dicts[j][metric])}", 
+                       ha='center', va='center', rotation=90, fontsize=8, color='black')
+    
+    # Add labels and legend
+    ax.set_ylabel('Legibility Score')
+    ax.set_title(f'Legibility by DeepSeek Correctness: {file_name}')
+    ax.set_xticks(x)
+    ax.set_xticklabels(categories)
+    ax.legend(title='Metric', bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.set_ylim(0, 9.5)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    plt.tight_layout()
+    
+    # Save plot
+    plot_path = os.path.join(plots_dir, f"{file_name}_legibility_by_correctness.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Legibility by correctness plot saved to {plot_path}")
