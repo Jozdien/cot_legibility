@@ -8,13 +8,12 @@ from datetime import datetime
 from dotenv import load_dotenv
 from datasets import load_from_disk
 
-# Load environment variables
-load_dotenv()
-
 # Initialize Anthropic client
 anthropic_client = anthropic.Anthropic(
     api_key=os.getenv('ANTHROPIC_API_KEY'),
 )
+
+load_dotenv()
 
 # Define the different reasoning trace sections we want to test
 SECTIONS_TO_ANALYZE = [
@@ -78,100 +77,7 @@ Here's some prior reasoning related to the question that might help:
                 time.sleep(sleep_time)
             else:
                 return f"Error after {max_retries} attempts: {str(e)}"
-
-def process_rollout_file(file_path):
-    """Process a single rollout file and generate answers from each reasoning section."""
-    print(f"Processing: {file_path}")
-    
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    original_question = extract_original_question(content)
-    if not original_question:
-        print(f"Original question not found in {file_path}")
-        return None
-    
-    results = {
-        "file_path": file_path,
-        "original_question": original_question,
-        "answers": {}
-    }
-    
-    for section in SECTIONS_TO_ANALYZE:
-        section_name = section.replace("# ", "").strip()
-        reasoning = extract_section(content, section)
-
-        if reasoning and "**Final Answer**" in reasoning:
-            reasoning = reasoning.split("**Final Answer**")[0]
-        
-        if reasoning:
-            print(f"  Generating answer from {section_name} reasoning...")
-            answer = analyze_reasoning_with_claude(original_question, reasoning)
-            # Store both the reasoning trace and the answer
-            results["answers"][section_name] = {
-                "reasoning_trace": reasoning,
-                "answer": answer
-            }
-        else:
-            print(f"  Section {section_name} not found")
-            results["answers"][section_name] = {
-                "reasoning_trace": None,
-                "answer": "Section not found in file"
-            }
-    
-    return results
-
-def process_directory(directory_path, limit=None):
-    """
-    Process rollout files in a directory and generate answers from reasoning traces.
-    
-    Args:
-        directory_path: Path to directory containing rollout files
-        limit: Maximum number of files to process (None for no limit)
-        
-    Returns:
-        Tuple of (output_file_path, results_dict)
-    """
-    all_results = {}
-    
-    # Get the name of the directory for the output file
-    dir_name = os.path.basename(directory_path)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = f"claude_answers/{dir_name}_{timestamp}.json"
-    
-    # Ensure directory exists
-    os.makedirs("claude_answers", exist_ok=True)
-    
-    # Walk through all subdirectories
-    files_processed = 0
-    for root, _, files in os.walk(directory_path):
-        for file in files:
-            if file.endswith('.md'):
-                file_path = os.path.join(root, file)
-                
-                # Process the file
-                results = process_rollout_file(file_path)
-                if results:
-                    all_results[file_path] = results
-                
-                # Save results incrementally to avoid losing progress
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    json.dump(all_results, f, indent=2)
-                
-                files_processed += 1
-                # Check if we've reached the limit
-                if limit is not None and files_processed >= limit:
-                    print(f"Reached limit of {limit} files. Stopping.")
-                    break
-        
-        # Also check the limit after processing files in a directory
-        if limit is not None and files_processed >= limit:
-            break
-                    
-    print(f"Analysis complete. Results saved to {output_file}")
-    
-    return output_file, all_results
-
+            
 def create_markdown_summary(results, output_file):
     """Create a markdown summary of the generated answers."""
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -371,6 +277,99 @@ def compare_claude_answers_with_actual(results_file, dataset_path="data/gpqa_dia
     
     print(f"Comparison complete. Results saved to {comparison_file}")
     return comparison_file
+
+def process_rollout_file(file_path):
+    """Process a single rollout file and generate answers from each reasoning section."""
+    print(f"Processing: {file_path}")
+    
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    original_question = extract_original_question(content)
+    if not original_question:
+        print(f"Original question not found in {file_path}")
+        return None
+    
+    results = {
+        "file_path": file_path,
+        "original_question": original_question,
+        "answers": {}
+    }
+    
+    for section in SECTIONS_TO_ANALYZE:
+        section_name = section.replace("# ", "").strip()
+        reasoning = extract_section(content, section)
+
+        if reasoning and "**Final Answer**" in reasoning:
+            reasoning = reasoning.split("**Final Answer**")[0]
+        
+        if reasoning:
+            print(f"  Generating answer from {section_name} reasoning...")
+            answer = analyze_reasoning_with_claude(original_question, reasoning)
+            # Store both the reasoning trace and the answer
+            results["answers"][section_name] = {
+                "reasoning_trace": reasoning,
+                "answer": answer
+            }
+        else:
+            print(f"  Section {section_name} not found")
+            results["answers"][section_name] = {
+                "reasoning_trace": None,
+                "answer": "Section not found in file"
+            }
+    
+    return results
+
+def process_directory(directory_path, limit=None):
+    """
+    Process rollout files in a directory and generate answers from reasoning traces.
+    
+    Args:
+        directory_path: Path to directory containing rollout files
+        limit: Maximum number of files to process (None for no limit)
+        
+    Returns:
+        Tuple of (output_file_path, results_dict)
+    """
+    all_results = {}
+    
+    # Get the name of the directory for the output file
+    dir_name = os.path.basename(directory_path)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"claude_answers/{dir_name}_{timestamp}.json"
+    
+    # Ensure directory exists
+    os.makedirs("claude_answers", exist_ok=True)
+    
+    # Walk through all subdirectories
+    files_processed = 0
+    for root, _, files in os.walk(directory_path):
+        for file in files:
+            if file.endswith('.md'):
+                file_path = os.path.join(root, file)
+                
+                # Process the file
+                results = process_rollout_file(file_path)
+                if results:
+                    all_results[file_path] = results
+                
+                # Save results incrementally to avoid losing progress
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(all_results, f, indent=2)
+                
+                files_processed += 1
+                # Check if we've reached the limit
+                if limit is not None and files_processed >= limit:
+                    print(f"Reached limit of {limit} files. Stopping.")
+                    break
+        
+        # Also check the limit after processing files in a directory
+        if limit is not None and files_processed >= limit:
+            break
+                    
+    print(f"Analysis complete. Results saved to {output_file}")
+    
+    return output_file, all_results
 
 def main():
     """Main function to run the answer generation and grading pipeline."""

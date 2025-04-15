@@ -73,7 +73,6 @@ def parse_arguments():
                         help='Include baseline Claude 3.5 scores in the comparisons')
     parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
                         help='Type of analysis to run (regular or claude)')
-    
     return parser.parse_args()
 
 def main():
