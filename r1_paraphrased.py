@@ -5,6 +5,7 @@ import anthropic
 import argparse
 import concurrent.futures
 from openai import OpenAI
+from tqdm.auto import tqdm
 from datetime import datetime
 from time import perf_counter
 from dotenv import load_dotenv
@@ -364,21 +365,19 @@ def main():
         }
 
         # Process completed futures
-        for future in concurrent.futures.as_completed(future_to_info):
-            idx, q_text = future_to_info[future]
-            try:
-                result_path = future.result()
-                if result_path:
-                    processed_count += 1
-                    # Logging is now done inside process_question on success
-                else:
+        with tqdm(total=total_to_run, desc="Processing questions") as pbar:
+            for future in concurrent.futures.as_completed(future_to_info):
+                idx, q_text = future_to_info[future]
+                try:
+                    result_path = future.result()
+                    if result_path:
+                        processed_count += 1
+                    else:
+                        failed_count += 1
+                except Exception as e:
                     failed_count += 1
-                    # Error logging is done inside process_question on failure
-            except Exception as e:
-                # This catches errors from the submit call itself or unexpected ones
-                failed_count += 1
-                logging.error(f"[{idx}/{total_to_run}] Future returned an unexpected error for question: {q_text[:60]}... - {e}", exc_info=True)
-
+                    logging.error(f"[{idx}/{total_to_run}] Future returned an unexpected error for question: {q_text[:60]}... - {e}", exc_info=True)
+                pbar.update(1)
 
     logging.info(f"\n--- Processing Complete ---")
     logging.info(f"Attempted: {total_to_run} questions")
