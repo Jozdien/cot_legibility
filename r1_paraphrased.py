@@ -1,14 +1,14 @@
-import concurrent.futures
-import random
-from time import perf_counter
+import os
+import re
+import logging
 import anthropic
+import argparse
+import concurrent.futures
 from openai import OpenAI
 from datetime import datetime
-import os
-import re # Import regex module for sanitization
+from time import perf_counter
 from dotenv import load_dotenv
 from datasets import load_from_disk
-import logging # Use logging for better output management
 
 load_dotenv()
 
@@ -68,7 +68,7 @@ def extract_reasoning(completion, provider):
         logging.warning(f"Unknown provider '{provider}' for reasoning extraction.")
         return "" # Return empty string if provider unknown or reasoning missing
 
-def get_completion_deepseek_with_fallback(model, messages, prefix=None, openrouter_only=False):
+def get_completion_deepseek_with_fallback(model, messages, prefix=None, openrouter_only=False, openrouter_temperature=1):
     """Attempts DeepSeek API, falls back to OpenRouter, or uses OpenRouter directly."""
     start_time = perf_counter()
 
@@ -100,7 +100,7 @@ def get_completion_deepseek_with_fallback(model, messages, prefix=None, openrout
         completion = clients["openrouter"].chat.completions.create(
             model=openrouter_model_name,
             messages=openrouter_messages,
-            temperature=0.7,
+            temperature=openrouter_temperature,
             extra_body={
                 "include_reasoning": True,
                 # Provider preference might change/be removed depending on OpenRouter API updates
@@ -152,7 +152,7 @@ def check_if_output_exists(output_subdir, safe_question_prefix):
     return False
 
 
-def process_question(question_text, index, total, cutoff_portion, output_subdir, openrouter_only):
+def process_question(question_text, index, total, cutoff_portion, output_subdir, openrouter_only, openrouter_temperature):
     """Processes a single question: gets completions, paraphrases, and final rollouts."""
     process_start_time = perf_counter()
     logging.info(f"[{index}/{total}] Starting processing: {question_text[:60]}...")
@@ -171,7 +171,7 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
 
             # 1. Initial DeepSeek/OpenRouter completion
             initial_completion, initial_provider = get_completion_deepseek_with_fallback(
-                DEEPSEEK_MODEL, messages, openrouter_only=openrouter_only
+                DEEPSEEK_MODEL, messages, openrouter_only=openrouter_only, openrouter_temperature=openrouter_temperature
             )
             initial_response = initial_completion.choices[0].message.content or ""
             initial_reasoning = extract_reasoning(initial_completion, initial_provider)
@@ -243,7 +243,7 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
                 try:
                     start_final = perf_counter()
                     final_completion, final_provider = get_completion_deepseek_with_fallback(
-                        DEEPSEEK_MODEL, messages, prefix=prefix_content, openrouter_only=openrouter_only
+                        DEEPSEEK_MODEL, messages, prefix=prefix_content, openrouter_only=openrouter_only, openrouter_temperature=openrouter_temperature
                     )
                     final_response = final_completion.choices[0].message.content or ""
                     final_reasoning = extract_reasoning(final_completion, final_provider)
@@ -281,14 +281,20 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
              try: os.remove(output_file_path)
              except OSError: pass
         return None # Indicate failure
+    
+def parse_args():
+    parser = argparse.ArgumentParser(description="Process questions with DeepSeek and OpenRouter")
+    parser.add_argument('--num_questions', type=int, default=20, help='Number of questions to process')
+    parser.add_argument('--max_concurrent_workers', type=int, default=30, help='Number of concurrent workers')
+    parser.add_argument('--cutoff_portion', type=float, default=0.25, help='Portion of initial reasoning to keep/paraphrase')
+    parser.add_argument('--openrouter_only', action='store_true', help='Use OpenRouter only')
+    parser.add_argument('--override_existing', action='store_true', help='Process all questions, even if output files exist')
+    parser.add_argument('--output_subdir', type=str, default=None, help='Output subdirectory name')
+    parser.add_argument('--openrouter_temperature', type=float, default=1, help='Temperature for OpenRouter')
+    return parser.parse_args()
 
 def main():
-    # --- Main Configuration ---
-    num_questions_to_process = 10  # Max questions to attempt
-    max_concurrent_workers = 10   # Parallel processing threads
-    cutoff_portion = 0.25         # Portion of initial reasoning to keep/paraphrase
-    openrouter_only = True        # True: Use OpenRouter only. False: Try DeepSeek first.
-    override_existing = False     # True: Process all questions. False: Skip if output file exists.
+    args = parse_args()
 
     # --- Load Dataset ---
     try:
@@ -299,14 +305,17 @@ def main():
         return
 
     # --- Determine Output Directory ---
-    api_source_tag = "openrouter" if openrouter_only else "deepseek_openrouter"
-    output_subdir = os.path.join(OUTPUT_DIR_BASE, f"test_2_cutoff_{cutoff_portion}_{api_source_tag}")
+    api_source_tag = "openrouter" if args.openrouter_only else "deepseek_openrouter"
+    if args.output_subdir:
+        output_subdir = os.path.join(OUTPUT_DIR_BASE, args.output_subdir)
+    else:
+        output_subdir = os.path.join(OUTPUT_DIR_BASE, f"cutoff_{args.cutoff_portion}_{api_source_tag}")
     logging.info(f"Output will be saved to: {output_subdir}")
     # No need to create dir here, process_question handles it.
 
     # --- Prepare List of Questions to Process ---
     questions_to_process = []
-    indices_to_consider = list(range(min(num_questions_to_process, len(gpqa_dataset))))
+    indices_to_consider = list(range(min(args.num_questions, len(gpqa_dataset))))
     skipped_count = 0
 
     for i, dataset_index in enumerate(indices_to_consider):
@@ -314,7 +323,7 @@ def main():
         question_text = question_data['Question']
         current_index = i + 1 # User-friendly 1-based index
 
-        if not override_existing:
+        if not args.override_existing:
             safe_q_prefix = sanitize_filename(question_text)
             if check_if_output_exists(output_subdir, safe_q_prefix):
                 logging.info(f"[{current_index}/{len(indices_to_consider)}] Skipping question (output exists): {question_text[:60]}...")
@@ -338,7 +347,7 @@ def main():
     # --- Process Questions Concurrently ---
     processed_count = 0
     failed_count = 0
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent_workers) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_concurrent_workers) as executor:
         # Create futures
         future_to_info = {
             executor.submit(
@@ -346,9 +355,10 @@ def main():
                 q_text,
                 idx,          # Pass the 1-based index for logging
                 total_to_run, # Pass the count of questions actually being run
-                cutoff_portion,
+                args.cutoff_portion,
                 output_subdir,
-                openrouter_only
+                args.openrouter_only,
+                args.openrouter_temperature
             ): (idx, q_text)
             for idx, q_text in questions_to_process
         }
