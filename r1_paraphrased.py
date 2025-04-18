@@ -92,10 +92,6 @@ def get_completion_deepseek_with_fallback(model, messages, prefix=None, openrout
     # --- Use OpenRouter (fallback or direct) ---
     openrouter_messages = messages.copy()
     if prefix:
-        # OpenRouter uses a different approach for "prefix" - prepend to assistant's turn
-        # Adjusting based on typical <think> tag usage; verify if this matches DeepSeek's behavior
-        # A safer approach might be to just include the prefix in the prompt or history.
-        # Using <think> tag as in the original code.
         openrouter_messages.append({"role": "assistant", "content": f"<think>\n{prefix}"})
 
     try:
@@ -104,10 +100,11 @@ def get_completion_deepseek_with_fallback(model, messages, prefix=None, openrout
         completion = clients["openrouter"].chat.completions.create(
             model=openrouter_model_name,
             messages=openrouter_messages,
+            temperature=0.7,
             extra_body={
                 "include_reasoning": True,
                 # Provider preference might change/be removed depending on OpenRouter API updates
-                # "provider": {"order": ["Nebius"], "allow_fallbacks": False}
+                "provider": {"order": ["Nebius"], "allow_fallbacks": False}
             },
         )
         provider = "openrouter"
@@ -168,7 +165,7 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
         os.makedirs(output_subdir, exist_ok=True) # Ensure dir exists before writing
 
         with open(output_file_path, 'w', encoding='utf-8') as f: # Use UTF-8 encoding
-            write_to_file(f"# Original Question", f)
+            write_to_file(f"# Original Question\n\n{question_text}", f)
 
             messages = [{"role": "user", "content": question_text}]
 
@@ -287,7 +284,7 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
 
 def main():
     # --- Main Configuration ---
-    num_questions_to_process = 200  # Max questions to attempt
+    num_questions_to_process = 10  # Max questions to attempt
     max_concurrent_workers = 10   # Parallel processing threads
     cutoff_portion = 0.25         # Portion of initial reasoning to keep/paraphrase
     openrouter_only = True        # True: Use OpenRouter only. False: Try DeepSeek first.
@@ -303,7 +300,7 @@ def main():
 
     # --- Determine Output Directory ---
     api_source_tag = "openrouter" if openrouter_only else "deepseek_openrouter"
-    output_subdir = os.path.join(OUTPUT_DIR_BASE, f"cutoff_{cutoff_portion}_{api_source_tag}")
+    output_subdir = os.path.join(OUTPUT_DIR_BASE, f"test_2_cutoff_{cutoff_portion}_{api_source_tag}")
     logging.info(f"Output will be saved to: {output_subdir}")
     # No need to create dir here, process_question handles it.
 

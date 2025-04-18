@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 import anthropic
+import concurrent.futures
 from glob import glob
 from datasets import load_from_disk
 
@@ -98,7 +99,10 @@ def parse_arguments():
                         help='Limit number of files to process')
     parser.add_argument('--max-chars', type=int, default=5000,
                         help='Maximum characters to use from each text section for legibility grading')
+    parser.add_argument('--workers', type=int, default=10,
+                        help='Number of concurrent workers for processing files (default: 10)')
     return parser.parse_args()
+
 def main():
     args = parse_arguments()
     
@@ -129,32 +133,66 @@ def main():
     print(f"Found {len(rollout_files)} markdown files to analyze in {args.dir}")
     
     all_results = []
-    with open(answers_output_path, 'w', encoding='utf-8') as answers_file:
-        for file_path in rollout_files:
-            try:
-                result = process_file(file_path, gpqa_dataset, client)
-                all_results.append(result)
-                
-                answers_file.write(f"## Question from {os.path.basename(file_path)}\n\n")
-                answers_file.write(f"**Original Question:**\n{result['question']}\n\n")
-                answers_file.write(f"**DeepSeek Original Answer:**\n{result['answers']['deepseek']}\n\n")
-                answers_file.write(f"**Cutoff Continuation Answer:**\n{result['answers']['cutoff']}\n\n")
-                answers_file.write(f"**Anthropic Continuation Answer:**\n{result['answers']['anthropic']}\n\n")
-                answers_file.write(f"**OpenAI Continuation Answer:**\n{result['answers']['openai']}\n\n")
-                answers_file.write(f"**Actual Answer:**\n{result['actual_answer']}\n\n")
-                
-                answers_file.write("**Correctness Assessment:**\n")
-                for model, grade in result['correctness'].items():
-                    answers_file.write(f"- {model.capitalize()}: {grade['correctness']} - {grade['explanation']}\n")
-
-                answers_file.write("\n---\n\n")
-            except Exception as e:
-                print(f"Error processing {file_path}: {e}")
+    processed_count = 0
+    failed_count = 0
+    total_to_run = len(rollout_files)
     
+    # Initialize answers file with header
+    with open(answers_output_path, 'w', encoding='utf-8') as answers_file:
+        answers_file.write(f"# Analysis of {dir_name}\n\n")
+    
+    if args.workers > 1:
+        print(f"Using {args.workers} concurrent workers for processing")
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
+            # Create futures
+            future_to_file = {
+                executor.submit(process_file, file_path, gpqa_dataset, client): file_path 
+                for file_path in rollout_files
+            }
+            
+            # Process completed futures
+            for future in concurrent.futures.as_completed(future_to_file):
+                file_path = future_to_file[future]
+                try:
+                    result = future.result()
+                    all_results.append(result)
+                    processed_count += 1
+                    
+                    # Append to answers file
+                    with open(answers_output_path, 'a', encoding='utf-8') as answers_file:
+                        write_result_to_answers_file(answers_file, result)
+                    
+                    print(f"Progress: {processed_count + failed_count}/{total_to_run} "
+                          f"({processed_count} successful, {failed_count} failed)")
+                    
+                except Exception as e:
+                    failed_count += 1
+                    print(f"Error processing {file_path}: {e}")
+                    print(f"Progress: {processed_count + failed_count}/{total_to_run} "
+                          f"({processed_count} successful, {failed_count} failed)")
+    else:
+        # Single-threaded processing (original behavior)
+        with open(answers_output_path, 'a', encoding='utf-8') as answers_file:
+            for file_path in rollout_files:
+                try:
+                    result = process_file(file_path, gpqa_dataset, client)
+                    all_results.append(result)
+                    processed_count += 1
+                    
+                    write_result_to_answers_file(answers_file, result)
+                    
+                except Exception as e:
+                    failed_count += 1
+                    print(f"Error processing {file_path}: {e}")
+    
+    # Write JSON results
     with open(scores_output_path, 'w', encoding='utf-8') as scores_file:
         json.dump(all_results, scores_file, indent=2)
     
     print(f"Analysis complete. Results written to {answers_output_path} and {scores_output_path}")
+    print(f"Successfully processed: {processed_count}")
+    print(f"Failed: {failed_count}")
 
     section_scores = {
         "deepseek_response": [],
@@ -198,6 +236,23 @@ def main():
         total = sum(counts.values())
         print(f"{model.capitalize()}: Correct: {counts['correct']}, Partially: {counts['partially_correct']}, " +
               f"Incorrect: {counts['incorrect']}, N/A: {counts['N/A']}, Errors: {counts['error']}")
+
+def write_result_to_answers_file(answers_file, result):
+    """Helper function to write a result to the answers file."""
+    answers_file.write(f"## Question from {result['file']}\n\n")
+    answers_file.write(f"**Original Question:**\n{result['question']}\n\n")
+    answers_file.write(f"**DeepSeek Original Answer:**\n{result['answers']['deepseek']}\n\n")
+    answers_file.write(f"**Cutoff Continuation Answer:**\n{result['answers']['cutoff']}\n\n")
+    answers_file.write(f"**Anthropic Continuation Answer:**\n{result['answers']['anthropic']}\n\n")
+    answers_file.write(f"**OpenAI Continuation Answer:**\n{result['answers']['openai']}\n\n")
+    answers_file.write(f"**Actual Answer:**\n{result['actual_answer']}\n\n")
+    
+    answers_file.write("**Correctness Assessment:**\n")
+    for model, grade in result['correctness'].items():
+        answers_file.write(f"- {model.capitalize()}: {grade['correctness']} - {grade['explanation']}\n")
+
+    answers_file.write("\n---\n\n")
+    answers_file.flush()  # Ensure results are written immediately
 
 if __name__ == "__main__":
     main()

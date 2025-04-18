@@ -22,21 +22,35 @@ def get_original_question_from_file(file_path):
         logging.error(f"Error reading question from file {file_path}: {e}")
         return "Error retrieving question"
 
-def get_claude_answer(question, client, model="claude-3-5-sonnet-20240620", max_retries=3):
+def get_claude_answer(question, client, model="claude-3-7-sonnet-20250219", thinking=True, max_retries=3):
     """Get an answer from Claude for a given question"""
     retry_count = 0
     while retry_count < max_retries:
         try:
-            response = client.messages.create(
-                model=model,
-                max_tokens=4000,
-                temperature=0,
-                system="You are a helpful assistant. Answer the question as directly as possible. Think step by step to solve complex problems.",
-                messages=[
-                    {"role": "user", "content": f"Please answer the following question: {question}"}
-                ]
-            )
-            return response.content[0].text
+            if thinking:
+                response = client.messages.create(
+                    model=model,
+                    max_tokens=20000,
+                    thinking={
+                        "type": "enabled",
+                        "budget_tokens": 16000
+                    },
+                    messages=[
+                        {"role": "user", "content": f"{question}"}
+                    ]
+                )
+            else:
+                response = client.messages.create(
+                    model=model,
+                    max_tokens=4000,
+                    temperature=0,
+                    messages=[
+                        {"role": "user", "content": f"{question}"}
+                    ]
+                )
+            text_content = next((block.text for block in response.content if block.type == 'text'), None)
+            thinking_content = next((block.thinking for block in response.content if block.type == 'thinking'), None)
+            return text_content, thinking_content
         except Exception as e:
             retry_count += 1
             logging.warning(f"Error getting answer, retry {retry_count}/{max_retries}: {e}")
@@ -132,7 +146,8 @@ def main():
     # Load the dataset
     dataset = load_from_disk("data/gpqa_diamond")
     logging.info(f"Loaded dataset with {len(dataset)} questions")
-    
+    limit = 100
+
     # Initialize results dictionaries
     claude_answers = {}
     claude_scores = {
@@ -152,7 +167,9 @@ def main():
     }
     
     # Process all questions (use a subset for testing if needed)
-    for idx, item in tqdm(enumerate(dataset), total=len(dataset), desc="Processing questions"):
+    for idx, item in tqdm(enumerate(dataset), total=limit if limit else len(dataset), desc="Processing questions"):
+        if limit and idx >= limit:
+            break
         question_id = item.get("Question ID", f"q{idx}")
         question = item["Question"]
         correct_answer = item["Correct Answer"]
@@ -160,12 +177,13 @@ def main():
         logging.info(f"Processing question {question_id}")
         
         # Get Claude's answer
-        claude_answer = get_claude_answer(question, client)
+        claude_answer, claude_thinking = get_claude_answer(question, client)
         
         # Store the answer
         claude_answers[question_id] = {
             "question": question,
-            "answer": claude_answer
+            "answer": claude_answer,
+            "reasoning": claude_thinking
         }
         
         # Grade the answer correctness
@@ -180,18 +198,18 @@ def main():
         
         # Update summary counts
         correctness = result.get("correctness", "error")
-        claude_scores["summary"][correctness] += 1
+        claude_scores["summary"]["Claude Baseline"][correctness] += 1
     
     # Calculate percentages
-    total_valid = sum(count for key, count in claude_scores["summary"].items() if key not in ["N/A", "error"])
+    total_valid = sum(count for key, count in claude_scores["summary"]["Claude Baseline"].items() if key not in ["N/A", "error"])
     if total_valid > 0:
         claude_scores["percentages"]["Claude Baseline"] = {
-            "correct_pct": round(claude_scores["summary"]["correct"] / total_valid * 100, 1),
-            "partially_pct": round(claude_scores["summary"]["partially_correct"] / total_valid * 100, 1),
-            "incorrect_pct": round(claude_scores["summary"]["incorrect"] / total_valid * 100, 1),
+            "correct_pct": round(claude_scores["summary"]["Claude Baseline"]["correct"] / total_valid * 100, 1),
+            "partially_pct": round(claude_scores["summary"]["Claude Baseline"]["partially_correct"] / total_valid * 100, 1),
+            "incorrect_pct": round(claude_scores["summary"]["Claude Baseline"]["incorrect"] / total_valid * 100, 1),
             "total_valid": total_valid,
-            "total_NA": claude_scores["summary"]["N/A"],
-            "total_error": claude_scores["summary"]["error"]
+            "total_NA": claude_scores["summary"]["Claude Baseline"]["N/A"],
+            "total_error": claude_scores["summary"]["Claude Baseline"]["error"]
         }
     
     # Save results to files
