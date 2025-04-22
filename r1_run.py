@@ -1,93 +1,98 @@
-from time import perf_counter
-from openai import OpenAI
-from datetime import datetime
 import os
+import re
+import logging
+import argparse
+import concurrent.futures
+from openai import OpenAI
+from tqdm.auto import tqdm
+from datetime import datetime
+from time import perf_counter
 from dotenv import load_dotenv
 from datasets import load_from_disk
 
 load_dotenv()
 
-# Load the GPQA dataset
-dataset_path = "data/gpqa_diamond"
-gpqa_dataset = load_from_disk(dataset_path)
-print(f"Dataset contains {len(gpqa_dataset)} questions")
+def sanitize_filename(text, max_len=30):
+    sanitized = re.sub(r'[^a-zA-Z0-9_\s-]', '_', text).strip()
+    sanitized = re.sub(r'[\s-]+', '_', sanitized)
+    return sanitized[:max_len] if sanitized else "untitled"
 
 def write_to_file(content, file):
     file.write(f"{content}\n\n---\n\n")
     file.flush()
 
-# Initialize OpenRouter client
-openrouter_client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv('OPENROUTER_API_KEY'),
-)
+def process_question(question_text, index, total, output_dir, temperature):
+    try:
+        safe_question = sanitize_filename(question_text)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = f"{output_dir}/r1_response_{timestamp}_{safe_question}.md"
+        os.makedirs(output_dir, exist_ok=True)
 
-def get_completion(model, messages):
-    completion = openrouter_client.chat.completions.create(
-        model=model,
-        messages=messages,
-        extra_body={
-            "include_reasoning": True,
-            "provider": {
-                "order": ["Nebius"],
-                "allow_fallbacks": False
-            }
-        },
-    )
-    return completion
+        with open(output_file, 'w', encoding='utf-8') as f:
+            write_to_file(f"# Original Question\n\n{question_text}", f)
+            
+            start_time = perf_counter()
+            completion = openrouter_client.chat.completions.create(
+                model="deepseek/deepseek-r1",
+                messages=[{"role": "user", "content": question_text}],
+                temperature=temperature,
+                extra_body={
+                    "include_reasoning": True,
+                    "provider": {"order": ["Nebius"], "allow_fallbacks": False}
+                }
+            )
+            
+            write_to_file(f"# DeepSeek response (via openrouter)\n\n{completion.choices[0].message.content}", f)
+            write_to_file(f"# DeepSeek reasoning (via openrouter)\n\n{completion.choices[0].message.reasoning}", f)
+            
+            logging.info(f"[{index}/{total}] Processed in {perf_counter() - start_time:.2f}s")
+            return output_file
+    except Exception as e:
+        logging.error(f"[{index}/{total}] Failed: {str(e)}")
+        return None
 
-def process_question(question_text, output_dir="r1_simple_responses"):
-    # Create directories if they don't exist
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Sanitize question text for filename
-    safe_question = "".join(c if c.isalnum() else "_" for c in question_text[:30])
-    
-    # Create a file with timestamp and question preview
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_path = f"{output_dir}/r1_response_{timestamp}_{safe_question}.md"
-
-    with open(file_path, 'w') as f:
-        write_to_file(f"# Original Question\n\n{question_text}", f)
-        
-        model = "deepseek/deepseek-r1"
-        messages = [{"role": "user", "content": question_text}]
-
-        # Get completion
-        start_time = perf_counter()
-        completion = get_completion(model, messages)
-        end_time = perf_counter()
-        
-        # Write response and reasoning
-        write_to_file(f"# R1 response\n\n{completion.choices[0].message.content}", f)
-        write_to_file(f"# R1 reasoning\n\n{completion.choices[0].message.reasoning}", f)
-        
-        print(f"Completion time: {end_time - start_time:.2f} seconds")
-
-    return file_path
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_questions', type=int, default=200)
+    parser.add_argument('--max_workers', type=int, default=30)
+    parser.add_argument('--output_dir', type=str, default=None)
+    parser.add_argument('--temperature', type=float, default=1.0)
+    return parser.parse_args()
 
 def main():
-    # Define how many questions to process
-    num_questions = 200  # Change this as needed
-    
-    # Process sequentially
-    indices = range(min(num_questions, len(gpqa_dataset)))
-    
-    for i, idx in enumerate(indices):
-        question = gpqa_dataset[idx]['Question']
-        print(f"\nProcessing question {i+1}/{len(indices)}: {question[:50]}...")
-        
-        try:
-            output_file = process_question(question)
-            print(f"Results written to: {output_file}")
-        except Exception as e:
-            print(f"Error processing question: {e}")
-            continue
-        
-        # Add delay between questions to avoid rate limiting
-        if i < len(indices) - 1:
-            import time
-            time.sleep(5)  # 5 second delay between questions
+    args = parse_args()
+    gpqa_dataset = load_from_disk("data/gpqa_diamond")
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    global openrouter_client
+    openrouter_client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.getenv('OPENROUTER_API_KEY')
+    )
+
+    if args.output_dir is None:
+        args.output_dir = f"r1_rollouts/r1_only_temp_{args.temperature}"
+
+    num_questions = min(args.num_questions, len(gpqa_dataset))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as executor:
+        futures = [
+            executor.submit(process_question, 
+                          gpqa_dataset[i]['Question'], 
+                          idx + 1, 
+                          num_questions,
+                          args.output_dir,
+                          args.temperature)
+            for idx, i in enumerate(range(num_questions))
+        ]
+
+        success = 0
+        with tqdm(total=num_questions, desc="Processing") as pbar:
+            for future in concurrent.futures.as_completed(futures):
+                if future.result():
+                    success += 1
+                pbar.update(1)
+
+    logging.info(f"Completed {success}/{num_questions} questions successfully")
 
 if __name__ == "__main__":
     main()
