@@ -12,7 +12,7 @@ client = anthropic.Anthropic(
     api_key=os.getenv("ANTHROPIC_API_KEY")
 )
 
-def process_file(file_path, dataset, client):
+def process_file(file_path, dataset, client, r1_only):
     """Process a single transcript file, extract answers, and grade them."""
     print(f"\nProcessing: {file_path}")
     
@@ -25,30 +25,34 @@ def process_file(file_path, dataset, client):
     sections = autograder_utils.extract_sections(file_path)
     answers = {
         'deepseek': None,
-        'cutoff': None,
-        'anthropic': None,
-        'openai': None,
     }
+    if not r1_only:
+        answers.update({
+            'cutoff': None,
+            'anthropic': None,
+            'openai': None,
+        })
     
     if 'deepseek_response' in sections:
         answers['deepseek'] = autograder_utils.extract_answer_from_text(sections.get('deepseek_response', ''), is_reasoning=False)
     if not answers['deepseek'] and 'deepseek_reasoning' in sections:
         answers['deepseek'] = autograder_utils.extract_answer_from_text(sections.get('deepseek_reasoning', ''), is_reasoning=True)
 
-    if 'cutoff_response' in sections:
-        answers['cutoff'] = autograder_utils.extract_answer_from_text(sections.get('cutoff_response', ''), is_reasoning=False)
-    if not answers['cutoff'] and 'cutoff_reasoning' in sections:
-        answers['cutoff'] = autograder_utils.extract_answer_from_text(sections.get('cutoff_reasoning', ''), is_reasoning=True)
+    if not r1_only:
+        if 'cutoff_response' in sections:
+            answers['cutoff'] = autograder_utils.extract_answer_from_text(sections.get('cutoff_response', ''), is_reasoning=False)
+        if not answers['cutoff'] and 'cutoff_reasoning' in sections:
+            answers['cutoff'] = autograder_utils.extract_answer_from_text(sections.get('cutoff_reasoning', ''), is_reasoning=True)
         
-    if 'anthropic_response' in sections:
-        answers['anthropic'] = autograder_utils.extract_answer_from_text(sections.get('anthropic_response', ''), is_reasoning=False)
-    if not answers['anthropic'] and 'anthropic_reasoning' in sections:
-        answers['anthropic'] = autograder_utils.extract_answer_from_text(sections.get('anthropic_reasoning', ''), is_reasoning=True)
-        
-    if 'openai_response' in sections:
-        answers['openai'] = autograder_utils.extract_answer_from_text(sections.get('openai_response', ''), is_reasoning=False)
-    if not answers['openai'] and 'openai_reasoning' in sections:
-        answers['openai'] = autograder_utils.extract_answer_from_text(sections.get('openai_reasoning', ''), is_reasoning=True)
+        if 'anthropic_response' in sections:
+            answers['anthropic'] = autograder_utils.extract_answer_from_text(sections.get('anthropic_response', ''), is_reasoning=False)
+        if not answers['anthropic'] and 'anthropic_reasoning' in sections:
+            answers['anthropic'] = autograder_utils.extract_answer_from_text(sections.get('anthropic_reasoning', ''), is_reasoning=True)
+            
+        if 'openai_response' in sections:
+            answers['openai'] = autograder_utils.extract_answer_from_text(sections.get('openai_response', ''), is_reasoning=False)
+        if not answers['openai'] and 'openai_reasoning' in sections:
+            answers['openai'] = autograder_utils.extract_answer_from_text(sections.get('openai_reasoning', ''), is_reasoning=True)
     
     legibility_grades = {}
     for section_name, text in sections.items():
@@ -87,6 +91,24 @@ def process_file(file_path, dataset, client):
     
     return results
 
+def write_result_to_answers_file(answers_file, result, r1_only):
+    """Helper function to write a result to the answers file."""
+    answers_file.write(f"## Question from {result['file']}\n\n")
+    answers_file.write(f"**Original Question:**\n{result['question']}\n\n")
+    answers_file.write(f"**DeepSeek Original Answer:**\n{result['answers']['deepseek']}\n\n")
+    if not r1_only:
+        answers_file.write(f"**Cutoff Continuation Answer:**\n{result['answers']['cutoff']}\n\n")
+        answers_file.write(f"**Anthropic Continuation Answer:**\n{result['answers']['anthropic']}\n\n")
+        answers_file.write(f"**OpenAI Continuation Answer:**\n{result['answers']['openai']}\n\n")
+    answers_file.write(f"**Actual Answer:**\n{result['actual_answer']}\n\n")
+    
+    answers_file.write("**Correctness Assessment:**\n")
+    for model, grade in result['correctness'].items():
+        answers_file.write(f"- {model.capitalize()}: {grade['correctness']} - {grade['explanation']}\n")
+
+    answers_file.write("\n---\n\n")
+    answers_file.flush()  # Ensure results are written immediately
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Analyze and grade answers from markdown files.')
     parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_0.5_openrouter', 
@@ -99,8 +121,10 @@ def parse_arguments():
                         help='Limit number of files to process')
     parser.add_argument('--max-chars', type=int, default=5000,
                         help='Maximum characters to use from each text section for legibility grading')
-    parser.add_argument('--workers', type=int, default=10,
-                        help='Number of concurrent workers for processing files (default: 10)')
+    parser.add_argument('--workers', type=int, default=5,
+                        help='Number of concurrent workers for processing files (default: 5)')
+    parser.add_argument('--r1-only', action='store_true',
+                        help='Only evaluate DeepSeek responses')
     return parser.parse_args()
 
 def main():
@@ -147,7 +171,7 @@ def main():
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
             # Create futures
             future_to_file = {
-                executor.submit(process_file, file_path, gpqa_dataset, client): file_path 
+                executor.submit(process_file, file_path, gpqa_dataset, client, args.r1_only): file_path 
                 for file_path in rollout_files
             }
             
@@ -161,7 +185,7 @@ def main():
                     
                     # Append to answers file
                     with open(answers_output_path, 'a', encoding='utf-8') as answers_file:
-                        write_result_to_answers_file(answers_file, result)
+                        write_result_to_answers_file(answers_file, result, args.r1_only)
                     
                     print(f"Progress: {processed_count + failed_count}/{total_to_run} "
                           f"({processed_count} successful, {failed_count} failed)")
@@ -176,11 +200,11 @@ def main():
         with open(answers_output_path, 'a', encoding='utf-8') as answers_file:
             for file_path in rollout_files:
                 try:
-                    result = process_file(file_path, gpqa_dataset, client)
+                    result = process_file(file_path, gpqa_dataset, client, args.r1_only)
                     all_results.append(result)
                     processed_count += 1
                     
-                    write_result_to_answers_file(answers_file, result)
+                    write_result_to_answers_file(answers_file, result, args.r1_only)
                     
                 except Exception as e:
                     failed_count += 1
@@ -197,19 +221,25 @@ def main():
     section_scores = {
         "deepseek_response": [],
         "deepseek_reasoning": [],
-        "cutoff_response": [], 
-        "cutoff_reasoning": [],
-        "anthropic_response": [], 
-        "anthropic_reasoning": [],
-        "openai_response": [], 
-        "openai_reasoning": []
     }
+    if not args.r1_only:
+        section_scores.update({
+            "cutoff_response": [], 
+            "cutoff_reasoning": [],
+            "anthropic_response": [], 
+            "anthropic_reasoning": [],
+            "openai_response": [], 
+            "openai_reasoning": []
+        })
     correctness_counts = {
-        "deepseek": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0},
-        "cutoff": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0},
-        "anthropic": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0},
-        "openai": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0}
+        "deepseek": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0}
     }
+    if not args.r1_only:
+        correctness_counts.update({
+            "cutoff": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0},
+            "anthropic": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0},
+            "openai": {"correct": 0, "partially_correct": 0, "incorrect": 0, "N/A": 0, "error": 0}
+        })
     
     for result in all_results:
         for section, grade in result['legibility'].items():
@@ -236,23 +266,6 @@ def main():
         total = sum(counts.values())
         print(f"{model.capitalize()}: Correct: {counts['correct']}, Partially: {counts['partially_correct']}, " +
               f"Incorrect: {counts['incorrect']}, N/A: {counts['N/A']}, Errors: {counts['error']}")
-
-def write_result_to_answers_file(answers_file, result):
-    """Helper function to write a result to the answers file."""
-    answers_file.write(f"## Question from {result['file']}\n\n")
-    answers_file.write(f"**Original Question:**\n{result['question']}\n\n")
-    answers_file.write(f"**DeepSeek Original Answer:**\n{result['answers']['deepseek']}\n\n")
-    answers_file.write(f"**Cutoff Continuation Answer:**\n{result['answers']['cutoff']}\n\n")
-    answers_file.write(f"**Anthropic Continuation Answer:**\n{result['answers']['anthropic']}\n\n")
-    answers_file.write(f"**OpenAI Continuation Answer:**\n{result['answers']['openai']}\n\n")
-    answers_file.write(f"**Actual Answer:**\n{result['actual_answer']}\n\n")
-    
-    answers_file.write("**Correctness Assessment:**\n")
-    for model, grade in result['correctness'].items():
-        answers_file.write(f"- {model.capitalize()}: {grade['correctness']} - {grade['explanation']}\n")
-
-    answers_file.write("\n---\n\n")
-    answers_file.flush()  # Ensure results are written immediately
 
 if __name__ == "__main__":
     main()
