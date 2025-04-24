@@ -7,7 +7,7 @@ __pycache__/
 
 r1_rollouts/
 data/
-tests/
+tests_private/
 
 *.md
 !README.md
