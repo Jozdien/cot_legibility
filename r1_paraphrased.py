@@ -286,7 +286,7 @@ def process_question(question_text, index, total, cutoff_portion, output_subdir,
 def parse_args():
     parser = argparse.ArgumentParser(description="Process questions with DeepSeek and OpenRouter")
     parser.add_argument('--num_questions', type=int, default=20, help='Number of questions to process')
-    parser.add_argument('--max_concurrent_workers', type=int, default=30, help='Number of concurrent workers')
+    parser.add_argument('--max_concurrent_workers', type=int, default=40, help='Number of concurrent workers')
     parser.add_argument('--cutoff_portion', type=float, default=0.25, help='Portion of initial reasoning to keep/paraphrase')
     parser.add_argument('--openrouter_only', action='store_true', help='Use OpenRouter only')
     parser.add_argument('--override_existing', action='store_true', help='Process all questions, even if output files exist')

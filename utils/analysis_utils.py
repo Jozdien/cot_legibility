@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import glob
 import argparse
@@ -973,7 +974,7 @@ def plot_legibility_by_correctness(stats, file_name, plots_dir, plot_answer=True
     
     # Add styling and labels
     ax.set_ylabel('Illegibility Score', fontsize=12)
-    ax.set_title(f'Illegibility by Question Hardness (n={len(stats)})', fontsize=14)
+    ax.set_title(f'Illegibility by Correctness (n={len(stats)})', fontsize=14)
     ax.set_xticks(x)
     ax.set_xticklabels(categories)
     ax.set_ylim(0, 9.5)
@@ -990,3 +991,197 @@ def plot_legibility_by_correctness(stats, file_name, plots_dir, plot_answer=True
     plt.savefig(plot_path)
     plt.close()
     print(f"Illegibility by question hardness plot saved to {plot_path}")
+
+def plot_length_vs_legibility(data, file_name, plots_dir):
+    """Plot section lengths versus legibility scores."""
+    section_data = {
+        'deepseek_reasoning': {'lengths': [], 'scores': []},
+        'cutoff_reasoning': {'lengths': [], 'scores': []},
+        'anthropic_reasoning': {'lengths': [], 'scores': []},
+        'openai_reasoning': {'lengths': [], 'scores': []}
+    }
+
+    # Extract sections using patterns
+    patterns = {
+        'deepseek_reasoning': r"# DeepSeek reasoning.*?\n(.*?)(?=\n---|\n# |\Z)",
+        'cutoff_reasoning': r"# cutoff_deepseek_completion reasoning.*?\n(.*?)(?=\n---|\n# |\Z)",
+        'anthropic_reasoning': r"# paraphrased_deepseek_completion_anthropic reasoning.*?\n(.*?)(?=\n---|\n# |\Z)",
+        'openai_reasoning': r"# paraphrased_deepseek_completion_openai reasoning.*?\n(.*?)(?=\n---|\n# |\Z)"
+    }
+
+    for result in data:
+        filename = result.get("file")
+        filepath = os.path.join("r1_rollouts", file_name, filename)
+        if not os.path.exists(filepath):
+            print(f"File {filepath} does not exist")
+            continue
+
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        legibility = result.get("legibility", {})
+        for section, pattern in patterns.items():
+            match = re.search(pattern, content, re.DOTALL)
+            if match and section in legibility:
+                section_text = match.group(1).strip()
+                section_score = legibility[section].get("score")
+                if isinstance(section_score, (int, float)):
+                    section_data[section]['lengths'].append(len(section_text))
+                    section_data[section]['scores'].append(section_score)
+
+    colors = get_model_colors()
+    plt.figure(figsize=(12, 8))
+
+    # Create a 2x2 grid instead of 2x4
+    for i, (section, values) in enumerate(section_data.items(), 1):
+        if values['lengths'] and values['scores']:
+            plt.subplot(2, 2, i)
+            model = section.split('_')[0]
+            plt.scatter(values['lengths'], values['scores'], alpha=0.5, color=colors.get(model, '#7f8c8d'))
+            plt.title(get_model_display_name(model) + f"\n({section.split('_')[1].capitalize()})")
+            plt.xlabel('Section Length')
+            plt.ylabel('Legibility Score')
+            plt.grid(True, alpha=0.3)
+            
+    plt.tight_layout()
+    plot_path = os.path.join(plots_dir, f"{file_name}_length_vs_legibility.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Length vs legibility plot saved to {plot_path}")
+
+def plot_correctness_with_baseline(stats, file_name, plots_dir):
+    """Plot correctness assessment for a file."""
+    # Try to load baseline data
+    baseline_file = file_name.replace('cutoff_0.25_openrouter', 'temp_0_cutoff_0.25_openrouter')
+    try:
+        with open(f'scores/{baseline_file}_scores.json') as f:
+            baseline_data = json.load(f)
+            baseline_stats = analyze_correctness_scores(baseline_data)
+            has_baseline = True
+    except:
+        has_baseline = False
+
+    plt.figure(figsize=(12, 6))
+    
+    # Prepare data
+    models = ['baseline'] + list(stats["correctness"].keys()) if has_baseline else list(stats["correctness"].keys())
+    correct_pct = [baseline_stats["deepseek"]["correct_percentage"] if has_baseline else 0] + [stats["correctness"][model]["correct_percentage"] for model in models[1:]] if has_baseline else [stats["correctness"][model]["correct_percentage"] for model in models]
+    partially_pct = [baseline_stats["deepseek"]["partially_percentage"] if has_baseline else 0] + [stats["correctness"][model]["partially_percentage"] for model in models[1:]] if has_baseline else [stats["correctness"][model]["partially_percentage"] for model in models]
+    incorrect_pct = [baseline_stats["deepseek"]["incorrect_percentage"] if has_baseline else 0] + [stats["correctness"][model]["incorrect_percentage"] for model in models[1:]] if has_baseline else [stats["correctness"][model]["incorrect_percentage"] for model in models]
+    counts = [baseline_stats["deepseek"]["total"] if has_baseline else 0] + [stats["correctness"][model]["total"] for model in models[1:]] if has_baseline else [stats["correctness"][model]["total"] for model in models]
+    
+    # Define bar positions  
+    bar_width = 0.25
+    r1 = np.arange(len(models))
+    r2 = [x + bar_width for x in r1]
+    r3 = [x + bar_width for x in r2]
+
+    # Create bars
+    bars1 = plt.bar(r1, correct_pct, width=bar_width, label='Correct', color='#2ecc71', alpha=0.8)
+    bars2 = plt.bar(r2, partially_pct, width=bar_width, label='Partially Correct', color='#f39c12', alpha=0.8)
+    bars3 = plt.bar(r3, incorrect_pct, width=bar_width, label='Incorrect', color='#e74c3c', alpha=0.8)
+
+    # Format x-axis labels with model display names
+    model_labels = [get_model_display_name(model) for model in models] if not has_baseline else ['Baseline'] + [get_model_display_name(model) for model in models[1:]]
+    
+    # Add labels and customize plot
+    plt.ylabel('Percentage (%)', fontsize=12)
+    plt.title(f'Correctness Assessment for r1 (n={min(counts)})', fontsize=14)
+    plt.xticks([r + bar_width for r in range(len(models))], model_labels)
+    plt.ylim(0, 100)
+    plt.legend()
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # Add value labels
+    for bars, values in [(bars1, correct_pct), (bars2, partially_pct), (bars3, incorrect_pct)]:
+        for bar, value in zip(bars, values):
+            if value > 0:
+                plt.text(bar.get_x() + bar.get_width()/2, value + 2, f'{value:.1f}%', 
+                        ha='center', va='bottom', fontsize=9)
+    
+    plt.tight_layout()
+
+    # Save plot
+    plot_path = os.path.join(plots_dir, f"{file_name}_correctness_with_baseline.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Correctness assessment plot saved to {plot_path}")
+
+def plot_legibility_by_baseline_correctness(data, file_name, plots_dir):
+    """Plot legibility scores categorized by baseline correctness."""
+    baseline_file = file_name.replace('cutoff_0.25_openrouter', 'temp_0_cutoff_0.25_openrouter')
+    try:
+        with open(f'scores/{baseline_file}_scores.json') as f:
+            baseline_data = json.load(f)
+    except:
+        return
+
+    # Initialize data structures
+    metrics = ["deepseek_response", "deepseek_reasoning", 
+              "cutoff_response", "cutoff_reasoning",
+              "anthropic_response", "anthropic_reasoning", 
+              "openai_response", "openai_reasoning"]
+    categories = ["Correct", "Partially Correct", "Incorrect"]
+    data_by_category = {cat: {metric: [] for metric in metrics} for cat in categories}
+    
+    # Get baseline correctness mapping
+    baseline_correctness = {q['question']: q['correctness']['deepseek']['correctness'] 
+                          for q in baseline_data if 'correctness' in q}
+
+    # Categorize and collect scores
+    for q_data in data:
+        if q_data['question'] not in baseline_correctness:
+            continue
+        if baseline_correctness[q_data['question']] == "N/A" or baseline_correctness[q_data['question']] == "error":
+            continue
+        cat = {"correct": "Correct", 
+               "partially_correct": "Partially Correct",
+               "incorrect": "Incorrect"}[baseline_correctness[q_data['question']]]
+        
+        for metric in metrics:
+            if metric in q_data.get('legibility', {}):
+                score = q_data['legibility'][metric].get('score')
+                if score is not None and score != "N/A" and isinstance(score, (int, float)):
+                    data_by_category[cat][metric].append(score)
+
+    # Plot
+    x = np.arange(len(categories))
+    width = 0.09
+    spacing = 0.01
+    fig, ax = plt.subplots(figsize=(12, 6))
+    colors = get_model_colors()
+    legend_items = []
+
+    for i, metric in enumerate(metrics):
+        model, eval_type = metric.split('_')
+        color = colors.get(model, '#7f8c8d')
+        hatch = '///' if eval_type == 'reasoning' else ''
+        
+        means = [np.mean(data_by_category[cat][metric]) if data_by_category[cat][metric] else 0 
+                for cat in categories]
+        stds = [np.std(data_by_category[cat][metric]) if len(data_by_category[cat][metric]) > 1 else 0 
+                for cat in categories]
+        
+        pos = x + (i * (width + spacing) - len(metrics) * (width + spacing) / 2 + width/2)
+        bars = ax.bar(pos, means, width, color=color, alpha=1)
+        ax.errorbar(pos, means, yerr=stds, ecolor='black', capsize=3, alpha=0.7, linestyle='none', linewidth=1)
+        
+        for bar in bars:
+            bar.set_hatch(hatch)
+            
+        legend_suffix = "(Reasoning)" if eval_type == 'reasoning' else "(Answer)"
+        legend_items.append((bars[0], f"{get_model_display_name(model)} {legend_suffix}"))
+
+    ax.set_ylabel('Illegibility Score', fontsize=12)
+    ax.set_title('Illegibility by Baseline Correctness', fontsize=14)
+    ax.set_xticks(x)
+    ax.set_xticklabels(categories)
+    ax.set_ylim(0, 9.5)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    handles, labels = zip(*legend_items)
+    ax.legend(handles, labels, title="Models", loc='upper left')
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, f"{file_name}_legibility_by_baseline.png"))
+    plt.close()

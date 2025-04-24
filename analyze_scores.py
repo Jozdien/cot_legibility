@@ -17,6 +17,9 @@ def process_regular_file(file_path, plots_dir=None, std_display=None):
         analysis_utils.plot_legibility_scores(stats, file_name, plots_dir, std_display=std_display)
         analysis_utils.plot_correctness_assessment(stats, file_name, plots_dir)
         analysis_utils.plot_legibility_by_correctness(data, file_name, plots_dir)
+        analysis_utils.plot_length_vs_legibility(data, file_name, plots_dir)
+        analysis_utils.plot_correctness_with_baseline(stats, file_name, plots_dir)
+        analysis_utils.plot_legibility_by_baseline_correctness(data, file_name, plots_dir)
     
     return file_name, stats
 
