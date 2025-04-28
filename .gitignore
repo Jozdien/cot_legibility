@@ -9,7 +9,15 @@ r1_rollouts/
 data/
 tests_private/
 
-*.md
-!README.md
 *.json
 prompts.txt
+
+answers/cutoff_0.5_deepseek_openrouter_answers.md
+answers/cutoff_0.25_deepseek_openrouter_answers.md
+answers/deepseek_api_answers.md
+answers/openrouter_api_answers.md
+answers/r1_only_temp_0.4_answers.md
+answers/temp_1_cutoff_0.25_openrouter_answers.md
+answers/test_2_cutoff_0.25_openrouter_answers.md
+answers/test_answers.md
+answers/test_cutoff_0.25_openrouter_answers.md
