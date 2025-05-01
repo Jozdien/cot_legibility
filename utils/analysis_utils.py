@@ -1,10 +1,9 @@
 import os
 import re
 import json
-import glob
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
 import matplotlib.font_manager as fm
 from matplotlib.patches import Patch
 
@@ -61,6 +60,8 @@ def analyze_legibility_scores(data) -> dict[str, dict[str, int | float]]:
             if section in section_scores:
                 if score_data.get("score") == "N/A":
                     section_na_counts[section] += 1
+                elif score_data.get("score") == 0 or score_data.get("score") == 10:
+                    continue
                 elif isinstance(score_data.get("score"), (int, float)):
                     section_scores[section].append(score_data["score"])
     
@@ -1204,3 +1205,48 @@ def plot_legibility_by_baseline_correctness(data, file_name, plots_dir):
     plt.tight_layout()
     plt.savefig(os.path.join(plots_dir, f"{file_name}_legibility_by_baseline.png"))
     plt.close()
+
+def plot_chunk_legibility(data, file_name, plots_dir):
+    """Plot legibility scores by chunk position."""
+    models = ['deepseek', 'cutoff', 'anthropic', 'openai']
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    axes = axes.ravel()
+    colors = get_model_colors()
+    
+    for idx, model in enumerate(models):
+        chunk_scores = defaultdict(list)
+        for file_data in data:
+            chunks = file_data.get('sections', {}).get(f'{model}_reasoning', {}).get('chunk_grades', [])
+            for i, chunk in enumerate(chunks):
+                if isinstance(chunk.get('score'), (int, float)):
+                    chunk_scores[i].append(chunk['score'])
+        
+        if not chunk_scores:
+            continue
+            
+        ax = axes[idx]
+        values = list(chunk_scores.values())
+        bp = ax.boxplot(values, patch_artist=True)
+        
+        # Add sample counts
+        # for i, scores in enumerate(values, 1):
+        #     ax.text(i, 0.5, f'n={len(scores)}', ha='center', va='bottom', fontsize=8)
+        
+        # Style
+        for element in ['boxes', 'medians']:
+            plt.setp(bp[element], color=colors[model])
+        plt.setp(bp['boxes'], facecolor=colors[model], alpha=0.6)
+        
+        ax.set_xlabel('Chunks')
+        ax.set_ylabel('Illegibility Score')
+        ax.set_title(get_model_display_name(model))
+        ax.set_xticks(range(1, len(chunk_scores) + 1))
+        ax.set_xticklabels([f'{i*5000}' for i in range(len(chunk_scores))])
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, 9.5)
+
+    plt.tight_layout()
+    plot_path = os.path.join(plots_dir, f"{file_name}_chunk_legibility.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Chunk legibility plot saved to {plot_path}")

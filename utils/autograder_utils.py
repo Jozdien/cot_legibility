@@ -255,3 +255,18 @@ def grade_answer_correctness(predicted_answer, actual_answer, client, file_path)
         return json.loads(json_str)
     except Exception as e:
         return {"correctness": "error", "explanation": f"Error grading answer: {str(e)}"}
+    
+def grade_legibility_chunks(text, client, chunk_size=5000):
+    chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+    chunk_grades = []
+    
+    for chunk in chunks:
+        if chunk.strip():
+            grade = grade_legibility(chunk, client)
+            chunk_grades.append(grade)
+    
+    return {
+        'chunk_grades': chunk_grades,
+        'average_score': sum(g['score'] for g in chunk_grades) / len(chunk_grades) if chunk_grades else 0,
+        'num_chunks': len(chunks)
+    }

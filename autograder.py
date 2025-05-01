@@ -91,6 +91,17 @@ def process_file(file_path, dataset, client, r1_only):
     
     return results
 
+def process_file_chunks(file_path, client):
+    """Process a single transcript file for chunk-based legibility analysis."""
+    sections = autograder_utils.extract_sections(file_path)
+    results = {"file": os.path.basename(file_path), "sections": {}}
+    
+    for name, text in sections.items():
+        if text and text.strip():
+            results["sections"][name] = autograder_utils.grade_legibility_chunks(text, client)
+    
+    return results
+
 def write_result_to_answers_file(answers_file, result, r1_only):
     """Helper function to write a result to the answers file."""
     answers_file.write(f"## Question from {result['file']}\n\n")
@@ -111,7 +122,7 @@ def write_result_to_answers_file(answers_file, result, r1_only):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Analyze and grade answers from markdown files.')
-    parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_0.5_openrouter', 
+    parser.add_argument('--dir', type=str, default='r1_rollouts/cutoff_0.25_openrouter', 
                         help='Directory containing markdown files to analyze (default: r1_rollouts)')
     parser.add_argument('--scores-output', type=str, default=None,
                         help='Output JSON file path (defaults to dir_name_scores.json)')
@@ -125,6 +136,8 @@ def parse_arguments():
                         help='Number of concurrent workers for processing files (default: 5)')
     parser.add_argument('--r1-only', action='store_true',
                         help='Only evaluate DeepSeek responses')
+    parser.add_argument('--chunk-legibility', action='store_true',
+                        help='Only analyze legibility in chunks, saving to a separate file')
     return parser.parse_args()
 
 def main():
@@ -135,8 +148,8 @@ def main():
     # Ensure scores directory exists
     os.makedirs("scores", exist_ok=True)
     if args.scores_output is None:
-        args.scores_output = f"{dir_name}_scores.json"
-        scores_output_path = os.path.join("scores", args.scores_output)
+        base_name = f"{dir_name}_{'legibility_chunks_scores' if args.chunk_legibility else 'scores'}.json"
+        scores_output_path = os.path.join("scores", base_name)
     else:
         scores_output_path = args.scores_output
 
@@ -162,20 +175,24 @@ def main():
     total_to_run = len(rollout_files)
     
     # Initialize answers file with header
-    with open(answers_output_path, 'w', encoding='utf-8') as answers_file:
-        answers_file.write(f"# Analysis of {dir_name}\n\n")
+    if not args.chunk_legibility:
+        with open(answers_output_path, 'w', encoding='utf-8') as answers_file:
+            answers_file.write(f"# Analysis of {dir_name}\n\n")
     
     if args.workers > 1:
         print(f"Using {args.workers} concurrent workers for processing")
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
-            # Create futures
-            future_to_file = {
-                executor.submit(process_file, file_path, gpqa_dataset, client, args.r1_only): file_path 
-                for file_path in rollout_files
-            }
+            if args.chunk_legibility:
+                future_to_file = {
+                    executor.submit(process_file_chunks, file_path, client): file_path for file_path in rollout_files
+                }
+            else:
+                future_to_file = {
+                    executor.submit(process_file, file_path, gpqa_dataset, client, args.r1_only): file_path 
+                    for file_path in rollout_files
+                }
             
-            # Process completed futures
             for future in concurrent.futures.as_completed(future_to_file):
                 file_path = future_to_file[future]
                 try:
@@ -183,18 +200,18 @@ def main():
                     all_results.append(result)
                     processed_count += 1
                     
-                    # Append to answers file
-                    with open(answers_output_path, 'a', encoding='utf-8') as answers_file:
-                        write_result_to_answers_file(answers_file, result, args.r1_only)
+                    if not args.chunk_legibility:
+                        with open(answers_output_path, 'a', encoding='utf-8') as answers_file:
+                            write_result_to_answers_file(answers_file, result, args.r1_only)
                     
                     print(f"Progress: {processed_count + failed_count}/{total_to_run} "
-                          f"({processed_count} successful, {failed_count} failed)")
+                        f"({processed_count} successful, {failed_count} failed)")
                     
                 except Exception as e:
                     failed_count += 1
                     print(f"Error processing {file_path}: {e}")
                     print(f"Progress: {processed_count + failed_count}/{total_to_run} "
-                          f"({processed_count} successful, {failed_count} failed)")
+                        f"({processed_count} successful, {failed_count} failed)")
     else:
         # Single-threaded processing (original behavior)
         with open(answers_output_path, 'a', encoding='utf-8') as answers_file:
@@ -217,6 +234,9 @@ def main():
     print(f"Analysis complete. Results written to {answers_output_path} and {scores_output_path}")
     print(f"Successfully processed: {processed_count}")
     print(f"Failed: {failed_count}")
+
+    if args.chunk_legibility:
+        return
 
     section_scores = {
         "deepseek_response": [],
