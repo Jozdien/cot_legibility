@@ -4,12 +4,12 @@ import argparse
 
 from utils import analysis_utils
 
-def process_regular_file(file_path, plots_dir=None, std_display=None):
+def process_regular_file(file_path, plots_dir=None, std_display=None, include_settings=None):
     """Process a single regular score file."""
     print(f"Analyzing: {file_path}")
     file_name = os.path.basename(file_path).replace('_scores.json', '')
     data = analysis_utils.load_json_file(file_path)
-    stats = analysis_utils.analyze_scores(data)
+    stats = analysis_utils.analyze_scores(data, include_settings)
     
     analysis_utils.print_summary(stats, file_name)
     
@@ -35,7 +35,7 @@ def process_claude_file(file_path, plots_dir=None, claude_baseline=None):
         analysis_utils.plot_claude_correctness(stats, file_name, plots_dir, claude_baseline)
         analysis_utils.plot_claude_comparisons(stats, file_name, plots_dir)
 
-def process_regular_files(file_pattern, compare=False, plots=False, std_display=None):
+def process_regular_files(file_pattern, compare=False, plots=False, std_display=None, include_settings=None):
     """Process all regular score files matching the pattern."""
     files = glob.glob(file_pattern)
     print(f"Found {len(files)} score files to analyze")
@@ -44,7 +44,7 @@ def process_regular_files(file_pattern, compare=False, plots=False, std_display=
     plots_dir = analysis_utils.create_plots_directory() if plots else None
     
     for file_path in files:
-        file_name, stats = process_regular_file(file_path, plots_dir, std_display)
+        file_name, stats = process_regular_file(file_path, plots_dir, std_display, include_settings)
         if file_name and stats:
             all_stats[file_name] = stats
     
@@ -76,12 +76,28 @@ def parse_arguments():
                         help='Include baseline Claude 3.5 scores in the comparisons')
     parser.add_argument('--analysis-type', type=str, choices=['regular', 'claude'], default=None,
                         help='Type of analysis to run (regular or claude)')
+    parser.add_argument('--exclude-default', action='store_true', default=False,
+                        help='Exclude Default (DeepSeek) setting in plots')
+    parser.add_argument('--exclude-cutoff', action='store_true', default=False,
+                        help='Exclude With Cutoff setting in plots')
+    parser.add_argument('--exclude-claude', action='store_true', default=False,
+                        help='Exclude With Claude Paraphrase setting in plots')
+    parser.add_argument('--exclude-gpt', action='store_true', default=False,
+                        help='Exclude With GPT-4o Paraphrase setting in plots')
     return parser.parse_args()
 
 def main():
     """Main function to run the analysis."""
     args = parse_arguments()
     analysis_utils.setup_matplotlib()
+
+    include_settings = {
+        "default": not args.exclude_default,
+        "cutoff": not args.exclude_cutoff,
+        "claude": not args.exclude_claude,
+        "gpt": not args.exclude_gpt
+    }
+    print(f"Include settings: {include_settings}")
     
     analysis_type = args.analysis_type
     if analysis_type is None:
@@ -102,7 +118,7 @@ def main():
             print("Error: When using --analysis-type=claude, you must provide a --claude-file")
     else:  # 'regular'
         file_pattern = os.path.join(args.dir, args.pattern)
-        process_regular_files(file_pattern, args.compare, args.plots)
+        process_regular_files(file_pattern, args.compare, args.plots, include_settings=include_settings)
 
 if __name__ == "__main__":
     main()

@@ -141,15 +141,34 @@ def analyze_correctness_scores(data, models=None) -> dict[str, dict[str, int | f
     
     return correctness_stats
 
-def analyze_scores(data):
+def analyze_scores(data, include_settings=None):
     """Analyze both legibility and correctness scores from data."""
+    if include_settings is None:
+        include_settings = {"default": True, "cutoff": True, "claude": True, "gpt": True}
+    model_map = {
+        'default': 'deepseek',
+        'cutoff': 'cutoff',
+        'claude': 'anthropic',
+        'gpt': 'openai'
+    }
+    
     legibility_results = analyze_legibility_scores(data)
-    correctness_results = analyze_correctness_scores(data)
+    correctness_results = {k: v for k, v in analyze_correctness_scores(data).items() 
+                         if any(s for s, m in model_map.items() if include_settings[s] and m == k)}
+    
+    filtered_legibility = {}
+    for section, stats in legibility_results["legibility_stats"].items():
+        model = section.split('_')[0]
+        if any(s for s, m in model_map.items() if include_settings[s] and m == model):
+            filtered_legibility[section] = stats
+    
+    filtered_raw_scores = {k: v for k, v in legibility_results["raw_scores"].items()
+                          if k.split('_')[0] in [m for s, m in model_map.items() if include_settings[s]]}
     
     return {
-        "legibility": legibility_results["legibility_stats"],
+        "legibility": filtered_legibility,
         "correctness": correctness_results,
-        "raw_legibility_scores": legibility_results["raw_scores"]
+        "raw_legibility_scores": filtered_raw_scores
     }
     
 def extract_claude_scores(file) -> dict[str, dict[str, int | float]]:

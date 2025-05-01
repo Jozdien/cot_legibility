@@ -6,10 +6,10 @@ __pycache__/
 *$py.class
 
 r1_rollouts/
+claude_answers/
 data/
 tests_private/
 
-*.json
 prompts.txt
 
 answers/cutoff_0.5_deepseek_openrouter_answers.md
