@@ -60,8 +60,10 @@ def analyze_legibility_scores(data) -> dict[str, dict[str, int | float]]:
             if section in section_scores:
                 if score_data.get("score") == "N/A":
                     section_na_counts[section] += 1
-                elif score_data.get("score") == 0 or score_data.get("score") == 10:
+                elif score_data.get("score") == 0:
                     continue
+                elif score_data.get("score") == 10:
+                    score_data["score"] = 9
                 elif isinstance(score_data.get("score"), (int, float)):
                     section_scores[section].append(score_data["score"])
     
