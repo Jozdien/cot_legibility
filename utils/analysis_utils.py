@@ -16,7 +16,7 @@ def setup_matplotlib():
     """Set up matplotlib with custom fonts and style."""
     fm.fontManager.addfont('fonts/Montserrat-Regular.ttf')
     plt.rcParams['font.family'] = 'Montserrat'
-    plt.rcParams['hatch.linewidth'] = 0.3  # Thinner hatch lines
+    plt.rcParams['hatch.linewidth'] = 0.7
 
 def create_plots_directory():
     """Create a directory for saving plots if it doesn't exist."""
@@ -439,7 +439,9 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display=None):
     
     # Create each type of plot
     for display_type in display_types:
-        fig, ax = plt.subplots(figsize=(12, 6))
+        num_sections = len(sections)
+        size = (4 * num_sections / 2, 6)
+        fig, ax = plt.subplots(figsize=size)
         
         if display_type == "error_bars":
             plot_legibility_with_error_bars(ax, sections, avg_scores, std_devs, bar_colors, hatches)
@@ -458,9 +460,17 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display=None):
         
         # Create custom legend for eval types
         add_eval_type_legend(ax)
+
+        model_name = "R1"
+        if file_name.startswith("r1_zero"):
+            model_name = "R1-Zero"
+        elif file_name.startswith("v3"):
+            model_name = "V3"
+        elif file_name.startswith("llama_70b"):
+            model_name = "Llama 70B"
         
         # Customize plot
-        ax.set_title(f'Illegibility In Various Settings (n={min(counts)})', fontsize=14)
+        ax.set_title(f'CoT Illegibility for {model_name} (n={min(counts)})', fontsize=14)
         ax.set_ylabel('Illegibility Score', fontsize=12)
         ax.set_ylim(0, 9.5)
         ax.grid(axis='y', linestyle='--', alpha=0.7)
@@ -1035,7 +1045,7 @@ def plot_length_vs_legibility(data, file_name, plots_dir):
         filename = result.get("file")
         filepath = os.path.join("r1_rollouts", file_name, filename)
         if not os.path.exists(filepath):
-            print(f"File {filepath} does not exist")
+            # print(f"File {filepath} does not exist")
             continue
 
         with open(filepath, 'r', encoding='utf-8') as f:
@@ -1252,3 +1262,152 @@ def plot_chunk_legibility(data, file_name, plots_dir):
     plt.savefig(plot_path)
     plt.close()
     print(f"Chunk legibility plot saved to {plot_path}")
+
+def plot_basic_legibility_comparison(all_stats, plots_dir):
+    """Plot basic legibility comparison across different model variants."""
+    plt.figure(figsize=(12, 6))
+    
+    files_data = []
+    labels = []
+    for file_name, stats in all_stats.items():
+        if file_name not in ["temp_0_cutoff_0.25_openrouter", "r1_zero_only_temp_0.0", "v3_only_temp_1.0"]:
+            continue
+        if "deepseek_response" not in stats["legibility"]:
+            continue
+            
+        response_stats = stats["legibility"]["deepseek_response"]
+        reasoning_stats = stats["legibility"].get("deepseek_reasoning", {})
+        
+        if response_stats.get("avg_score") is not None:
+            files_data.append({
+                'response_mean': response_stats["avg_score"],
+                'response_std': response_stats["std_dev"],
+                'reasoning_mean': reasoning_stats.get("avg_score", 0) if reasoning_stats.get("avg_score") is not None else 0,
+                'reasoning_std': reasoning_stats.get("std_dev", 0) if reasoning_stats.get("std_dev") is not None else 0,
+                'n': min(response_stats["count"], reasoning_stats.get("count", float("inf")))
+            })
+            
+            if file_name.startswith("r1_zero"):
+                labels.append("R1-Zero")
+            elif file_name.startswith("v3"):
+                labels.append("V3") 
+            elif file_name.startswith("llama_70b"):
+                labels.append("Llama 70B")
+            else:
+                labels.append("R1")
+    
+    files_data, labels = zip(*sorted(zip(files_data, labels), key=lambda x: ["R1", "R1-Zero", "V3", "Llama 70B"].index(x[1])))
+    files_data, labels = list(files_data), list(labels)
+
+    if not files_data:
+        return
+
+    bar_width = 0.35
+    positions = np.arange(len(files_data))
+
+    plt.bar(positions, [d['response_mean'] for d in files_data], bar_width,
+            yerr=[d['response_std'] for d in files_data], capsize=5,
+            color='#0273b2', label='Response', alpha=1)
+    
+    reasoning_means = [d['reasoning_mean'] for d in files_data]
+    reasoning_stds = [d['reasoning_std'] for d in files_data]
+    if any(m > 0 for m in reasoning_means):
+        plt.bar(positions + bar_width, reasoning_means, bar_width,
+                yerr=reasoning_stds, capsize=5,
+                color='#d65e00', label='Reasoning', alpha=1)
+
+    plt.ylabel('Illegibility Score', fontsize=12)
+    plt.title('CoT Illegibility Scores', fontsize=14)
+    plt.xticks(positions + bar_width/2, labels)
+    plt.ylim(0, 9.5)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend()
+    plt.tight_layout()
+
+    plot_path = os.path.join(plots_dir, "model_variant_comparison.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Model variant comparison plot saved to {plot_path}")
+
+def plot_legibility_by_baseline_correctness_models(all_stats, plots_dir):
+    """Plot legibility scores by baseline correctness across different models."""
+    files_data = []
+    labels = []
+    baseline_path = 'scores/temp_0_cutoff_0.25_openrouter_scores.json'
+    
+    # Load baseline data
+    baseline_data = load_json_file(baseline_path)
+    baseline = {q['question']: q['correctness']['deepseek']['correctness'] 
+                for q in baseline_data if 'correctness' in q}
+
+    for file_name in all_stats:
+        if file_name not in ["cutoff_0.25_openrouter", "r1_zero_only_temp_1.0", "v3_only_temp_1.0"]:
+            continue
+        data = load_json_file(f'scores/{file_name}_scores.json')
+        scores = {cat: {'response': [], 'reasoning': []} 
+                    for cat in ['correct', 'partially_correct', 'incorrect']}
+        
+        for entry in data:
+            question = entry['question']
+            if question not in baseline:
+                    continue
+            cat = baseline[question]
+            if cat not in scores:
+                continue
+            
+            if 'legibility' in entry:
+                r_score = entry['legibility'].get('deepseek_response', {}).get('score')
+                t_score = entry['legibility'].get('deepseek_reasoning', {}).get('score')
+                if isinstance(r_score, (int, float)):
+                    scores[cat]['response'].append(r_score)
+                if isinstance(t_score, (int, float)):
+                    scores[cat]['reasoning'].append(t_score)
+        
+        if any(scores[cat]['response'] for cat in scores):
+            stats = {cat: {
+                'response_mean': np.mean(scores[cat]['response']) if scores[cat]['response'] else 0,
+                'response_std': np.std(scores[cat]['response']) if len(scores[cat]['response']) > 1 else 0,
+                'reasoning_mean': np.mean(scores[cat]['reasoning']) if scores[cat]['reasoning'] else 0,
+                'reasoning_std': np.std(scores[cat]['reasoning']) if len(scores[cat]['reasoning']) > 1 else 0,
+                'n': len(scores[cat]['response'])
+            } for cat in scores}
+            files_data.append(stats)
+            labels.append("R1-Zero" if file_name.startswith("r1_zero") else 
+                        "V3" if file_name.startswith("v3") else
+                        "Llama 70B" if file_name.startswith("llama_70b") else "R1")
+
+    if not files_data:
+        return
+
+    plt.figure(figsize=(15, 6))
+    width = 0.15
+    x = np.arange(len(labels)) * 1.25
+    
+    colors = {'response': '#0273b2', 'reasoning': '#d65e00'} 
+    hatches = {'correct': '', 'partially_correct': '///', 'incorrect': 'xxx'}
+    
+    for i, cat in enumerate(['correct', 'partially_correct', 'incorrect']):
+        for j, typ in enumerate(['response', 'reasoning']):
+            means = [d[cat][f'{typ}_mean'] for d in files_data]
+            stds = [d[cat][f'{typ}_std'] for d in files_data]
+            pos = x + (i*2*1.2 + j)*width - 2*width
+            
+            bars = plt.bar(pos, means, width, color=colors[typ],
+                          yerr=stds, capsize=3, alpha=1,
+                          label=f'{cat.replace("_", " ").title()} ({typ.title()})')
+            
+            for bar in bars:
+                bar.set_hatch(hatches[cat])
+
+    plt.ylabel('Illegibility Score', fontsize=12)
+    plt.title('Illegibility by Baseline Correctness Across Models', fontsize=14)
+    plt.xticks(x, labels)
+    plt.ylim(0, 9.5)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend()
+    plt.tight_layout()
+    
+    plot_path = os.path.join(plots_dir, "legibility_by_baseline_correctness_models.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Legibility by baseline correctness across models plot saved to {plot_path}")

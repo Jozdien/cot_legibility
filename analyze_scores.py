@@ -61,6 +61,8 @@ def process_regular_files(file_pattern, compare=False, plots=False, std_display=
             for model in ["deepseek", "cutoff", "anthropic", "openai"]:
                 analysis_utils.plot_comparison_correctness(all_stats, model, plots_dir)
             analysis_utils.plot_overall_model_performance(all_stats, plots_dir)
+            analysis_utils.plot_basic_legibility_comparison(all_stats, plots_dir)
+            analysis_utils.plot_legibility_by_baseline_correctness_models(all_stats, plots_dir)
 
 def parse_arguments():
     """Parse command line arguments."""
