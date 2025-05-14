@@ -35,15 +35,17 @@ def process_question(question_text, index, total, output_dir, temperature):
             model="deepseek/deepseek-r1-zero:free",
             messages=[{"role": "user", "content": question_text}],
             temperature=temperature,
+            max_tokens=162000,
             # extra_body={
             #     "include_reasoning": True,
             #     "provider": {"order": ["Nebius"], "allow_fallbacks": False}
             # }
         )
-        
-        write_to_file(f"# DeepSeek response (via openrouter)\n\n{completion.choices[0].message.content}", f)
-        write_to_file(f"# DeepSeek reasoning (via openrouter)\n\n{completion.choices[0].message.reasoning}", f)
-        
+        try:
+            write_to_file(f"# DeepSeek response (via openrouter)\n\n{completion.choices[0].message.content}", f)
+            write_to_file(f"# DeepSeek reasoning (via openrouter)\n\n{completion.choices[0].message.reasoning}", f)
+        except:
+            print(completion)
         logging.info(f"[{index}/{total}] Processed in {perf_counter() - start_time:.2f}s")
         return output_file
 

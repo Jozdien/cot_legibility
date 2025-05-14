@@ -3,9 +3,9 @@ import numpy as np
 from scipy.stats import mannwhitneyu
 
 # Load scores
-with open('../scores/cutoff_0.25_openrouter_scores.json', 'r') as f:
+with open('../scores/r1_zero_only_temp_1.0_scores.json', 'r') as f:
     file1_scores = json.load(f)
-with open('../scores/temp_0.4_cutoff_0.25_openrouter_scores.json', 'r') as f:
+with open('../scores/temp_0_cutoff_0.25_openrouter_scores.json', 'r') as f:
     file2_scores = json.load(f)
 
 # Initialize score dictionaries
@@ -45,4 +45,4 @@ for key in correct.keys():
                 continue
             if len(cat1[key]) > 0 and len(cat2[key]) > 0:
                 stat, p = mannwhitneyu(cat1[key], cat2[key], alternative='two-sided')
-                print(f"{cat1_name} vs {cat2_name}: {p:.4f}")
+                print(f"{cat1_name} vs {cat2_name}: {p:.8f}")

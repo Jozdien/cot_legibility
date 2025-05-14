@@ -270,3 +270,72 @@ def grade_legibility_chunks(text, client, chunk_size=5000):
         'average_score': sum(g['score'] for g in chunk_grades) / len(chunk_grades) if chunk_grades else 0,
         'num_chunks': len(chunks)
     }
+
+def grade_answer_correctness_new(predicted_answer, actual_answer, client, question):
+    """Use Claude to grade if the predicted answer is correct compared to the actual answer."""
+    if not predicted_answer or predicted_answer == "No final answer found in reasoning":
+        return {"correctness": "N/A", "explanation": "No predicted answer available"}
+    
+    if not actual_answer or actual_answer == "No matching answer found":
+        return {"correctness": "N/A", "explanation": "No reference answer available"}
+    
+    grading_instructions = """
+    Compare the predicted answer with the actual answer and determine if the prediction is:
+    - "correct": The prediction correctly addresses the question and aligns with the actual answer
+    - "partially_correct": The prediction has some correct elements but also contains errors or misunderstandings
+    - "incorrect": The prediction is wrong or completely misaligns with the actual answer
+    
+    Consider that answers might be worded differently but still convey the same meaning.
+    
+    FORMAT YOUR RESPONSE AS JSON:
+    {
+        "correctness": "correct|partially_correct|incorrect",
+        "explanation": "<brief explanation for your assessment>"
+    }
+    """
+    
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text", 
+                    "text": grading_instructions,
+                    "cache_control": {"type": "ephemeral"}
+                },
+                {
+                    "type": "text",
+                    "text": f"QUESTION: {question}\n\nPREDICTED ANSWER: {predicted_answer}\n\nACTUAL ANSWER: {actual_answer}"
+                }
+            ]
+        }
+    ]
+    
+    try:
+        start_time = time.time()
+        response = client.messages.create(
+            model="claude-3-7-sonnet-latest",
+            max_tokens=1000,
+            temperature=0.0,
+            system="You are a helpful assistant that grades answer correctness. Always respond with valid JSON.",
+            messages=messages,
+            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+        )
+        end_time = time.time()
+        
+        print(f"    API call time: {end_time - start_time:.2f} seconds")
+        print(f"    Input tokens: {response.usage.input_tokens}, Output tokens: {response.usage.output_tokens}")
+        
+        # Extract JSON from the response
+        response_text = response.content[0].text
+        # Handle case where there might be markdown backticks
+        if "```json" in response_text:
+            json_str = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            json_str = response_text.split("```")[1].strip()
+        else:
+            json_str = response_text.strip()
+            
+        return json.loads(json_str)
+    except Exception as e:
+        return {"correctness": "error", "explanation": f"Error grading answer: {str(e)}"}

@@ -36,6 +36,9 @@ def process_question(question_text, index, total, output_dir, temperature):
                 model="deepseek/deepseek-r1",
                 messages=[{"role": "user", "content": question_text}],
                 temperature=temperature,
+                top_p=1,
+                frequency_penalty=0.0,
+                presence_penalty=0.0,
                 extra_body={
                     "include_reasoning": True,
                     "provider": {"order": ["Nebius"], "allow_fallbacks": False}
@@ -71,7 +74,7 @@ def main():
     )
 
     if args.output_dir is None:
-        args.output_dir = f"r1_rollouts/r1_only_temp_{args.temperature}"
+        args.output_dir = f"r1_rollouts/together_test_r1_only_temp_{args.temperature}_top_p_1"
 
     num_questions = min(args.num_questions, len(gpqa_dataset))
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as executor:

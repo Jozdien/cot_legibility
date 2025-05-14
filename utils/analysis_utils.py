@@ -16,7 +16,7 @@ def setup_matplotlib():
     """Set up matplotlib with custom fonts and style."""
     fm.fontManager.addfont('fonts/Montserrat-Regular.ttf')
     plt.rcParams['font.family'] = 'Montserrat'
-    plt.rcParams['hatch.linewidth'] = 0.7
+    plt.rcParams['hatch.linewidth'] = 1
 
 def create_plots_directory():
     """Create a directory for saving plots if it doesn't exist."""
@@ -435,7 +435,7 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display=None):
         hatches.append('///' if eval_type == 'reasoning' else '')
     
     # Define display types to generate
-    display_types = ["error_bars", "shaded", "violin"] if std_display is None else [std_display]
+    display_types = ["error_bars", "shaded", "violin", "boxplot"] if std_display is None else [std_display]
     
     # Create each type of plot
     for display_type in display_types:
@@ -449,6 +449,8 @@ def plot_legibility_scores(stats, file_name, plots_dir, std_display=None):
             plot_legibility_with_shading(ax, sections, avg_scores, std_devs, bar_colors, hatches)
         elif display_type == "violin":
             plot_legibility_with_violin(ax, sections, avg_scores, std_devs, bar_colors, hatches, raw_scores)
+        elif display_type == "boxplot":
+            plot_legibility_with_boxplot(ax, sections, raw_scores, bar_colors, hatches)
         
         # Set up x-axis without labels (replaced by legend)
         ax.set_xticks(range(len(sections)))
@@ -532,6 +534,43 @@ def plot_legibility_with_violin(ax, sections, avg_scores, std_devs, bar_colors, 
         pc.set_alpha(1)
         pc.set_edgecolor('black')
         pc.set_linewidth(0.5)
+
+def plot_legibility_with_boxplot(ax, sections, raw_scores, bar_colors, hatches):
+    """Plot legibility scores using box and whisker plots."""
+    # Prepare data for boxplot
+    plot_data = []
+    for section in sections:
+        scores = raw_scores[section]
+        plot_data.append(scores if scores else [0])
+    
+    # Create boxplot
+    bp = ax.boxplot(plot_data, patch_artist=True)
+    
+    # Customize boxplot appearance
+    for i, (box, hatch) in enumerate(zip(bp['boxes'], hatches)):
+        # Set box colors and hatching
+        box.set(facecolor=bar_colors[i], alpha=0.8)
+        box.set(hatch=hatch)
+        
+        # Set edge color to black
+        box.set(edgecolor='black')
+        
+        # Customize whiskers and caps
+        plt.setp(bp['whiskers'][i*2:i*2+2], color='black')
+        plt.setp(bp['caps'][i*2:i*2+2], color='black')
+        
+        # Set median line color
+        plt.setp(bp['medians'][i], color='black', linewidth=1.5)
+        
+        # Set flier (outlier) properties
+        plt.setp(bp['fliers'][i], marker='o', markerfacecolor='white', 
+                markeredgecolor=bar_colors[i], markersize=6)
+    
+    # Add sample size annotations
+    for i, scores in enumerate(plot_data, 1):
+        if len(scores) > 0:
+            ax.text(i, 0.2, f'n={len(scores)}', 
+                   ha='center', va='bottom', fontsize=9)
 
 def plot_correctness_assessment(stats, file_name, plots_dir):
     """Plot correctness assessment for a file."""
@@ -1329,17 +1368,106 @@ def plot_basic_legibility_comparison(all_stats, plots_dir):
     plt.close()
     print(f"Model variant comparison plot saved to {plot_path}")
 
+def plot_basic_legibility_comparison_boxplot(all_stats, plots_dir):
+    """Plot basic legibility comparison across different model variants using box plots."""
+    plt.figure(figsize=(12, 6))
+    
+    # Collect raw scores for each model
+    model_data = {}
+    labels = []
+    for file_name, stats in all_stats.items():
+        if file_name not in ["cutoff_0.25_openrouter", "r1_zero_only_temp_1.0", "v3_only_temp_1.0"]:
+            continue
+            
+        raw_scores = stats.get("raw_legibility_scores", {})
+        if "deepseek_response" not in raw_scores or "deepseek_reasoning" not in raw_scores:
+            continue
+            
+        # Determine label
+        if file_name.startswith("r1_zero"):
+            label = "R1-Zero"
+        elif file_name.startswith("v3"):
+            label = "V3"
+        elif file_name.startswith("llama_70b"):
+            label = "Llama 70B"
+        else:
+            label = "R1"
+            
+        labels.append(label)
+        model_data[label] = {
+            'response': raw_scores["deepseek_response"],
+            'reasoning': raw_scores["deepseek_reasoning"]
+        }
+    
+    if not model_data:
+        return
+
+    # Sort labels to maintain consistent order
+    labels = sorted(labels, key=lambda x: ["R1", "R1-Zero", "V3", "Llama 70B"].index(x))
+    
+    # Prepare data for plotting
+    response_data = [[val + abs(np.random.normal(0, 0.1)) for val in model_data[label]['response']] for label in labels]
+    reasoning_data = [model_data[label]['reasoning'] for label in labels]
+    
+    # Set positions for the boxes
+    positions = np.arange(len(labels)) * 3
+    
+    # Create box plots
+    bp_response = plt.boxplot(response_data, positions=positions, 
+                            patch_artist=True, widths=0.7,
+                            medianprops={'color': '#0273b2', 'linewidth': 1.5},
+                            whis=[1, 99],
+                            flierprops={'marker': 'o', 'markerfacecolor': 'white', 
+                                      'markeredgecolor': '#0273b2', 'markersize': 6})
+    bp_reasoning = plt.boxplot(reasoning_data, positions=positions + 1, 
+                             patch_artist=True, widths=0.7,
+                            #  medianprops={'color': 'white', 'linewidth': 1.5},
+                             flierprops={'marker': 'o', 'markerfacecolor': 'white', 
+                                       'markeredgecolor': '#d65e00', 'markersize': 6})
+    
+    # Style the boxes
+    for box in bp_response['boxes']:
+        box.set(facecolor='#0273b2', alpha=1)
+    for box in bp_reasoning['boxes']:
+        box.set(facecolor='#d65e00', alpha=1)
+    
+    # Add sample size annotations
+    # for i, label in enumerate(labels):
+    #     response_n = len(model_data[label]['response'])
+    #     reasoning_n = len(model_data[label]['reasoning'])
+    #     plt.text(positions[i], -0.5, f'n={response_n}', ha='center', va='top', color='#0273b2')
+    #     plt.text(positions[i] + 1, -0.5, f'n={reasoning_n}', ha='center', va='top', color='#d65e00')
+    
+    # Customize plot
+    plt.ylabel('Illegibility Score', fontsize=12)
+    plt.title('CoT Illegibility Scores Distribution', fontsize=14)
+    plt.xticks(positions + 0.5, labels)
+    plt.ylim(0, 9.5)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # Add legend
+    legend_elements = [
+        plt.Rectangle((0, 0), 1, 1, facecolor='#0273b2', label='Response'),
+        plt.Rectangle((0, 0), 1, 1, facecolor='#d65e00', label='Reasoning')
+    ]
+    plt.legend(handles=legend_elements, loc='upper right')
+    
+    plt.tight_layout()
+    
+    # Save plot
+    plot_path = os.path.join(plots_dir, "model_variant_comparison_boxplot.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Model variant comparison boxplot saved to {plot_path}")
+
 def plot_legibility_by_baseline_correctness_models(all_stats, plots_dir):
-    """Plot legibility scores by baseline correctness across different models."""
     files_data = []
     labels = []
     baseline_path = 'scores/temp_0_cutoff_0.25_openrouter_scores.json'
     
-    # Load baseline data
     baseline_data = load_json_file(baseline_path)
     baseline = {q['question']: q['correctness']['deepseek']['correctness'] 
                 for q in baseline_data if 'correctness' in q}
-
     for file_name in all_stats:
         if file_name not in ["cutoff_0.25_openrouter", "r1_zero_only_temp_1.0", "v3_only_temp_1.0"]:
             continue
@@ -1375,11 +1503,9 @@ def plot_legibility_by_baseline_correctness_models(all_stats, plots_dir):
             labels.append("R1-Zero" if file_name.startswith("r1_zero") else 
                         "V3" if file_name.startswith("v3") else
                         "Llama 70B" if file_name.startswith("llama_70b") else "R1")
-
     if not files_data:
         return
-
-    plt.figure(figsize=(15, 6))
+    fig, ax = plt.subplots(figsize=(15, 6))
     width = 0.15
     x = np.arange(len(labels)) * 1.25
     
@@ -1392,20 +1518,32 @@ def plot_legibility_by_baseline_correctness_models(all_stats, plots_dir):
             stds = [d[cat][f'{typ}_std'] for d in files_data]
             pos = x + (i*2*1.2 + j)*width - 2*width
             
-            bars = plt.bar(pos, means, width, color=colors[typ],
+            bars = ax.bar(pos, means, width, color=colors[typ],
                           yerr=stds, capsize=3, alpha=1,
                           label=f'{cat.replace("_", " ").title()} ({typ.title()})')
             
             for bar in bars:
                 bar.set_hatch(hatches[cat])
-
-    plt.ylabel('Illegibility Score', fontsize=12)
-    plt.title('Illegibility by Baseline Correctness Across Models', fontsize=14)
-    plt.xticks(x, labels)
-    plt.ylim(0, 9.5)
-    plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.legend()
-    plt.tight_layout()
+    
+    ax.set_ylabel('Illegibility Score', fontsize=12)
+    ax.set_title('Illegibility by Baseline Correctness Across Models', fontsize=14)
+    ax.set_xticks([])
+    
+    for i, cat in enumerate(['correct', 'partially_correct', 'incorrect']):
+        cat_label = cat.replace("_", " ").title()
+        for j in range(len(labels)):
+            center = x[j] + (i*2*1.2 + 0.5)*width - 2*width
+            ax.text(center, -0.35, cat_label, ha='center', fontsize=9)
+    
+    for j, label in enumerate(labels):
+        ax.text(x[j], -0.8, label, ha='center', fontsize=10, fontweight='bold')
+    
+    ax.set_ylim(0, 9.5)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    legend_elements = [plt.Rectangle((0, 0), 1, 1, color=colors['response'], label='Response'),
+                      plt.Rectangle((0, 0), 1, 1, color=colors['reasoning'], label='Reasoning')]
+    ax.legend(handles=legend_elements)
+    fig.tight_layout()
     
     plot_path = os.path.join(plots_dir, "legibility_by_baseline_correctness_models.png")
     plt.savefig(plot_path)

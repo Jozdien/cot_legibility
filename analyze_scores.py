@@ -19,7 +19,7 @@ def process_regular_file(file_path, plots_dir=None, std_display=None, include_se
         analysis_utils.plot_legibility_by_correctness(data, file_name, plots_dir)
         analysis_utils.plot_length_vs_legibility(data, file_name, plots_dir)
         analysis_utils.plot_correctness_with_baseline(stats, file_name, plots_dir)
-        analysis_utils.plot_legibility_by_baseline_correctness(data, file_name, plots_dir)
+        # analysis_utils.plot_legibility_by_baseline_correctness(data, file_name, plots_dir)
     if plots_dir and os.path.exists(file_path.replace('scores.json', 'legibility_chunks_scores.json')):
         chunk_data = analysis_utils.load_json_file(file_path.replace('scores.json', 'legibility_chunks_scores.json'))
         analysis_utils.plot_chunk_legibility(chunk_data, file_name, plots_dir)
@@ -62,6 +62,7 @@ def process_regular_files(file_pattern, compare=False, plots=False, std_display=
                 analysis_utils.plot_comparison_correctness(all_stats, model, plots_dir)
             analysis_utils.plot_overall_model_performance(all_stats, plots_dir)
             analysis_utils.plot_basic_legibility_comparison(all_stats, plots_dir)
+            analysis_utils.plot_basic_legibility_comparison_boxplot(all_stats, plots_dir)
             analysis_utils.plot_legibility_by_baseline_correctness_models(all_stats, plots_dir)
 
 def parse_arguments():
