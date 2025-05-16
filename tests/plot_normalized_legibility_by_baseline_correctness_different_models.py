@@ -6,20 +6,17 @@ import os
 import re
 
 def setup_matplotlib():
-    """Set up matplotlib with custom fonts and style."""
     fm.fontManager.addfont('../fonts/Montserrat-Regular.ttf')
     plt.rcParams['font.family'] = 'Montserrat'
     plt.rcParams['hatch.linewidth'] = 1
 
 def get_cot_length(rollout_file, question):
     if not os.path.exists(rollout_file):
-        print(f"Rollout file {rollout_file} does not exist")
         return None
         
     with open(rollout_file, 'r', encoding='utf-8') as f:
         content = f.read()
     
-    # Extract reasoning section using regex
     pattern = r"# DeepSeek reasoning.*?\n(.*?)(?=\n---|\n# |\Z)"
     match = re.search(pattern, content, re.DOTALL)
     if match:
@@ -40,70 +37,58 @@ def plot_legibility_by_baseline(file_paths, baseline_path='../scores/temp_0_cuto
         with open(file_path) as f:
             data = json.load(f)
         
-        # Initialize scores dictionary
-        scores = {cat: {'response': [], 'reasoning': [], 'lengths': []} 
+        scores = {cat: {'response': [], 'reasoning': []} 
                  for cat in ['correct', 'partially_correct', 'incorrect']}
         
-        # Collect scores by baseline correctness
-        for q in data:
-            rollout_dir = os.path.join('../r1_rollouts', file_path[file_path.rfind('/')+1:file_path.rfind('_scores')])
-            file = os.path.join(rollout_dir, q['file'])
-            if q['question'] not in baseline:
-                continue
-            cat = baseline[q['question']]
-            if cat not in scores:
-                continue
-                
-            # Get CoT length
-            cot_length = get_cot_length(file, q['question'])
-            if cot_length is None:
-                continue
-                
-            if 'legibility' in q:
-                r_score = q['legibility'].get('deepseek_response', {}).get('score')
-                t_score = q['legibility'].get('deepseek_reasoning', {}).get('score')
-                
-                # Normalize scores by log length and scale to 1-10 range
-                log_length = np.log(cot_length + 1)  # Add 1 to avoid log(0)
-
-                if cot_length == 1:
-                    scores[cat]['response'].append(r_score) if isinstance(r_score, (int, float)) else 0
-                    scores[cat]['reasoning'].append(t_score) if isinstance(t_score, (int, float)) else 0
-                    scores[cat]['lengths'].append(cot_length)
+        # Handle different formats based on filename
+        if file_path.split('/')[-1].startswith('claude'):
+            for q in data:
+                if q['question'] not in baseline:
                     continue
-
-                if isinstance(r_score, (int, float)): 
-                    # Scale to 1-10: normalize by log length, then scale and shift
-                    normalized_score = (r_score / log_length) * 4.5 + 1
-                    scores[cat]['response'].append(normalized_score)
-                if isinstance(t_score, (int, float)): 
-                    normalized_score = (t_score / log_length) * 4.5 + 1
-                    scores[cat]['reasoning'].append(normalized_score)
-                scores[cat]['lengths'].append(cot_length)
+                cat = baseline[q['question']]
+                if cat not in scores:
+                    continue
+                
+                if 'legibility' in q:
+                    r_score = q['legibility'].get('claude_response', {}).get('score')
+                    t_score = q['legibility'].get('claude_reasoning', {}).get('score')
+                    
+                    if isinstance(r_score, (int, float)): 
+                        scores[cat]['response'].append(r_score + abs(np.random.normal(0, 0.1)))
+                    if isinstance(t_score, (int, float)): 
+                        scores[cat]['reasoning'].append(t_score)
+        else:
+            for q in data:
+                if q['question'] not in baseline:
+                    continue
+                cat = baseline[q['question']]
+                if cat not in scores:
+                    continue
+                
+                if 'legibility' in q:
+                    r_score = q['legibility'].get('deepseek_response', {}).get('score')
+                    t_score = q['legibility'].get('deepseek_reasoning', {}).get('score')
+                    
+                    if isinstance(r_score, (int, float)): 
+                        scores[cat]['response'].append(r_score + abs(np.random.normal(0, 0.1)))
+                    if isinstance(t_score, (int, float)): 
+                        scores[cat]['reasoning'].append(t_score)
         
-        # Calculate means and stds
-        stats = {}
-        for cat in scores:
-            stats[cat] = {
-                'response_mean': np.mean(scores[cat]['response']) if scores[cat]['response'] else 0,
-                'response_std': np.std(scores[cat]['response']) if len(scores[cat]['response']) > 1 else 0,
-                'reasoning_mean': np.mean(scores[cat]['reasoning']) if scores[cat]['reasoning'] else 0,
-                'reasoning_std': np.std(scores[cat]['reasoning']) if len(scores[cat]['reasoning']) > 1 else 0,
-                'n': len(scores[cat]['response'])
-            }
-        files_data.append(stats)
-        if file_path[file_path.rfind('/')+1:].startswith("r1_zero"):
+        files_data.append(scores)
+        filename = file_path[file_path.rfind('/')+1:]
+        if filename.startswith("claude"):
+            labels.append("Claude")
+        elif filename.startswith("r1_zero"):
             labels.append("R1-Zero")
-        elif file_path[file_path.rfind('/')+1:].startswith("v3"):
+        elif filename.startswith("v3"):
             labels.append("V3")
-        elif file_path[file_path.rfind('/')+1:].startswith("llama_70b"):
+        elif filename.startswith("llama_70b"):
             labels.append("Llama 70B")
         else:
             labels.append("R1")
 
-    # Rest of plotting code remains the same
+    # Rest of the plotting code remains the same
     plt.figure(figsize=(15, 6))
-    width = 0.15
     x = np.arange(len(labels)) * 1.25
     
     colors = {'response': '#0273b2', 'reasoning': '#d65e00'}
@@ -111,25 +96,49 @@ def plot_legibility_by_baseline(file_paths, baseline_path='../scores/temp_0_cuto
     
     for i, cat in enumerate(['correct', 'partially_correct', 'incorrect']):
         for j, typ in enumerate(['response', 'reasoning']):
-            means = [d[cat][f'{typ}_mean'] for d in files_data]
-            stds = [d[cat][f'{typ}_std'] for d in files_data]
-            pos = x + (i*2*1.2 + j)*width - 2*width
+            data = [d[cat][typ] for d in files_data]
+            data = [[(9 if s == 10 else s) for s in sublist if s >= 1] for sublist in data]
+            pos = x + (i*2*1.2 + j)*0.15 - 0.3
             
-            bars = plt.bar(pos, means, width, color=colors[typ], 
-                          yerr=stds, capsize=3, alpha=1,
-                          label=f'{cat.replace("_", " ").title()} ({typ.title()})')
+            if typ == 'response':
+                bp = plt.boxplot(data, positions=pos, patch_artist=True, widths=0.15,
+                               medianprops={'color': colors[typ], 'linewidth': 1.5},
+                               whis=[1, 99],
+                               flierprops={'marker': 'o', 'markerfacecolor': 'white', 
+                                         'markeredgecolor': colors[typ], 'markersize': 6})
+            else:
+                bp = plt.boxplot(data, positions=pos, patch_artist=True, widths=0.15,
+                               medianprops={'color': colors[typ], 'linewidth': 1.5, 'alpha': 0.5},
+                               flierprops={'marker': 'o', 'markerfacecolor': 'white', 
+                                         'markeredgecolor': colors[typ], 'markersize': 6})
             
-            for bar in bars:
-                bar.set_hatch(hatches[cat])
+            for box in bp['boxes']:
+                box.set(facecolor=colors[typ], alpha=1)
+                box.set(hatch=hatches[cat])
 
-    plt.ylabel('Normalized Illegibility Score (1-10)')
-    plt.title(title)
+    plt.ylabel('Normalized Illegibility Score')
+    # plt.title(title)
     plt.xticks(x, labels)
-    plt.ylim(0, 10)  # Adjusted y-limit for new 1-10 scale
+    plt.ylim(0, 10)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.legend()
+    
+    legend_elements = []
+    legend_titles = {"correct": "Easy", "partially_correct": "Medium", "incorrect": "Hard"}
+    for cat in ['correct', 'partially_correct', 'incorrect']:
+        for typ, color in colors.items():
+            patch = plt.Rectangle((0,0), 1, 1, facecolor=color, hatch=hatches[cat],
+                                label=f'{legend_titles[cat]} ({typ.title()})')
+            legend_elements.append(patch)
+    
+    plt.legend(handles=legend_elements)
     plt.tight_layout()
-    plt.savefig('legibility_by_baseline_correctness_different_models_normalized.png')
+    plt.savefig('legibility_by_baseline_correctness_different_models_boxplot_temp_new.png')
+    plt.savefig('legibility_by_baseline_correctness_different_models_boxplot_temp_new.pdf')
 
 setup_matplotlib()
-plot_legibility_by_baseline(['../scores/cutoff_0.25_openrouter_scores.json', '../scores/r1_zero_only_temp_1.0_scores.json', '../scores/v3_only_temp_1.0_scores.json'])
+plot_legibility_by_baseline([
+    '../scores/cutoff_0.25_openrouter_scores.json',
+    '../scores/r1_zero_only_temp_1.0_scores.json',
+    '../scores/v3_only_temp_1.0_scores.json',
+    '../scores/claude_baseline_scores.json'
+])

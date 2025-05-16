@@ -25,7 +25,32 @@ def parse_arguments():
                         help='Maximum characters to use from each text section for legibility grading')
     parser.add_argument('--workers', type=int, default=5,
                         help='Number of concurrent workers for processing files (default: 5)')
+    parser.add_argument('--chunk-legibility', action='store_true',
+                        help='Whether to grade legibility in chunks (default: False)')
     return parser.parse_args()
+
+def process_file_chunks(file, item, dataset, client):
+    """Process a single transcript file for chunk-based legibility analysis."""
+    question = item['question']
+    answer = item['answer']
+    reasoning = item['reasoning']
+    actual_answer = autograder_utils.get_actual_answer(question, dataset)
+
+    results = {
+        "file": file,
+        "question": question,
+        "actual_answer": actual_answer,
+        "answers": {
+            "claude": answer,
+        },
+        "legibility": {
+            "claude_response": autograder_utils.grade_legibility_chunks(answer, client),
+            "claude_reasoning": autograder_utils.grade_legibility_chunks(reasoning, client)
+        },
+        "correctness": autograder_utils.grade_answer_correctness_new(answer, actual_answer, client, question)
+    }
+    
+    return results
 
 def process_item(file, item, dataset, client):
     question = item['question']
@@ -70,10 +95,16 @@ def main():
     items = dict(list(items.items())[:args.limit]) if args.limit else items
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
-        future_to_file = {
-            executor.submit(process_item, args.file, items[item_idx], gpqa_dataset, client): item_idx 
-            for item_idx in items
-        }
+        if args.chunk_legibility:
+            future_to_file = {
+                executor.submit(process_file_chunks, args.file, items[item_idx], gpqa_dataset, client): item_idx 
+                for item_idx in items
+            }
+        else:
+            future_to_file = {
+                executor.submit(process_item, args.file, items[item_idx], gpqa_dataset, client): item_idx 
+                for item_idx in items
+            }
         
         with tqdm(total=len(items), desc="Processing items") as pbar:
             for future in concurrent.futures.as_completed(future_to_file):
@@ -99,6 +130,9 @@ def main():
     print(f"Analysis complete. Results written to {args.output_file}")
     print(f"Successfully processed: {processed_count}")
     print(f"Failed: {failed_count}")
+
+    if args.chunk_legibility:
+        return
 
     section_scores = {
         "claude_response": [],

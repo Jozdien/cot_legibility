@@ -88,7 +88,7 @@ def plot_legibility_comparison(file_paths, title="Legibility Comparison"):
     
     # Customize plot
     plt.ylabel('Illegibility Score', fontsize=12)
-    plt.title('CoT Illegibility Scores Distribution', fontsize=14)
+    # plt.title('CoT Illegibility Scores Distribution', fontsize=14)
     plt.xticks(positions + 0.5, labels)
     plt.ylim(0, 9.5)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -102,12 +102,14 @@ def plot_legibility_comparison(file_paths, title="Legibility Comparison"):
     
     plt.tight_layout()
     plt.savefig(f'{title}.png')
+    plt.savefig(f'{title}.pdf')
     plt.close()
 
 setup_matplotlib()
 # Usage example:
 plot_legibility_comparison([
-    '../scores/cutoff_0.25_openrouter_scores.json', 
-    '../scores/r1_zero_only_temp_1.0_scores.json',
+    '../scores/temp_0_cutoff_0.25_openrouter_scores.json', 
+    '../scores/r1_zero_only_temp_0.0_scores.json',
+    '../scores/v3_only_temp_1.0_scores.json',
     '../scores/claude_baseline_scores.json'
 ])

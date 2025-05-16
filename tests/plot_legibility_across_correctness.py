@@ -4,7 +4,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
-
+import re
 def setup_matplotlib():
     fm.fontManager.addfont('../fonts/Montserrat-Regular.ttf')
     plt.rcParams['font.family'] = 'Montserrat'
@@ -13,7 +13,7 @@ def setup_matplotlib():
 def score_correctness(correctness):
     return {
         "correct": 1,
-        "partially correct": 0.5,
+        "partially_correct": 0.5,
         "incorrect": 0
     }.get(correctness, 0)
 
@@ -47,16 +47,82 @@ def analyze_distributions(correctness_scores, legibility_scores):
     print(f"Mann-Whitney U p-value: {p_value:.4f}")
     print(f"Cohen's d: {cohens_d:.4f}")
 
+def create_plot(correctness_scores, legibility_scores, question_indices):
+    plt.figure(figsize=(10, 6))
+    
+    correctness = np.array(correctness_scores)
+    legibility = np.array(legibility_scores)
+    q_indices = np.array(question_indices)
+    
+    plt.boxplot([legibility[correctness == x] for x in [0, 0.5, 1]], 
+                positions=[0, 0.5, 1],
+                widths=0.1)
+    
+    # Modified color assignment
+    unique_questions = np.unique(q_indices)
+    n_questions = len(unique_questions)
+    
+    # If few questions, spread out the color ranges
+    if n_questions <= 4:
+        # Create spread out base colors
+        base_ranges = np.linspace(0, 1, n_questions * 2 + 1)[1:-1:2]
+    else:
+        base_ranges = np.linspace(0, 1, n_questions)
+    
+    for x in [0, 0.5, 1]:
+        if not any(correctness == x):
+            continue
+        mask = correctness == x
+        y = legibility[mask]
+        q = q_indices[mask]
+        x_jitter = np.random.normal(0, 0.02, size=len(y)) + x
+        
+        xy = np.vstack([x_jitter, y])
+        density = stats.gaussian_kde(xy)(xy)
+        density_scaled = (density - density.min()) / (density.max() - density.min())
+        
+        for i, q_idx in enumerate(unique_questions):
+            q_mask = q == q_idx
+            base_color = plt.cm.viridis(base_ranges[i])
+            
+            # Vary colors within question group based on density
+            color_variation = density_scaled[q_mask] * 0.2  # 20% variation
+            colors = np.array(plt.cm.viridis(np.linspace(0, 1, len(unique_questions))))
+            if n_questions <= 4:
+                # For few questions, add/subtract from base color to stay within spread ranges
+                colors = np.array([plt.cm.viridis(base_ranges[i] + (v - 0.1)) for v in color_variation])
+            else:
+                colors = np.array([plt.cm.viridis(base_ranges[i] + (v - 0.5) * 0.1) for v in color_variation])
+            
+            plt.scatter(x_jitter[q_mask], y[q_mask], c=colors, alpha=0.5,
+                       label=f'Q{q_idx}' if x == 0 else "")
+
+    plt.xticks([0, 1], ['Incorrect', 'Correct'])
+    plt.ylabel('Normalized Illegibility Score (higher means less legible)')
+    plt.title('Correctness vs Normalized Illegibility by Question')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.3)
+    plt.ylim(0, 9.5)
+    plt.tight_layout()
+    return plt
+
 def process_data(data):
     correctness_scores = []
     normalized_legibility_scores = []
+    question_indices = []
     
     for item in data:
         if not item['correctness'] or not item['legibility']:
             continue
-        if item['file'].startswith('q1_'):
+        if not item['file'].startswith('q140_'):
             continue
-        # Get reasoning length
+            
+        # Extract question index
+        q_match = re.match(r'q(\d+)_', item['file'])
+        if not q_match:
+            continue
+        q_idx = int(q_match.group(1))
+            
         reasoning_length = get_reasoning_length(item['file'])
         if not reasoning_length:
             continue
@@ -64,58 +130,24 @@ def process_data(data):
         correctness = score_correctness(item['correctness']['deepseek']['correctness'])
         legibility = item['legibility']['deepseek_reasoning']['score']
         
-        # Normalize legibility score by reasoning length
         normalized_legibility = (legibility / reasoning_length) * 4
-        if normalized_legibility > 10:
+        if normalized_legibility > 9:
             continue
         
         correctness_scores.append(correctness)
         normalized_legibility_scores.append(normalized_legibility)
+        question_indices.append(q_idx)
     
-    return correctness_scores, normalized_legibility_scores
-
-def create_plot(correctness_scores, legibility_scores):
-    plt.figure(figsize=(10, 6))
-    
-    # Convert to numpy for easier grouping
-    correctness = np.array(correctness_scores)
-    legibility = np.array(legibility_scores)
-    
-    # Box plot
-    plt.boxplot([legibility[correctness == x] for x in [0, 0.5, 1]], 
-                positions=[0, 0.5, 1],
-                widths=0.1)
-    
-    # Scatter plot with jitter
-    for x in [0, 1]:
-        y = legibility[correctness == x]
-        x_jitter = np.random.normal(0, 0.02, size=len(y)) + x
-        xy = np.vstack([x_jitter, y])
-        z = stats.gaussian_kde(xy)(xy)
-        idx = z.argsort()
-        x_jitter, y, z = x_jitter[idx], y[idx], z[idx]
-        plt.scatter(x_jitter, y, c=z, cmap='viridis', alpha=0.5)
-
-    analyze_distributions(correctness_scores, legibility_scores)
-    
-    # plt.xlabel('Correctness (0=incorrect, 0.5=partial, 1=correct)')
-    plt.xticks([0, 1], ['Incorrect', 'Correct'])
-    plt.ylabel('Normalized Illegibility Score')
-    plt.title('Correctness vs Normalized Illegibility')
-    # plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.3)
-    plt.ylim(0, 9.5)
-    plt.colorbar(label='Point density')
-    plt.tight_layout()
-    return plt
+    return correctness_scores, normalized_legibility_scores, question_indices
 
 def main():
     setup_matplotlib()
     with open('../scores/q_repeat_temp_1.0_scores.json', 'r') as f:
         data = json.load(f)
     
-    correctness_scores, normalized_legibility_scores = process_data(data)
-    plt = create_plot(correctness_scores, normalized_legibility_scores)
+    correctness_scores, normalized_legibility_scores, question_indices = process_data(data)
+    plt = create_plot(correctness_scores, normalized_legibility_scores, question_indices)
+    analyze_distributions(correctness_scores, normalized_legibility_scores)
     plt.savefig('q_repeat_temp_1.0_correctness_vs_normalized_legibility_new.png')
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from datasets import load_from_disk
 from tqdm import tqdm
 import logging
 from dotenv import load_dotenv
+import concurrent.futures
 
 load_dotenv()
 
@@ -43,7 +44,7 @@ def get_claude_answer(question, client, model="claude-3-7-sonnet-20250219", thin
                 response = client.messages.create(
                     model=model,
                     max_tokens=4000,
-                    temperature=0,
+                    temperature=1,
                     messages=[
                         {"role": "user", "content": f"{question}"}
                     ]
@@ -139,6 +140,29 @@ def save_scores_to_file(scores, filename="claude_scores.json"):
         json.dump(scores, f, indent=2)
     logging.info(f"Saved scores to {filename}")
 
+def process_question(item, client, idx):
+    """Process a single question with Claude"""
+    question_id = item.get("Question ID", f"q{idx}")
+    question = item["Question"]
+    correct_answer = item["Correct Answer"]
+    
+    logging.info(f"Processing question {question_id}")
+    
+    # Get Claude's answer
+    claude_answer, claude_thinking = get_claude_answer(question, client)
+    
+    # Store the answer
+    answer_result = {
+        "question": question,
+        "answer": claude_answer,
+        "reasoning": claude_thinking
+    }
+    
+    # Grade the answer correctness
+    grade_result = grade_answer_correctness(question, claude_answer, correct_answer, client, question_id)
+    
+    return question_id, answer_result, grade_result
+
 def main():
     # Initialize Anthropic client
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -147,6 +171,7 @@ def main():
     dataset = load_from_disk("data/gpqa_diamond")
     logging.info(f"Loaded dataset with {len(dataset)} questions")
     limit = 100
+    workers = 5  # Number of concurrent workers
 
     # Initialize results dictionaries
     claude_answers = {}
@@ -166,42 +191,46 @@ def main():
         }
     }
     
-    # Process all questions (use a subset for testing if needed)
-    for idx, item in tqdm(enumerate(dataset), total=limit if limit else len(dataset), desc="Processing questions"):
-        if limit and idx >= limit:
-            break
-        question_id = item.get("Question ID", f"q{idx}")
-        question = item["Question"]
-        correct_answer = item["Correct Answer"]
-        
-        logging.info(f"Processing question {question_id}")
-        
-        # Get Claude's answer
-        claude_answer, claude_thinking = get_claude_answer(question, client)
-        
-        # Store the answer
-        claude_answers[question_id] = {
-            "question": question,
-            "answer": claude_answer,
-            "reasoning": claude_thinking
+    processed_count = 0
+    failed_count = 0
+    total_to_run = min(limit, len(dataset)) if limit else len(dataset)
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_item = {
+            executor.submit(process_question, item, client, idx): (idx, item)
+            for idx, item in enumerate(dataset) if not limit or idx < limit
         }
         
-        # Grade the answer correctness
-        result = grade_answer_correctness(question, claude_answer, correct_answer, client, question_id)
-        
-        # Store the grading result
-        claude_scores["detailed_results"][question_id] = {
-            "question": question,
-            "actual_answer": correct_answer,
-            "grade": result
-        }
-        
-        # Update summary counts
-        correctness = result.get("correctness", "error")
-        claude_scores["summary"]["Claude Baseline"][correctness] += 1
+        for future in tqdm(concurrent.futures.as_completed(future_to_item), 
+                         total=total_to_run, 
+                         desc="Processing questions"):
+            try:
+                question_id, answer_result, grade_result = future.result()
+                
+                # Store results
+                claude_answers[question_id] = answer_result
+                claude_scores["detailed_results"][question_id] = {
+                    "question": answer_result["question"],
+                    "actual_answer": future_to_item[future][1]["Correct Answer"],
+                    "grade": grade_result
+                }
+                
+                # Update summary counts
+                correctness = grade_result.get("correctness", "error")
+                claude_scores["summary"]["Claude Baseline"][correctness] += 1
+                
+                processed_count += 1
+                
+            except Exception as e:
+                failed_count += 1
+                logging.error(f"Error processing question: {e}")
+            
+            logging.info(f"Progress: {processed_count + failed_count}/{total_to_run} "
+                      f"({processed_count} successful, {failed_count} failed)")
     
     # Calculate percentages
-    total_valid = sum(count for key, count in claude_scores["summary"]["Claude Baseline"].items() if key not in ["N/A", "error"])
+    total_valid = sum(count for key, count in claude_scores["summary"]["Claude Baseline"].items() 
+                     if key not in ["N/A", "error"])
     if total_valid > 0:
         claude_scores["percentages"]["Claude Baseline"] = {
             "correct_pct": round(claude_scores["summary"]["Claude Baseline"]["correct"] / total_valid * 100, 1),
@@ -213,8 +242,11 @@ def main():
         }
     
     # Save results to files
-    save_answers_to_file(claude_answers, "claude_answers/claude_baseline_answers.json")
-    save_scores_to_file(claude_scores, "claude_answers/scores/claude_baseline_scores.json")
+    save_answers_to_file(claude_answers, "claude_answers/temp_1_claude_baseline_answers.json")
+    save_scores_to_file(claude_scores, "claude_answers/scores/temp_1_claude_baseline_scores.json")
+    
+    logging.info(f"Analysis complete. Successfully processed: {processed_count}")
+    logging.info(f"Failed: {failed_count}")
 
 if __name__ == "__main__":
     main()

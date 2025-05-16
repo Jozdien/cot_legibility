@@ -94,11 +94,12 @@ def process_file(file_path, dataset, client, r1_only):
 def process_file_chunks(file_path, client):
     """Process a single transcript file for chunk-based legibility analysis."""
     sections = autograder_utils.extract_sections(file_path)
+    sections.pop('deepseek_reasoning', None)
     results = {"file": os.path.basename(file_path), "sections": {}}
     
     for name, text in sections.items():
         if text and text.strip():
-            results["sections"][name] = autograder_utils.grade_legibility_chunks(text, client)
+            results["sections"]['deepseek_reasoning'] = autograder_utils.grade_legibility_chunks(text, client)
     
     return results
 
@@ -136,6 +137,8 @@ def parse_arguments():
                         help='Number of concurrent workers for processing files (default: 5)')
     parser.add_argument('--r1-only', action='store_true',
                         help='Only evaluate DeepSeek responses')
+    parser.add_argument('--skip-existing', action='store_true',
+                        help='Skip files that exist in scores file')
     parser.add_argument('--chunk-legibility', action='store_true',
                         help='Only analyze legibility in chunks, saving to a separate file')
     return parser.parse_args()
@@ -152,6 +155,11 @@ def main():
         scores_output_path = os.path.join("scores", base_name)
     else:
         scores_output_path = args.scores_output
+    
+    existing_results = {}
+    if args.skip_existing and os.path.exists(scores_output_path):
+        with open(scores_output_path) as f:
+            existing_results = {r['file']: r for r in json.load(f)}
 
     # Ensure correctness directory exists
     os.makedirs("answers", exist_ok=True)
@@ -183,15 +191,17 @@ def main():
         print(f"Using {args.workers} concurrent workers for processing")
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
-            if args.chunk_legibility:
-                future_to_file = {
-                    executor.submit(process_file_chunks, file_path, client): file_path for file_path in rollout_files
-                }
-            else:
-                future_to_file = {
-                    executor.submit(process_file, file_path, gpqa_dataset, client, args.r1_only): file_path 
-                    for file_path in rollout_files
-                }
+            future_to_file = {}
+            for file_path in rollout_files:
+                filename = os.path.basename(file_path)
+                if args.skip_existing and filename in existing_results:
+                    all_results.append(existing_results[filename])
+                    processed_count += 1
+                    continue
+                if args.chunk_legibility:
+                    future_to_file[executor.submit(process_file_chunks, file_path, client)] = file_path
+                else:
+                    future_to_file[executor.submit(process_file, file_path, gpqa_dataset, client, args.r1_only)] = file_path
             
             for future in concurrent.futures.as_completed(future_to_file):
                 file_path = future_to_file[future]

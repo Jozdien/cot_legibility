@@ -256,7 +256,7 @@ def grade_answer_correctness(predicted_answer, actual_answer, client, file_path)
     except Exception as e:
         return {"correctness": "error", "explanation": f"Error grading answer: {str(e)}"}
     
-def grade_legibility_chunks(text, client, chunk_size=5000):
+def grade_legibility_chunks(text, client, chunk_size=500):
     chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
     chunk_grades = []
     

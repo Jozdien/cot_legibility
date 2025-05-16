@@ -1259,9 +1259,11 @@ def plot_legibility_by_baseline_correctness(data, file_name, plots_dir):
 
 def plot_chunk_legibility(data, file_name, plots_dir):
     """Plot legibility scores by chunk position."""
-    models = ['deepseek', 'cutoff', 'anthropic', 'openai']
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-    axes = axes.ravel()
+    # models = ['deepseek', 'cutoff', 'anthropic', 'openai']
+    models = ['deepseek']
+    fig, ax = plt.subplots(figsize=(12, 8))
+    # fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    # axes = axes.ravel()
     colors = get_model_colors()
     
     for idx, model in enumerate(models):
@@ -1275,7 +1277,7 @@ def plot_chunk_legibility(data, file_name, plots_dir):
         if not chunk_scores:
             continue
             
-        ax = axes[idx]
+        # ax = axes[idx]
         values = list(chunk_scores.values())
         bp = ax.boxplot(values, patch_artist=True)
         
@@ -1290,7 +1292,7 @@ def plot_chunk_legibility(data, file_name, plots_dir):
         
         ax.set_xlabel('Chunks')
         ax.set_ylabel('Illegibility Score')
-        ax.set_title(get_model_display_name(model))
+        ax.set_title("CoT Illegibility Progression")
         ax.set_xticks(range(1, len(chunk_scores) + 1))
         ax.set_xticklabels([f'{i*5000}' for i in range(len(chunk_scores))])
         ax.grid(True, alpha=0.3)
