@@ -26,13 +26,13 @@ def write_to_file(content, file):
 
 
 def process_question(
-    question_text, index, total, output_dir, temperature, logprobs=True
+    question_text, index, total, output_dir, temperature, logprobs=True, model_name=None, model_display_name=None
 ):
     try:
         safe_question = sanitize_filename(question_text)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"{output_dir}/r1_response_{timestamp}_{safe_question}.md"
-        logprobs_file = f"{output_dir}/r1_logprobs_{timestamp}_{safe_question}.jsonl"
+        output_file = f"{output_dir}/{model_display_name}_response_{timestamp}_{safe_question}.md"
+        logprobs_file = f"{output_dir}/{model_display_name}_logprobs_{timestamp}_{safe_question}.jsonl"
         os.makedirs(output_dir, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
@@ -40,7 +40,7 @@ def process_question(
 
             start_time = perf_counter()
             completion = openrouter_client.chat.completions.create(
-                model="deepseek/deepseek-r1",
+                model=model_name,
                 messages=[{"role": "user", "content": question_text}],
                 temperature=temperature,
                 top_p=1,
@@ -48,20 +48,19 @@ def process_question(
                 presence_penalty=0.0,
                 logprobs=logprobs,
                 top_logprobs=20,
-                extra_body={
-                    "include_reasoning": True,
-                    "provider": {"order": ["Nebius"], "allow_fallbacks": False},
-                },
             )
 
             write_to_file(
-                f"# DeepSeek response (via openrouter)\n\n{completion.choices[0].message.content}",
+                f"# {model_display_name} response (via openrouter)\n\n{completion.choices[0].message.content}",
                 f,
             )
-            write_to_file(
-                f"# DeepSeek reasoning (via openrouter)\n\n{completion.choices[0].message.reasoning}",
-                f,
-            )
+            
+            # Check if the model returns reasoning (like deepseek-r1)
+            if hasattr(completion.choices[0].message, 'reasoning') and completion.choices[0].message.reasoning:
+                write_to_file(
+                    f"# {model_display_name} reasoning (via openrouter)\n\n{completion.choices[0].message.reasoning}",
+                    f,
+                )
 
             if logprobs and completion.choices[0].logprobs:
                 import json
@@ -96,11 +95,14 @@ def process_question(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Run a custom model on GPQA questions via OpenRouter")
+    parser.add_argument("--model", type=str, required=True, help="Model name on OpenRouter (e.g., 'anthropic/claude-3.5-sonnet')")
+    parser.add_argument("--model-display-name", type=str, required=True, help="Display name for the model (e.g., 'claude35')")
     parser.add_argument("--num_questions", type=int, default=200)
     parser.add_argument("--max_workers", type=int, default=30)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--temperature", type=float, default=1.0)
+    parser.add_argument("--logprobs", action="store_true", help="Request logprobs (if supported by model)")
     return parser.parse_args()
 
 
@@ -117,7 +119,7 @@ def main():
     )
 
     if args.output_dir is None:
-        args.output_dir = f"r1_rollouts/r1_only_temp_{args.temperature}_logprobs"
+        args.output_dir = f"r1_rollouts/{args.model_display_name}_temp_{args.temperature}{'_logprobs' if args.logprobs else ''}"
 
     num_questions = min(args.num_questions, len(gpqa_dataset))
     with concurrent.futures.ThreadPoolExecutor(
@@ -131,6 +133,9 @@ def main():
                 num_questions,
                 args.output_dir,
                 args.temperature,
+                args.logprobs,
+                args.model,
+                args.model_display_name,
             )
             for idx, i in enumerate(range(num_questions))
         ]
