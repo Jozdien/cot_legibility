@@ -6,8 +6,8 @@
 echo "Testing custom model integration..."
 
 # Test with a small model (you can change this to any model available on OpenRouter)
-MODEL="mistralai/mixtral-8x7b-instruct"
-MODEL_NAME="mixtral"
+MODEL="deepseek/deepseek-r1-distill-llama-70b"
+MODEL_NAME="r1-distill-llama-70b"
 NUM_QUESTIONS=2
 
 echo "1. Running $MODEL on $NUM_QUESTIONS questions..."
@@ -56,6 +56,6 @@ else
 fi
 
 echo -e "\n5. Testing plot generation (including new model)..."
-python analyze_scores.py --dir scores --pattern "*_scores.json" --plots --limit 1
+python analyze_scores.py --dir scores --pattern "*_scores.json" --plots
 
 echo -e "\nTest complete! Check the outputs above for any errors."
