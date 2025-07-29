@@ -197,6 +197,144 @@ def plot_legibility_by_correctness_flexible(data, file_name, plots_dir, models):
     plt.close()
     print(f"Illegibility by correctness plot saved to {plot_path}")
 
+def plot_length_vs_legibility_flexible(data, file_name, plots_dir):
+    """Plot section lengths versus legibility scores with flexible section detection."""
+    import re
+    
+    # Extract all unique sections from the data
+    all_sections = set()
+    for item in data:
+        for section in item.get("legibility", {}):
+            all_sections.add(section)
+    
+    # Only keep reasoning sections
+    reasoning_sections = [s for s in all_sections if "reasoning" in s.lower()]
+    
+    if not reasoning_sections:
+        print("No reasoning sections found for length vs legibility plot")
+        return
+    
+    # Prepare data structure
+    section_data = {section: {"lengths": [], "scores": []} for section in reasoning_sections}
+    
+    # Get the rollouts directory
+    rollout_dir = os.path.join("r1_rollouts", file_name)
+    if not os.path.exists(rollout_dir):
+        print(f"Rollout directory not found: {rollout_dir}")
+        return
+    
+    # Process each result
+    for result in data:
+        filename = result.get("file")
+        if not filename:
+            continue
+            
+        filepath = os.path.join(rollout_dir, filename)
+        if not os.path.exists(filepath):
+            continue
+            
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read()
+                
+            legibility = result.get("legibility", {})
+            
+            # For each reasoning section
+            for section in reasoning_sections:
+                if section not in legibility:
+                    continue
+                    
+                # Extract model name from section
+                model_name = section.split("_")[0]
+                
+                # Create pattern to find this section in the file
+                # Handle both "Model reasoning (via ...)" and "Model_reasoning" patterns
+                pattern1 = rf"# {model_name} reasoning \(via .*?\)\n\n([\s\S]*?)(?=\n---\n|\n# |$)"
+                pattern2 = rf"# {section}\n\n([\s\S]*?)(?=\n---\n|\n# |$)"
+                
+                # Try both patterns
+                match = re.search(pattern1, content, re.DOTALL)
+                if not match:
+                    match = re.search(pattern2, content, re.DOTALL)
+                
+                if match:
+                    section_text = match.group(1).strip()
+                    section_score = legibility[section].get("score")
+                    
+                    if isinstance(section_score, (int, float)) and section_score > 0:
+                        section_data[section]["lengths"].append(len(section_text))
+                        section_data[section]["scores"].append(section_score)
+        except Exception as e:
+            print(f"Error processing file {filepath}: {e}")
+            continue
+    
+    # Filter out sections with no data
+    section_data = {k: v for k, v in section_data.items() if v["lengths"]}
+    
+    if not section_data:
+        print("No data found for length vs legibility plot")
+        return
+    
+    # Get colors
+    colors = analysis_utils.get_model_colors()
+    
+    # Create plot
+    num_sections = len(section_data)
+    if num_sections == 0:
+        return
+        
+    # Adjust subplot layout based on number of sections
+    if num_sections <= 2:
+        rows, cols = 1, num_sections
+    elif num_sections <= 4:
+        rows, cols = 2, 2
+    else:
+        rows = (num_sections + 2) // 3
+        cols = 3
+    
+    plt.figure(figsize=(6 * cols, 5 * rows))
+    
+    # Plot each section
+    for i, (section, values) in enumerate(section_data.items(), 1):
+        if values["lengths"] and values["scores"]:
+            plt.subplot(rows, cols, i)
+            model = section.split("_")[0]
+            
+            # Get color for this model
+            if hasattr(colors, '__getitem__'):
+                color = colors[model]
+            else:
+                color = colors.get(model, "#7f8c8d")
+            
+            plt.scatter(
+                values["lengths"],
+                values["scores"],
+                alpha=0.5,
+                color=color,
+            )
+            
+            # Add trend line
+            if len(values["lengths"]) > 5:
+                z = np.polyfit(values["lengths"], values["scores"], 1)
+                p = np.poly1d(z)
+                x_range = np.linspace(min(values["lengths"]), max(values["lengths"]), 100)
+                plt.plot(x_range, p(x_range), "--", color=color, alpha=0.8)
+            
+            plt.xlabel("Character Count", fontsize=10)
+            plt.ylabel("Illegibility Score", fontsize=10)
+            plt.title(f"{section.replace('_', ' ').title()}", fontsize=12)
+            plt.grid(True, alpha=0.3)
+            plt.ylim(0, 10)
+    
+    plt.suptitle(f"Length vs Illegibility - {file_name}", fontsize=14)
+    plt.tight_layout()
+    
+    # Save plot
+    plot_path = os.path.join(plots_dir, f"{file_name}_length_vs_legibility.png")
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close()
+    print(f"Length vs illegibility plot saved to {plot_path}")
+
 def process_regular_file_flexible(file_path, plots_dir=None):
     """Process a single score file with flexible model detection."""
     print(f"Analyzing: {file_path}")
@@ -252,7 +390,7 @@ def process_regular_file_flexible(file_path, plots_dir=None):
             analysis_utils.plot_legibility_scores(stats, file_name, plots_dir)
             analysis_utils.plot_correctness_assessment(stats, file_name, plots_dir)
             plot_legibility_by_correctness_flexible(data, file_name, plots_dir, models)
-            analysis_utils.plot_length_vs_legibility(data, file_name, plots_dir)
+            plot_length_vs_legibility_flexible(data, file_name, plots_dir)
         except Exception as e:
             print(f"Error generating plots: {e}")
     
