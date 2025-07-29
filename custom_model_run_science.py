@@ -123,6 +123,11 @@ def get_question_preview(question_data, dataset_name):
     elif dataset_name == "scienceqa":
         return question_data["question"]
     elif dataset_name == "chembench":
+        # ChemBench has questions in examples[0].input
+        if "examples" in question_data and len(question_data["examples"]) > 0:
+            return question_data["examples"][0].get("input", "unknown")
+        return question_data.get("question", "unknown")
+    elif dataset_name == "mmlu_pro":
         return question_data.get("question", "unknown")
     else:
         return question_data.get("question", "unknown")
@@ -139,14 +144,13 @@ def process_question(
             
         safe_question = sanitize_filename(question_preview)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"{output_dir}/{model_display_name}_response_{timestamp}_{safe_question}.md"
-        logprobs_file = f"{output_dir}/{model_display_name}_logprobs_{timestamp}_{safe_question}.jsonl"
+        # Add microseconds and index to ensure uniqueness
+        unique_id = f"{timestamp}_{datetime.now().microsecond:06d}_{index:04d}"
+        output_file = f"{output_dir}/{model_display_name}_response_{unique_id}_{safe_question}.md"
+        logprobs_file = f"{output_dir}/{model_display_name}_logprobs_{unique_id}_{safe_question}.jsonl"
         os.makedirs(output_dir, exist_ok=True)
 
-        # Write to temp file first, then rename atomically
-        temp_output_file = output_file + ".tmp"
-        
-        with open(temp_output_file, "w", encoding="utf-8") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             try:
                 write_to_file(f"# Original Question\n\n{question_text}", f)
                 
@@ -238,17 +242,9 @@ def process_question(
                 f"[{index}/{total}] Processed in {perf_counter() - start_time:.2f}s"
             )
             
-        # Atomic rename to prevent partial files
-        os.rename(temp_output_file, output_file)
         return output_file
     except Exception as e:
         logging.error(f"[{index}/{total}] Failed: {str(e)}")
-        # Clean up temp file if it exists
-        if 'temp_output_file' in locals() and os.path.exists(temp_output_file):
-            try:
-                os.remove(temp_output_file)
-            except:
-                pass
         return None
 
 
