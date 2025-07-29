@@ -21,8 +21,14 @@ def sanitize_filename(text, max_len=30):
 
 
 def write_to_file(content, file):
-    file.write(f"{content}\n\n---\n\n")
-    file.flush()
+    """Write content to file with proper flushing to prevent corruption."""
+    try:
+        file.write(f"{content}\n\n---\n\n")
+        file.flush()
+        os.fsync(file.fileno())  # Force write to disk
+    except Exception as e:
+        logging.error(f"Error writing to file: {e}")
+        raise
 
 
 def format_mmlu_pro_question(question_data):
@@ -137,15 +143,22 @@ def process_question(
         logprobs_file = f"{output_dir}/{model_display_name}_logprobs_{timestamp}_{safe_question}.jsonl"
         os.makedirs(output_dir, exist_ok=True)
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            write_to_file(f"# Original Question\n\n{question_text}", f)
-            
-            # Add dataset-specific context if available
-            if dataset_name == "scienceqa":
-                if "subject" in question_data:
-                    write_to_file(f"# Subject: {question_data['subject']}", f)
-                if "topic" in question_data:
-                    write_to_file(f"# Topic: {question_data['topic']}", f)
+        # Write to temp file first, then rename atomically
+        temp_output_file = output_file + ".tmp"
+        
+        with open(temp_output_file, "w", encoding="utf-8") as f:
+            try:
+                write_to_file(f"# Original Question\n\n{question_text}", f)
+                
+                # Add dataset-specific context if available
+                if dataset_name == "scienceqa":
+                    if "subject" in question_data:
+                        write_to_file(f"# Subject: {question_data['subject']}", f)
+                    if "topic" in question_data:
+                        write_to_file(f"# Topic: {question_data['topic']}", f)
+            except Exception as e:
+                logging.error(f"Error writing initial content for {output_file}: {e}")
+                raise
 
             start_time = perf_counter()
             completion = openrouter_client.chat.completions.create(
@@ -159,15 +172,42 @@ def process_question(
                 top_logprobs=20,
             )
 
-            write_to_file(
-                f"# {model_display_name} response (via openrouter)\n\n{completion.choices[0].message.content}",
-                f,
-            )
+            # Write response with length check and validation
+            response_content = completion.choices[0].message.content
+            if response_content:
+                # Clean up any potential corruption patterns
+                if response_content.startswith("# ") or response_content.startswith("## "):
+                    logging.warning(f"Response starts with markdown header, cleaning up")
+                    response_content = response_content.lstrip("#").strip()
+                
+                # Check for repeated header patterns (sign of corruption)
+                header_pattern = f"# {model_display_name} response (via openrouter)"
+                if header_pattern in response_content:
+                    logging.warning(f"Response contains header pattern, likely corrupted")
+                    # Try to extract clean content
+                    parts = response_content.split(header_pattern)
+                    response_content = parts[0] if parts[0] else parts[-1]
+                
+                # Truncate extremely long responses to prevent file corruption
+                if len(response_content) > 100000:  # 100KB limit
+                    logging.warning(f"Response truncated from {len(response_content)} to 100000 chars")
+                    response_content = response_content[:100000] + "\n\n[TRUNCATED DUE TO LENGTH]"
+                
+                write_to_file(
+                    f"# {model_display_name} response (via openrouter)\n\n{response_content}",
+                    f,
+                )
             
             # Check if the model returns reasoning (like deepseek-r1)
             if hasattr(completion.choices[0].message, 'reasoning') and completion.choices[0].message.reasoning:
+                reasoning_content = completion.choices[0].message.reasoning
+                # Truncate extremely long reasoning to prevent file corruption
+                if len(reasoning_content) > 200000:  # 200KB limit for reasoning
+                    logging.warning(f"Reasoning truncated from {len(reasoning_content)} to 200000 chars")
+                    reasoning_content = reasoning_content[:200000] + "\n\n[TRUNCATED DUE TO LENGTH]"
+                
                 write_to_file(
-                    f"# {model_display_name} reasoning (via openrouter)\n\n{completion.choices[0].message.reasoning}",
+                    f"# {model_display_name} reasoning (via openrouter)\n\n{reasoning_content}",
                     f,
                 )
 
@@ -197,9 +237,18 @@ def process_question(
             logging.info(
                 f"[{index}/{total}] Processed in {perf_counter() - start_time:.2f}s"
             )
-            return output_file
+            
+        # Atomic rename to prevent partial files
+        os.rename(temp_output_file, output_file)
+        return output_file
     except Exception as e:
         logging.error(f"[{index}/{total}] Failed: {str(e)}")
+        # Clean up temp file if it exists
+        if 'temp_output_file' in locals() and os.path.exists(temp_output_file):
+            try:
+                os.remove(temp_output_file)
+            except:
+                pass
         return None
 
 
