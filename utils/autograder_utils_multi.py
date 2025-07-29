@@ -150,6 +150,10 @@ def detect_dataset_type(question_text):
 
 def get_actual_answer(question_text, dataset):
     """Find the matching answer in the dataset."""
+    # Handle empty dataset
+    if not dataset:
+        return "Dataset not loaded"
+    
     # Detect dataset type from question format
     dataset_type = detect_dataset_type(question_text)
     

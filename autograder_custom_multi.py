@@ -37,9 +37,13 @@ def extract_custom_sections(file_path, model_display_name):
 
 def detect_dataset_from_directory(dir_path):
     """Detect dataset type from directory name."""
-    dir_name = os.path.basename(os.path.normpath(dir_path))
+    dir_name = os.path.basename(os.path.normpath(dir_path)).lower()
     if "mmlu_pro" in dir_name:
         return "mmlu_pro"
+    elif "scienceqa" in dir_name:
+        return "scienceqa"
+    elif "chembench" in dir_name:
+        return "chembench"
     return "gpqa"
 
 
@@ -47,11 +51,15 @@ def process_file(file_path, dataset, client, model_display_name, dataset_type):
     """Process a single transcript file, extract answers, and grade them."""
     print(f"\nProcessing: {file_path}")
 
-    question = autograder_utils.get_original_question_from_file(file_path)
-    if question:
-        actual_answer = autograder_utils.get_actual_answer(question, dataset)
-    else:
-        actual_answer = "No matching answer found"
+    try:
+        question = autograder_utils.get_original_question_from_file(file_path)
+        if question and dataset:
+            actual_answer = autograder_utils.get_actual_answer(question, dataset)
+        else:
+            actual_answer = "No matching answer found"
+    except Exception as e:
+        print(f"  Warning: Could not extract question/answer: {e}")
+        actual_answer = "Error retrieving answer"
 
     sections = extract_custom_sections(file_path, model_display_name)
     answers = {
@@ -157,7 +165,7 @@ def parse_arguments():
     parser.add_argument(
         "--dataset",
         type=str,
-        choices=["gpqa", "mmlu_pro", "auto"],
+        choices=["gpqa", "mmlu_pro", "scienceqa", "chembench", "auto"],
         default="auto",
         help="Dataset type (auto-detect from directory name by default)",
     )
@@ -207,10 +215,24 @@ def main():
     os.makedirs(os.path.dirname(args.answers_output), exist_ok=True)
 
     # Load appropriate dataset
-    if dataset_type == "mmlu_pro":
-        dataset = load_from_disk("data/mmlu_pro")
+    dataset_paths = {
+        "gpqa": "data/gpqa_diamond",
+        "mmlu_pro": "data/mmlu_pro",
+        "scienceqa": "data/scienceqa_hard",
+        "chembench": "data/chembench"
+    }
+    
+    dataset_path = dataset_paths.get(dataset_type, "data/gpqa_diamond")
+    if not os.path.exists(dataset_path):
+        print(f"Warning: Dataset not found at {dataset_path}")
+        print(f"Please run get_{dataset_type}.py first to download the dataset.")
+        dataset = []  # Empty dataset, will skip answer matching
     else:
-        dataset = load_from_disk("data/gpqa_diamond")
+        try:
+            dataset = load_from_disk(dataset_path)
+        except Exception as e:
+            print(f"Error loading dataset: {e}")
+            dataset = []
 
     # Get markdown files
     md_files = glob(os.path.join(args.dir, "*.md"))
@@ -241,6 +263,8 @@ def main():
                 except Exception as e:
                     file = future_to_file[future]
                     print(f"Error processing {file}: {str(e)}")
+                    # Skip files that error out
+                    continue
 
     # Save results to JSON
     with open(args.scores_output, "w") as f:
@@ -265,14 +289,17 @@ def main():
 
     print(f"\nSummary:")
     print(f"Total questions: {total_files}")
-    print(f"Correct: {correct_count} ({correct_count/total_files*100:.1f}%)")
-    if dataset_type == "gpqa":  # MMLU-Pro doesn't have partial credit
+    if total_files > 0:
+        print(f"Correct: {correct_count} ({correct_count/total_files*100:.1f}%)")
+        if dataset_type == "gpqa":  # MMLU-Pro doesn't have partial credit
+            print(
+                f"Partially correct: {partially_correct_count} ({partially_correct_count/total_files*100:.1f}%)"
+            )
         print(
-            f"Partially correct: {partially_correct_count} ({partially_correct_count/total_files*100:.1f}%)"
+            f"Incorrect: {total_files - correct_count - partially_correct_count} ({(total_files - correct_count - partially_correct_count)/total_files*100:.1f}%)"
         )
-    print(
-        f"Incorrect: {total_files - correct_count - partially_correct_count} ({(total_files - correct_count - partially_correct_count)/total_files*100:.1f}%)"
-    )
+    else:
+        print("No valid files were processed.")
 
 
 if __name__ == "__main__":
