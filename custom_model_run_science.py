@@ -287,6 +287,9 @@ def main():
     
     dataset = load_from_disk(dataset_path)
     
+    # Shuffle dataset to get a good mix of questions
+    dataset = dataset.shuffle(seed=42)
+    
     # Apply additional filters if specified
     if args.dataset == "scienceqa" and (args.subject_filter or args.topic_filter):
         if args.subject_filter:

@@ -18,28 +18,32 @@ def main():
     os.makedirs("data", exist_ok=True)
     
     # Filter for text-only questions (no image required) and harder subjects
-    # Focus on chemistry, physics, and advanced biology
+    # Focus on natural science questions
     def filter_hard_science(example):
         # Skip if image is required
         if example.get('image') is not None:
             return False
         
-        # Focus on harder subjects (grades 7-12 and certain topics)
-        grade = example.get('grade', 0)
+        # Must be natural science
         subject = example.get('subject', '').lower()
+        if 'natural science' not in subject:
+            return False
+        
+        # Focus on harder topics and grades
+        grade = example.get('grade', '')
         topic = example.get('topic', '').lower()
         
-        # Keep high school level questions
-        if isinstance(grade, str) and any(g in grade for g in ['10', '11', '12', 'high']):
-            return True
+        # Only keep middle and high school level questions (grades 6-12)
+        if isinstance(grade, str):
+            # Extract grade number if present
+            grade_nums = [g for g in ['6', '7', '8', '9', '10', '11', '12'] if g in grade]
+            if grade_nums or 'high' in grade.lower():
+                return True
         
-        # Keep chemistry and physics questions
-        if any(s in subject for s in ['chemistry', 'physics', 'physical science']):
-            return True
-            
-        # Keep advanced biology topics
-        if 'biology' in subject and any(t in topic for t in ['molecular', 'cellular', 'genetics', 'biochem']):
-            return True
+        # Skip lower grade questions even if they have advanced topics
+        # (they're usually too simple despite the topic name)
+        if any(g in str(grade) for g in ['1', '2', '3', '4', '5']):
+            return False
             
         return False
     
@@ -51,6 +55,9 @@ def main():
     # Combine all splits for more questions
     from datasets import concatenate_datasets
     all_questions = concatenate_datasets([filtered_train, filtered_test, filtered_val])
+    
+    # Shuffle the dataset to avoid any ordering bias
+    all_questions = all_questions.shuffle(seed=42)
     
     # Save the filtered dataset
     save_path = "data/scienceqa_hard"
