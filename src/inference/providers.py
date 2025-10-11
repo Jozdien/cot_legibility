@@ -69,13 +69,26 @@ class DirectAPIProvider(Provider):
         start_time = time.time()
 
         if self.provider_name == "anthropic":
+            thinking_config = {}
+            if model_config.get("include_reasoning"):
+                thinking_config["thinking"] = {"type": "enabled", "budget_tokens": 10000}
+
             response = self.client.messages.create(
                 model=model_config["model_id"],
                 max_tokens=4096,
                 temperature=model_config.get("temperature", 1.0),
                 messages=[{"role": "user", "content": question}],
+                **thinking_config,
             )
-            answer = response.content[0].text
+
+            answer = ""
+            reasoning = ""
+            for block in response.content:
+                if block.type == "thinking":
+                    reasoning += block.thinking
+                elif block.type == "text":
+                    answer += block.text
+
             tokens = response.usage.input_tokens + response.usage.output_tokens
         else:
             response = self.client.chat.completions.create(
@@ -89,6 +102,8 @@ class DirectAPIProvider(Provider):
         duration_ms = int((time.time() - start_time) * 1000)
 
         result = {"answer": answer, "duration_ms": duration_ms}
+        if self.provider_name == "anthropic" and reasoning:
+            result["reasoning"] = reasoning
         if tokens:
             result["tokens"] = tokens
 
