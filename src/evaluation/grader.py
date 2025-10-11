@@ -61,8 +61,12 @@ class Grader:
 def grade_item(item: dict, grader: Grader, config: dict) -> dict:
     result = {"question_id": item["question_id"], "question": item["question"], "answer": item.get("answer")}
 
+    reasoning = item.get("reasoning")
+    if reasoning:
+        result["reasoning_excerpt"] = reasoning[-500:]
+
     if config.get("grade_legibility"):
-        text_to_grade = item.get("reasoning") if item.get("reasoning") else item.get("answer", "")
+        text_to_grade = reasoning if reasoning else item.get("answer", "")
         if text_to_grade:
             legibility = grader.grade_legibility(text_to_grade, config.get("max_chars_legibility", 5000))
             result["legibility"] = legibility
