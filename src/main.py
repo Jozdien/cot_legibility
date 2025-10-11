@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .utils.config import load_config
+from .utils.config import load_config, save_config
 from .utils.io import ensure_dir
 from .utils.logging import get_logger, setup_logging
 
@@ -56,6 +56,7 @@ def main(config_path: str) -> None:
     if stages == ["analysis"] and config["analysis"]["comparison"]["enabled"]:
         run_name = generate_run_name(config)
         output_dir = ensure_dir(Path("runs") / run_name)
+        save_config(config, output_dir / "config.yaml")
         setup_logging(output_dir / "run.log")
         logger = get_logger(__name__)
 
@@ -73,6 +74,7 @@ def main(config_path: str) -> None:
             for dataset in datasets:
                 run_name = generate_run_name(config, model["name"], dataset["name"])
                 output_dir = ensure_dir(Path("runs") / run_name)
+                save_config(config, output_dir / "config.yaml")
                 setup_logging(output_dir / "run.log")
                 logger = get_logger(__name__)
 
@@ -95,6 +97,7 @@ def main(config_path: str) -> None:
     else:
         run_name = generate_run_name(config)
         output_dir = ensure_dir(Path("runs") / run_name)
+        save_config(config, output_dir / "config.yaml")
         setup_logging(output_dir / "run.log")
         logger = get_logger(__name__)
 

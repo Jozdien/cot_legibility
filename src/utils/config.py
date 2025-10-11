@@ -15,6 +15,11 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
     return config
 
 
+def save_config(config: dict[str, Any], output_path: str | Path) -> None:
+    with open(output_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+
 def _validate_config(config: dict) -> None:
     required_keys = ["run"]
     for key in required_keys:
