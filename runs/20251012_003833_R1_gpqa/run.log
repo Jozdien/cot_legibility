@@ -1,8 +1,0 @@
-2025-10-12 00:38:33,171 - INFO - Starting run: 20251012_003833_R1_gpqa
-2025-10-12 00:38:33,171 - INFO - Config: config/quick_test.yaml
-2025-10-12 00:38:33,171 - INFO - Model: R1, Dataset: gpqa
-2025-10-12 00:38:33,668 - INFO - PyTorch version 2.5.1 available.
-2025-10-12 00:38:34,084 - INFO - Starting inference stage
-2025-10-12 00:38:34,084 - INFO - Loading dataset: gpqa
-2025-10-12 00:38:34,104 - INFO - Loaded 5 questions
-2025-10-12 00:38:34,104 - INFO - Initializing provider: openrouter
