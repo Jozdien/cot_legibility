@@ -1,61 +1,215 @@
-## Overview
+# CoT Faithfulness Research Pipeline
 
-### `get_gpqa_d.py`
+Refactored pipeline for analyzing Chain-of-Thought reasoning legibility and correctness in large language models.
 
-Gets gpqa_diamond dataset from Hugging Face.
-
-### `r1_paraphrased.py`
-
-Gets r1 response and reasoning for gpqa_diamond questions, paraphrases the first 25% of reasoning trace using Claude and GPT-4o, generates new responses and reasoning using the paraphrase as prefill, and saves everything to r1_rollouts/cutoff_{cutoff_portion}_[openrouter|deepseek_openrouter]/r1_faithful_cot_{timestamp}_{question[:30]}.md
-
-Uses DeepSeek API with OpenRouter fallback. You can change cutoff_portion in the script.
-
-### `r1_run.py`
-
-Gets r1 response and reasoning for gpqa_diamond questions, saves to r1_rollouts/r1_only/r1_response_{timestamp}_{question[:30]}.md
-
-### `autograder.py`
-
-Grades rollouts in r1_rollouts/ for legibility and correctness and saves results to scores/ and answers/ directories by default.
-
-Run with:
+## Quick Start
 
 ```bash
-python autograder.py --dir <directory> --scores-output <scores_output> --answers-output <answers_output> --limit <limit> --max-chars <max_chars>
+# Install dependencies
+pip install -r requirements.txt
+
+# Download a dataset (if needed)
+python get_gpqa_d.py
+
+# Run quick test
+./run.sh config/quick_test.yaml
+
+# Run full pipeline
+./run.sh config/default.yaml
 ```
 
-### `run_autograder.sh`
+## Structure
 
-Runs autograder.py for all rollouts in r1_rollouts/. Skips files that already have scores and answers unless --override is set.
+```
+cot_faithfulness/
+├── run.sh                    # Single entry point for all pipelines
+├── config/                   # YAML configuration files
+│   ├── default.yaml         # Full parameter set
+│   ├── quick_test.yaml      # Minimal test (5 questions)
+│   └── examples/            # Example configs
+├── src/                      # All source code
+│   ├── inference/           # Generate model responses
+│   ├── evaluation/          # Grade responses
+│   ├── analysis/            # Generate plots
+│   └── utils/               # Shared utilities
+├── data/                     # Downloaded datasets
+├── runs/                     # All pipeline outputs
+│   └── YYYYMMDD_HHMMSS_MODEL_DATASET/
+│       ├── inference.jsonl
+│       ├── evaluation.json
+│       ├── plots/
+│       └── run.log
+└── archive/                  # Old data from previous codebase
+```
 
-Run with:
+## Pipeline Stages
+
+### 1. Inference
+- Loads dataset from `data/`
+- Calls model APIs (OpenRouter, Anthropic, OpenAI)
+- Streams results to `inference.jsonl`
+
+### 2. Evaluation
+- Loads `inference.jsonl`
+- Grades legibility (1-10 scale, higher = more illegible)
+- Grades correctness (correct/partially_correct/incorrect)
+- Computes statistics
+- Saves to `evaluation.json`
+
+### 3. Analysis
+- Loads `evaluation.json`
+- Generates plots (boxplots, bar charts, scatter plots)
+- Supports comparison across multiple runs
+
+## Configuration
+
+All pipelines are configured via YAML files. Key sections:
+
+```yaml
+run:
+  stages: [inference, evaluation, analysis]  # Which stages to run
+
+inference:
+  models:
+    - name: "R1"
+      provider: "openrouter"
+      model_id: "deepseek/deepseek-r1"
+      temperature: 1.0
+      include_reasoning: true
+  datasets:
+    - name: "gpqa"              # gpqa, mmlu_pro, scienceqa, chembench
+      num_questions: 200
+      shuffle: true
+  concurrency:
+    max_workers: 30
+
+evaluation:
+  grader_model: "claude-3-7-sonnet-latest"
+  max_workers: 5
+  grade_legibility: true
+  grade_correctness: true
+
+analysis:
+  plots:
+    - legibility_scores_boxplot
+    - correctness_assessment
+    - legibility_by_correctness
+  comparison:
+    enabled: false
+```
+
+## Usage Examples
+
+### Test a single model
 ```bash
-bash run_autograder.sh [--override]
+./run.sh config/quick_test.yaml
+# Creates: runs/20250730_120345_R1_gpqa/
 ```
 
-### `claude_answers.py`
-
-Takes questions and reasoning traces from a subdirectory of r1_rollouts/ and generates answers to the questions using each reasoning trace (including partial and paraphrased partials), grades correctness of the answers, and saves to claude_answers/ and claude_answers/scores/ directories. In `generate` mode, it only generates answers, and in `grade` mode, it only grades existing answers.
-
-Run with:
+### Test multiple models
 ```bash
-python claude_answers.py --mode <mode> --dir <directory> --limit <limit> --results <results_file> --dataset <dataset_file>
+./run.sh config/examples/multi_model.yaml
+# Creates separate directories for each model
 ```
 
-### `get_claude_baseline.py`
+### Run only evaluation on existing inference
+```yaml
+# config/regrade.yaml
+run:
+  stages: [evaluation]
 
-Generates a baseline for gpqa_diamond using Claude and grades correctness of the answers, and saves to claude_answers/ and claude_answers/scores/ directories.
-
-Run with:
-```bash
-python get_claude_baseline.py
+evaluation:
+  inference_file: "runs/20250730_120345_R1_gpqa/inference.jsonl"
+  grader_model: "gpt-4"
+  ...
 ```
 
-### `analyze_scores.py`
+### Compare multiple runs
+```yaml
+# config/examples/analysis_only.yaml
+run:
+  stages: [analysis]
 
-Makes plots. In `regular` mode, it makes plots of scores from scores/ directory. In `claude` mode, it makes plots of scores from a specific Claude answers score file.
-
-Run with:
-```bash
-python analyze_scores.py --dir <directory> --pattern <pattern> --compare --plots --claude-file <claude_file> --analysis-type <analysis_type>
+analysis:
+  comparison:
+    enabled: true
+    runs:
+      - "runs/20250730_120345_R1_gpqa/evaluation.json"
+      - "runs/20250730_140521_claude35_gpqa/evaluation.json"
+    plot_types:
+      - model_comparison
+      - legibility_comparison
 ```
+
+## Supported Datasets
+
+- **GPQA-Diamond**: Graduate-level science questions (~200)
+- **MMLU-Pro**: Multiple choice (10 options, 12K questions)
+- **ScienceQA**: High school science with hints (~1K filtered)
+- **ChemBench**: Advanced chemistry problems (~1K+)
+
+Download with: `python get_<dataset>.py`
+
+## Supported Providers
+
+- **OpenRouter**: Most models via unified API
+- **Anthropic**: Direct Claude API
+- **OpenAI**: Direct GPT API
+
+Set API keys in `.env`:
+```
+OPENROUTER_API_KEY=...
+ANTHROPIC_API_KEY=...
+OPENAI_API_KEY=...
+```
+
+## Output Formats
+
+### inference.jsonl
+```json
+{"question_id": "gpqa_0", "question": "...", "answer": "...", "reasoning": "...", "model": "R1", "dataset": "gpqa", "temperature": 1.0, "timestamp": "...", "metadata": {...}}
+```
+
+### evaluation.json
+```json
+{
+  "metadata": {...},
+  "results": [
+    {
+      "question_id": "gpqa_0",
+      "legibility": {"score": 3.5, "explanation": "..."},
+      "correctness": {"grade": "correct", "explanation": "..."}
+    }
+  ],
+  "statistics": {
+    "legibility": {"mean": 3.2, "std": 1.1, ...},
+    "correctness": {"correct": 150, "correct_pct": 75.0, ...}
+  }
+}
+```
+
+## Extending
+
+### Add a new dataset
+1. Add loader in `src/inference/datasets.py`
+2. Update `_format_question()` method
+
+### Add a new provider
+1. Create provider class in `src/inference/providers.py`
+2. Implement `generate()` method
+3. Update `get_provider()` function
+
+### Add a new plot
+1. Add function in `src/analysis/plots.py`
+2. Register in `PLOT_FUNCTIONS` or `COMPARISON_PLOT_FUNCTIONS`
+3. Use in config: `plots: [your_new_plot]`
+
+## Migration from Old Codebase
+
+Old data is preserved in `archive/`:
+- `archive/r1_rollouts/` - Model responses (markdown format)
+- `archive/scores/` - Grading results (JSON)
+- `archive/answers/` - Human-readable analysis (markdown)
+- `archive/plots/` - Generated plots
+
+To re-analyze old results with new plots, convert data format or use archived results as reference.
