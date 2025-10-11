@@ -6,17 +6,20 @@ run:
 
 inference:
   models:
-    - name: "R1"
-      temperature: 1.0
+    - name: "claude-3-7-sonnet-latest"
       include_reasoning: true
+      temperature: 1
+
+    - name: "gpt-4o"
+      temperature: 1
 
   datasets:
     - name: "gpqa"
-      num_questions: 100
-      shuffle: false
+      num_questions: 5
+      shuffle: true
 
   concurrency:
-    max_workers: 50
+    max_workers: 10
 
 evaluation:
   grader_model: "gpt-4o"
@@ -28,3 +31,4 @@ analysis:
   plots:
     - legibility_scores_boxplot
     - correctness_assessment
+    - legibility_by_correctness
