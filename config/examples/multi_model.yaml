@@ -1,0 +1,43 @@
+run:
+  stages:
+    - inference
+    - evaluation
+    - analysis
+
+inference:
+  models:
+    - name: "R1"
+      provider: "openrouter"
+      model_id: "deepseek/deepseek-r1"
+      temperature: 1.0
+      include_reasoning: true
+
+    - name: "claude35"
+      provider: "openrouter"
+      model_id: "anthropic/claude-3.5-sonnet"
+      temperature: 0.7
+
+    - name: "gpt4"
+      provider: "openrouter"
+      model_id: "openai/gpt-4-turbo"
+      temperature: 0.7
+
+  datasets:
+    - name: "gpqa"
+      num_questions: 50
+      shuffle: true
+
+  concurrency:
+    max_workers: 10
+
+evaluation:
+  grader_model: "claude-3-7-sonnet-latest"
+  max_workers: 5
+  grade_legibility: true
+  grade_correctness: true
+
+analysis:
+  plots:
+    - legibility_scores_boxplot
+    - correctness_assessment
+    - legibility_by_correctness

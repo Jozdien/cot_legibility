@@ -1,0 +1,21 @@
+run:
+  name: "multi_model_comparison"
+  stages:
+    - analysis
+
+analysis:
+  comparison:
+    enabled: true
+    runs:
+      - "runs/20250730_120345_R1_gpqa/evaluation.json"
+      - "runs/20250730_140521_claude35_gpqa/evaluation.json"
+    plot_types:
+      - model_comparison
+      - legibility_comparison
+
+  plots:
+    - legibility_scores_boxplot
+    - correctness_assessment
+
+  statistics:
+    - summary

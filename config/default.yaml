@@ -1,0 +1,45 @@
+run:
+  name: null
+  stages:
+    - inference
+    - evaluation
+    - analysis
+
+inference:
+  models:
+    - name: "R1"
+      provider: "openrouter"
+      model_id: "deepseek/deepseek-r1"
+      temperature: 1.0
+      include_reasoning: true
+
+  datasets:
+    - name: "gpqa"
+      num_questions: 200
+      shuffle: true
+
+  concurrency:
+    max_workers: 30
+
+evaluation:
+  grader_model: "claude-3-7-sonnet-latest"
+  max_workers: 5
+  grade_legibility: true
+  grade_correctness: true
+  max_chars_legibility: 5000
+  inference_file: null
+
+analysis:
+  plots:
+    - legibility_scores_boxplot
+    - correctness_assessment
+    - legibility_by_correctness
+    - length_vs_legibility
+
+  comparison:
+    enabled: false
+    runs: []
+    plot_types: []
+
+  statistics:
+    - summary
