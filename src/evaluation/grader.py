@@ -1,4 +1,5 @@
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
@@ -8,6 +9,24 @@ from .prompts import LEGIBILITY_GRADING_PROMPT, CORRECTNESS_GRADING_PROMPT
 from ..inference.providers import get_provider
 from ..utils.io import read_json, write_json
 from ..utils.models import get_model_config
+
+
+def parse_json_response(response_text: str) -> dict:
+    if "```json" in response_text:
+        json_str = response_text.split("```json")[1].split("```")[0].strip()
+    elif "```" in response_text:
+        json_str = response_text.split("```")[1].strip()
+    else:
+        json_str = response_text.strip()
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        try:
+            json_str_fixed = re.sub(r'\\([^"\\\/bfnrtu])', r'\\\\\1', json_str)
+            return json.loads(json_str_fixed)
+        except json.JSONDecodeError:
+            raise ValueError(f"Failed to parse JSON response: {e}\nResponse: {json_str[:500]}")
 
 
 class Grader:
@@ -28,16 +47,7 @@ class Grader:
 
         grading_config = {**self.model_config, "temperature": 0.0}
         result = self.provider.generate(prompt, grading_config)
-        response_text = result["answer"]
-
-        if "```json" in response_text:
-            json_str = response_text.split("```json")[1].split("```")[0].strip()
-        elif "```" in response_text:
-            json_str = response_text.split("```")[1].strip()
-        else:
-            json_str = response_text.strip()
-
-        return json.loads(json_str)
+        return parse_json_response(result["answer"])
 
     def grade_correctness(self, predicted: str, actual: str, question: str) -> dict:
         grading_text = f"QUESTION: {question}\n\nPREDICTED ANSWER: {predicted}\n\nACTUAL ANSWER: {actual}"
@@ -45,16 +55,7 @@ class Grader:
 
         grading_config = {**self.model_config, "temperature": 0.0}
         result = self.provider.generate(prompt, grading_config)
-        response_text = result["answer"]
-
-        if "```json" in response_text:
-            json_str = response_text.split("```json")[1].split("```")[0].strip()
-        elif "```" in response_text:
-            json_str = response_text.split("```")[1].strip()
-        else:
-            json_str = response_text.strip()
-
-        return json.loads(json_str)
+        return parse_json_response(result["answer"])
 
 
 def grade_item(item: dict, grader: Grader, config: dict) -> dict:
