@@ -2,6 +2,8 @@ import yaml
 from pathlib import Path
 from typing import Any
 
+from .models import get_model_config
+
 
 def load_config(config_path: str | Path) -> dict[str, Any]:
     with open(config_path) as f:
@@ -9,6 +11,7 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
 
     _validate_config(config)
     _set_defaults(config)
+    _resolve_models(config)
     return config
 
 
@@ -65,3 +68,11 @@ def _set_defaults(config: dict) -> None:
         an.setdefault("statistics", ["summary"])
         if "comparison" not in an:
             an["comparison"] = {"enabled": False}
+
+
+def _resolve_models(config: dict) -> None:
+    if "inference" in config:
+        for model in config["inference"].get("models", []):
+            if "provider" not in model and "model_id" not in model:
+                registry_config = get_model_config(model["name"])
+                model.update(registry_config)

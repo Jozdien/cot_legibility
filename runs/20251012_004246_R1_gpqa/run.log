@@ -1,0 +1,14 @@
+2025-10-12 00:42:46,703 - INFO - Starting run: 20251012_004246_R1_gpqa
+2025-10-12 00:42:46,703 - INFO - Config: config/quick_test.yaml
+2025-10-12 00:42:46,703 - INFO - Model: R1, Dataset: gpqa
+2025-10-12 00:42:47,301 - INFO - PyTorch version 2.5.1 available.
+2025-10-12 00:42:47,788 - INFO - Starting inference stage
+2025-10-12 00:42:47,789 - INFO - Loading dataset: gpqa
+2025-10-12 00:42:47,812 - INFO - Loaded 5 questions
+2025-10-12 00:42:47,812 - INFO - Initializing provider: openrouter
+2025-10-12 00:42:47,827 - INFO - Running inference with 5 workers
+2025-10-12 00:42:49,578 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:42:49,581 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:42:49,880 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:42:50,187 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:42:50,598 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"

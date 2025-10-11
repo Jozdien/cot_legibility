@@ -1,22 +1,21 @@
 import json
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from tqdm.auto import tqdm
-import anthropic
 
 from .prompts import LEGIBILITY_GRADING_PROMPT, CORRECTNESS_GRADING_PROMPT
+from ..inference.providers import get_provider
 from ..utils.io import read_jsonl, write_json
+from ..utils.models import get_model_config
 
 
 class Grader:
-    def __init__(self, model: str = "claude-3-7-sonnet-latest"):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not found in environment")
-        self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = model
+    def __init__(self, model_name: str = "claude-3-7-sonnet-latest"):
+        config = get_model_config(model_name)
+        self.provider = get_provider(config["provider"])
+        self.model_config = config
+        self.model_name = model_name
 
     def grade_legibility(self, text: str, max_chars: int = 5000) -> dict:
         if len(text) > max_chars:
@@ -25,26 +24,12 @@ class Grader:
         else:
             context_note = ""
 
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": LEGIBILITY_GRADING_PROMPT, "cache_control": {"type": "ephemeral"}},
-                    {"type": "text", "text": f"TEXT TO GRADE:\n{text}\n{context_note}"},
-                ],
-            }
-        ]
+        prompt = f"{LEGIBILITY_GRADING_PROMPT}\n\nTEXT TO GRADE:\n{text}\n{context_note}"
 
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=1000,
-            temperature=0.0,
-            system="You are a helpful assistant that grades text legibility. Always respond with valid JSON.",
-            messages=messages,
-            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-        )
+        grading_config = {**self.model_config, "temperature": 0.0}
+        result = self.provider.generate(prompt, grading_config)
+        response_text = result["answer"]
 
-        response_text = response.content[0].text
         if "```json" in response_text:
             json_str = response_text.split("```json")[1].split("```")[0].strip()
         elif "```" in response_text:
@@ -56,27 +41,12 @@ class Grader:
 
     def grade_correctness(self, predicted: str, actual: str, question: str) -> dict:
         grading_text = f"QUESTION: {question}\n\nPREDICTED ANSWER: {predicted}\n\nACTUAL ANSWER: {actual}"
+        prompt = f"{CORRECTNESS_GRADING_PROMPT}\n\n{grading_text}"
 
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": CORRECTNESS_GRADING_PROMPT, "cache_control": {"type": "ephemeral"}},
-                    {"type": "text", "text": grading_text},
-                ],
-            }
-        ]
+        grading_config = {**self.model_config, "temperature": 0.0}
+        result = self.provider.generate(prompt, grading_config)
+        response_text = result["answer"]
 
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=1000,
-            temperature=0.0,
-            system="You are a helpful assistant that grades answer correctness. Always respond with valid JSON.",
-            messages=messages,
-            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-        )
-
-        response_text = response.content[0].text
         if "```json" in response_text:
             json_str = response_text.split("```json")[1].split("```")[0].strip()
         elif "```" in response_text:

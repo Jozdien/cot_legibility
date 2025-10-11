@@ -1,0 +1,26 @@
+2025-10-12 00:44:32,969 - INFO - Starting run: 20251012_004432_R1_gpqa
+2025-10-12 00:44:32,969 - INFO - Config: config/quick_test.yaml
+2025-10-12 00:44:32,969 - INFO - Model: R1, Dataset: gpqa
+2025-10-12 00:44:33,514 - INFO - PyTorch version 2.5.1 available.
+2025-10-12 00:44:34,007 - INFO - Starting inference stage
+2025-10-12 00:44:34,007 - INFO - Loading dataset: gpqa
+2025-10-12 00:44:34,028 - INFO - Loaded 5 questions
+2025-10-12 00:44:34,029 - INFO - Initializing provider: openrouter
+2025-10-12 00:44:34,044 - INFO - Running inference with 5 workers
+2025-10-12 00:44:35,476 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:44:36,225 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:44:36,276 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:44:36,695 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:44:37,679 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-12 00:46:56,887 - INFO - Inference complete. Results written to runs/20251012_004432_R1_gpqa/inference.jsonl
+2025-10-12 00:46:56,889 - INFO - Inference stage complete
+2025-10-12 00:46:57,289 - INFO - Starting evaluation stage
+2025-10-12 00:46:57,289 - INFO - Loading inference results from runs/20251012_004432_R1_gpqa/inference.jsonl
+2025-10-12 00:46:57,289 - INFO - Loaded 5 items
+2025-10-12 00:46:57,289 - INFO - Initializing grader with model: gpt-4o
+2025-10-12 00:46:57,305 - INFO - Grading with 2 workers
+2025-10-12 00:46:58,002 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 404 Not Found"
+2025-10-12 00:46:58,103 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 404 Not Found"
+2025-10-12 00:46:58,410 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 404 Not Found"
+2025-10-12 00:46:58,540 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 404 Not Found"
+2025-10-12 00:46:58,822 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 404 Not Found"
