@@ -70,12 +70,15 @@ class DirectAPIProvider(Provider):
 
         if self.provider_name == "anthropic":
             thinking_config = {}
+            max_tokens = 16000
             if model_config.get("include_reasoning"):
                 thinking_config["thinking"] = {"type": "enabled", "budget_tokens": 10000}
+            else:
+                max_tokens = 4096
 
             response = self.client.messages.create(
                 model=model_config["model_id"],
-                max_tokens=4096,
+                max_tokens=max_tokens,
                 temperature=model_config.get("temperature", 1.0),
                 messages=[{"role": "user", "content": question}],
                 **thinking_config,

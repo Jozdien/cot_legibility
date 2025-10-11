@@ -1,5 +1,5 @@
 numpy
-anthropic>=0.7.0
+anthropic>=0.69.0
 openai>=1.0.0
 datasets
 python-dotenv
