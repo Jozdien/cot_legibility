@@ -5,7 +5,7 @@ from tqdm.auto import tqdm
 
 from .datasets import Dataset
 from .providers import get_provider
-from ..utils.io import append_jsonl
+from ..utils.io import append_jsonl, read_jsonl, write_json
 
 
 def process_question(question_data: dict, model_config: dict, provider) -> dict:
@@ -60,4 +60,9 @@ def run_inference_stage(config: dict, output_dir: Path, logger) -> None:
             if "error" in result:
                 logger.warning(f"Error on question {result['question_id']}: {result['error']}")
 
-    logger.info(f"Inference complete. Results written to {inference_file}")
+    logger.info("Converting results to JSON format")
+    results = list(read_jsonl(inference_file))
+    json_file = output_dir / "inference.json"
+    write_json(json_file, results)
+    inference_file.unlink()
+    logger.info(f"Inference complete. {len(results)} results written to {json_file}")

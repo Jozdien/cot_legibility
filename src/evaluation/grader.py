@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 
 from .prompts import LEGIBILITY_GRADING_PROMPT, CORRECTNESS_GRADING_PROMPT
 from ..inference.providers import get_provider
-from ..utils.io import read_jsonl, write_json
+from ..utils.io import read_json, write_json
 from ..utils.models import get_model_config
 
 
@@ -116,13 +116,13 @@ def compute_statistics(results: list[dict]) -> dict:
 def run_evaluation_stage(config: dict, output_dir: Path, logger) -> None:
     inference_file = config.get("inference_file")
     if not inference_file:
-        inference_file = output_dir / "inference.jsonl"
+        inference_file = output_dir / "inference.json"
 
     if not Path(inference_file).exists():
         raise FileNotFoundError(f"Inference file not found: {inference_file}")
 
     logger.info(f"Loading inference results from {inference_file}")
-    items = list(read_jsonl(inference_file))
+    items = read_json(inference_file)
     logger.info(f"Loaded {len(items)} items")
 
     logger.info(f"Initializing grader with model: {config['grader_model']}")
