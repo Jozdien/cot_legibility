@@ -2,9 +2,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from utils.config import load_config
-from utils.io import ensure_dir
-from utils.logging import get_logger, setup_logging
+from dotenv import load_dotenv
+
+from .utils.config import load_config
+from .utils.io import ensure_dir
+from .utils.logging import get_logger, setup_logging
+
+load_dotenv()
 
 
 def generate_run_name(config: dict, model_name: str | None = None, dataset_name: str | None = None) -> str:
@@ -22,7 +26,7 @@ def generate_run_name(config: dict, model_name: str | None = None, dataset_name:
 
 
 def run_inference(config: dict, output_dir: Path, logger) -> None:
-    from inference.runner import run_inference_stage
+    from .inference.runner import run_inference_stage
 
     logger.info("Starting inference stage")
     run_inference_stage(config["inference"], output_dir, logger)
@@ -30,7 +34,7 @@ def run_inference(config: dict, output_dir: Path, logger) -> None:
 
 
 def run_evaluation(config: dict, output_dir: Path, logger) -> None:
-    from evaluation.grader import run_evaluation_stage
+    from .evaluation.grader import run_evaluation_stage
 
     logger.info("Starting evaluation stage")
     run_evaluation_stage(config["evaluation"], output_dir, logger)
@@ -38,7 +42,7 @@ def run_evaluation(config: dict, output_dir: Path, logger) -> None:
 
 
 def run_analysis(config: dict, output_dir: Path, logger) -> None:
-    from analysis.plots import run_analysis_stage
+    from .analysis.plots import run_analysis_stage
 
     logger.info("Starting analysis stage")
     run_analysis_stage(config["analysis"], output_dir, logger)
