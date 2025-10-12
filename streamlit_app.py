@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -19,12 +20,85 @@ MODEL_DISPLAY_NAMES = {
     "o3-mini": "O3-Mini",
 }
 
+CORRECTNESS_VALUES = ["correct", "partially_correct", "incorrect"]
+CORRECTNESS_DISPLAY = {
+    "correct": "✓ Correct",
+    "partially_correct": "~ Partially Correct",
+    "incorrect": "✗ Incorrect",
+}
+
 
 def get_model_display_name(model_name, temperature):
     display_name = MODEL_DISPLAY_NAMES.get(model_name, model_name)
     if temperature is not None and temperature != 1.0:
         return f"{display_name} (temperature={temperature})"
     return display_name
+
+
+def load_inference_data(run_path):
+    inference_file = run_path / "inference.json"
+    if not inference_file.exists():
+        inference_file = run_path / "inference.jsonl"
+
+    if not inference_file.exists():
+        return {}
+
+    inference_data = {}
+    with open(inference_file) as f:
+        if inference_file.suffix == ".jsonl":
+            for line in f:
+                item = json.loads(line)
+                inference_data[item["question_id"]] = item
+        else:
+            for item in json.load(f):
+                inference_data[item["question_id"]] = item
+    return inference_data
+
+
+def get_temperature_from_config(run_path, model):
+    config_file = run_path / "config.yaml"
+    if not config_file.exists():
+        return None
+
+    with open(config_file) as f:
+        config = yaml.safe_load(f)
+        models = config.get("inference", {}).get("models", [])
+        for m in models:
+            if m.get("name") == model:
+                return m.get("temperature")
+    return None
+
+
+def enrich_results_with_inference(results, inference_data):
+    for result in results:
+        qid = result.get("question_id")
+        if qid in inference_data:
+            result["correct_answer"] = inference_data[qid].get("correct_answer", "N/A")
+            result["reasoning"] = inference_data[qid].get("reasoning")
+            result["answer"] = inference_data[qid].get("answer", "N/A")
+
+
+def get_legibility_score(result):
+    return result.get("legibility", {}).get("score", 0)
+
+
+def get_correctness(result):
+    return result.get("correctness", {}).get("correctness", "unknown")
+
+
+def calculate_statistics(results):
+    legibility_scores = [get_legibility_score(r) for r in results]
+    correctness_counts = Counter(get_correctness(r) for r in results)
+    total = len(results)
+
+    return {
+        "avg_legibility": sum(legibility_scores) / len(legibility_scores) if legibility_scores else 0,
+        "legibility_std": pd.Series(legibility_scores).std() if len(legibility_scores) > 1 else 0,
+        "num_questions": total,
+        "correct_pct": correctness_counts.get("correct", 0) / total * 100 if total > 0 else 0,
+        "partial_pct": correctness_counts.get("partially_correct", 0) / total * 100 if total > 0 else 0,
+        "incorrect_pct": correctness_counts.get("incorrect", 0) / total * 100 if total > 0 else 0,
+    }
 
 
 @st.cache_data
@@ -48,41 +122,9 @@ def load_runs_data():
             with open(eval_file) as f:
                 eval_data = json.load(f)
 
-            temperature = None
-            config_file = run_path / "config.yaml"
-            if config_file.exists():
-                with open(config_file) as f:
-                    config = yaml.safe_load(f)
-                    models = config.get("inference", {}).get("models", [])
-                    for m in models:
-                        if m.get("name") == model:
-                            temperature = m.get("temperature")
-                            break
-
-            inference_file = run_path / "inference.json"
-            if not inference_file.exists():
-                inference_file = run_path / "inference.jsonl"
-
-            inference_data = {}
-            if inference_file.exists():
-                with open(inference_file) as f:
-                    if inference_file.suffix == ".jsonl":
-                        for line in f:
-                            item = json.loads(line)
-                            inference_data[item["question_id"]] = item
-                    else:
-                        infer_list = json.load(f)
-                        for item in infer_list:
-                            inference_data[item["question_id"]] = item
-
-            for result in eval_data.get("results", []):
-                qid = result.get("question_id")
-                if qid in inference_data:
-                    result["correct_answer"] = inference_data[qid].get(
-                        "correct_answer", "N/A"
-                    )
-                    result["reasoning"] = inference_data[qid].get("reasoning")
-                    result["answer"] = inference_data[qid].get("answer", "N/A")
+            temperature = get_temperature_from_config(run_path, model)
+            inference_data = load_inference_data(run_path)
+            enrich_results_with_inference(eval_data.get("results", []), inference_data)
 
             model_display = get_model_display_name(model, temperature)
             key = (model_display, dataset)
@@ -102,47 +144,13 @@ def load_runs_data():
             continue
 
     runs_data = []
-    for key, data in aggregated_data.items():
-        results = data["results"]
-        legibility_scores = [r.get("legibility", {}).get("score", 0) for r in results]
-
-        correct_count = sum(
-            1
-            for r in results
-            if r.get("correctness", {}).get("correctness") == "correct"
-        )
-        partial_count = sum(
-            1
-            for r in results
-            if r.get("correctness", {}).get("correctness") == "partially_correct"
-        )
-        incorrect_count = sum(
-            1
-            for r in results
-            if r.get("correctness", {}).get("correctness") == "incorrect"
-        )
-        total_count = len(results)
-
+    for data in aggregated_data.values():
+        stats = calculate_statistics(data["results"])
         run_info = {
+            **stats,
             "model_display": data["model_display"],
             "dataset": data["dataset"],
-            "avg_legibility": sum(legibility_scores) / len(legibility_scores)
-            if legibility_scores
-            else 0,
-            "legibility_std": pd.Series(legibility_scores).std()
-            if len(legibility_scores) > 1
-            else 0,
-            "num_questions": total_count,
-            "correct_pct": (correct_count / total_count * 100)
-            if total_count > 0
-            else 0,
-            "partial_pct": (partial_count / total_count * 100)
-            if total_count > 0
-            else 0,
-            "incorrect_pct": (incorrect_count / total_count * 100)
-            if total_count > 0
-            else 0,
-            "results": results,
+            "results": data["results"],
             "runs": data["runs"],
         }
         runs_data.append(run_info)
@@ -190,7 +198,10 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
         with col1:
             st.metric("Samples", f"{run['num_questions']}")
         with col2:
-            st.metric("Avg Legibility", f"{run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
+            st.metric(
+                "Average Legibility (1-9)",
+                f"{run['avg_legibility']:.2f} ± {run['legibility_std']:.2f}",
+            )
         with col3:
             st.metric("Correct", f"{run['correct_pct']:.1f}%")
         with col4:
@@ -206,9 +217,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
         with col2:
             fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
-            legibility_scores = [
-                r.get("legibility", {}).get("score", 0) for r in run["results"]
-            ]
+            legibility_scores = [get_legibility_score(r) for r in run["results"]]
             ax.hist(legibility_scores, bins=10, color="#87CEEB", edgecolor="black")
             ax.set_xlabel("Legibility Score (1=legible, 9=illegible)")
             ax.set_ylabel("Count")
@@ -237,20 +246,15 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             correctness_options = st.multiselect(
                 "Correctness",
-                options=["correct", "partially_correct", "incorrect"],
-                default=["correct", "partially_correct", "incorrect"],
+                options=CORRECTNESS_VALUES,
+                default=CORRECTNESS_VALUES,
             )
 
-        filtered_results = []
-        for result in run["results"]:
-            leg_score = result.get("legibility", {}).get("score", 0)
-            correctness = result.get("correctness", {}).get("correctness", "unknown")
-
-            if (
-                legibility_range[0] <= leg_score <= legibility_range[1]
-                and correctness in correctness_options
-            ):
-                filtered_results.append(result)
+        filtered_results = [
+            r for r in run["results"]
+            if legibility_range[0] <= get_legibility_score(r) <= legibility_range[1]
+            and get_correctness(r) in correctness_options
+        ]
 
         col1, col2, col3 = st.columns([1, 2, 1.5])
         with col1:
@@ -272,30 +276,22 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             table_data = []
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
-                leg_score = result.get("legibility", {}).get("score", 0)
-                correctness = result.get("correctness", {}).get(
-                    "correctness", "unknown"
-                )
 
                 if search_query and search_query.lower() not in qid.lower():
                     continue
 
-                correctness_display = {
-                    "correct": "✓ Correct",
-                    "partially_correct": "~ Partially Correct",
-                    "incorrect": "✗ Incorrect",
-                }.get(correctness, "? Unknown")
-
-                table_data.append(
-                    {
-                        "ID": qid,
-                        "Legibility": f"{leg_score:.2f}",
-                        "Correctness": correctness_display,
-                        "original_index": i,
-                    }
+                correctness_display = CORRECTNESS_DISPLAY.get(
+                    get_correctness(result), "? Unknown"
                 )
 
-            table_data.sort(key=lambda x: x["ID"])
+                table_data.append({
+                    "ID": qid,
+                    "Legibility": f"{get_legibility_score(result):.2f}",
+                    "Correctness": correctness_display,
+                    "original_index": i,
+                })
+
+            table_data.sort(key=lambda x: float(x["Legibility"]), reverse=True)
             table_data = table_data[:entries_to_show]
             table_df = pd.DataFrame(table_data)
 
@@ -354,19 +350,14 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 st.markdown("#### Scores")
                 col1, col2 = st.columns(2)
 
-                leg_score = result.get("legibility", {}).get("score", 0)
-                correctness = result.get("correctness", {}).get(
-                    "correctness", "unknown"
-                )
-
                 with col1:
                     st.markdown("**Legibility**")
-                    st.write(f"Score: {leg_score:.2f}")
+                    st.write(f"Score: {get_legibility_score(result):.2f}")
                     st.write(result.get("legibility", {}).get("explanation", "N/A"))
 
                 with col2:
                     st.markdown("**Correctness**")
-                    st.write(f"Grade: {correctness}")
+                    st.write(f"Grade: {get_correctness(result)}")
                     st.write(result.get("correctness", {}).get("explanation", "N/A"))
         else:
             st.info("No questions match the selected filters")
