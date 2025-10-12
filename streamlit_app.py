@@ -224,6 +224,9 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
         st.markdown(f"**Showing {len(filtered_results)} of {len(run['results'])} questions**")
 
         if filtered_results:
+            if "selected_question_idx" not in st.session_state:
+                st.session_state.selected_question_idx = None
+
             table_data = []
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
@@ -244,22 +247,32 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             questions_df = pd.DataFrame(table_data)
 
-            event = st.dataframe(
-                questions_df,
-                use_container_width=True,
-                hide_index=True,
-                on_select="rerun",
-                selection_mode="single-row",
-                height=400
-            )
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                event = st.dataframe(
+                    questions_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    height=400
+                )
+
+            with col2:
+                st.markdown("<div style='height: 400px; overflow-y: auto;'>", unsafe_allow_html=True)
+                for i in range(len(filtered_results)):
+                    if st.button("View", key=f"view_{i}", use_container_width=True):
+                        st.session_state.selected_question_idx = i
+                st.markdown("</div>", unsafe_allow_html=True)
 
             if event.selection.rows:
-                selected_idx = event.selection.rows[0]
+                st.session_state.selected_question_idx = event.selection.rows[0]
 
+            if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
                 st.subheader("Question Details")
 
-                result = filtered_results[selected_idx]
+                result = filtered_results[st.session_state.selected_question_idx]
 
                 st.markdown("#### Question")
                 st.write(result.get("question", "N/A"))
