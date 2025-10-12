@@ -7,10 +7,27 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="CoT Legibility Explorer", layout="wide")
 
+MODEL_DISPLAY_NAMES = {
+    "gpt-4o": "GPT-4o",
+    "gpt-4o-mini": "GPT-4o Mini",
+    "gpt-4-turbo": "GPT-4 Turbo",
+    "claude-3-7-sonnet-latest": "Claude 3.7 Sonnet",
+    "claude-3-5-sonnet-latest": "Claude 3.5 Sonnet",
+    "claude-3-opus-latest": "Claude 3 Opus",
+    "R1": "DeepSeek R1",
+    "o3-mini": "O3-Mini",
+}
+
+def get_model_display_name(model_name, temperature):
+    display_name = MODEL_DISPLAY_NAMES.get(model_name, model_name)
+    if temperature is not None and temperature != 1.0:
+        return f"{display_name} (temperature={temperature})"
+    return display_name
+
 @st.cache_data
 def load_runs_data():
     runs_dir = Path("runs")
-    runs_data = []
+    aggregated_data = {}
 
     for run_path in runs_dir.iterdir():
         if not run_path.is_dir():
@@ -22,7 +39,6 @@ def load_runs_data():
 
         try:
             parts = run_path.name.split("_")
-            timestamp = f"{parts[0]}_{parts[1]}"
             dataset = parts[-1]
             model = "_".join(parts[2:-1])
 
@@ -40,29 +56,69 @@ def load_runs_data():
                             temperature = m.get("temperature")
                             break
 
-            stats = eval_data.get("statistics", {})
-            leg_stats = stats.get("legibility", {})
-            corr_stats = stats.get("correctness", {})
+            inference_file = run_path / "inference.json"
+            if not inference_file.exists():
+                inference_file = run_path / "inference.jsonl"
 
-            run_info = {
-                "run_id": run_path.name,
-                "timestamp": timestamp,
-                "model": model,
-                "temperature": temperature,
-                "dataset": dataset,
-                "model_display": f"{model}@{temperature}" if temperature is not None else model,
-                "avg_legibility": leg_stats.get("mean"),
-                "legibility_std": leg_stats.get("std"),
-                "num_questions": leg_stats.get("count", 0),
-                "correct_pct": corr_stats.get("correct_pct", 0),
-                "partial_pct": corr_stats.get("partially_pct", 0),
-                "incorrect_pct": corr_stats.get("incorrect_pct", 0),
-                "results": eval_data.get("results", [])
-            }
-            runs_data.append(run_info)
+            inference_data = {}
+            if inference_file.exists():
+                with open(inference_file) as f:
+                    if inference_file.suffix == ".jsonl":
+                        for line in f:
+                            item = json.loads(line)
+                            inference_data[item["question_id"]] = item
+                    else:
+                        infer_list = json.load(f)
+                        for item in infer_list:
+                            inference_data[item["question_id"]] = item
+
+            for result in eval_data.get("results", []):
+                qid = result.get("question_id")
+                if qid in inference_data:
+                    result["correct_answer"] = inference_data[qid].get("correct_answer", "N/A")
+                    result["reasoning"] = inference_data[qid].get("reasoning")
+                    result["answer"] = inference_data[qid].get("answer", "N/A")
+
+            model_display = get_model_display_name(model, temperature)
+            key = (model_display, dataset)
+
+            if key not in aggregated_data:
+                aggregated_data[key] = {
+                    "model_display": model_display,
+                    "dataset": dataset,
+                    "results": [],
+                    "runs": []
+                }
+
+            aggregated_data[key]["results"].extend(eval_data.get("results", []))
+            aggregated_data[key]["runs"].append(run_path.name)
 
         except Exception:
             continue
+
+    runs_data = []
+    for key, data in aggregated_data.items():
+        results = data["results"]
+        legibility_scores = [r.get("legibility", {}).get("score", 0) for r in results]
+
+        correct_count = sum(1 for r in results if r.get("correctness", {}).get("correctness") == "correct")
+        partial_count = sum(1 for r in results if r.get("correctness", {}).get("correctness") == "partially_correct")
+        incorrect_count = sum(1 for r in results if r.get("correctness", {}).get("correctness") == "incorrect")
+        total_count = len(results)
+
+        run_info = {
+            "model_display": data["model_display"],
+            "dataset": data["dataset"],
+            "avg_legibility": sum(legibility_scores) / len(legibility_scores) if legibility_scores else 0,
+            "legibility_std": pd.Series(legibility_scores).std() if len(legibility_scores) > 1 else 0,
+            "num_questions": total_count,
+            "correct_pct": (correct_count / total_count * 100) if total_count > 0 else 0,
+            "partial_pct": (partial_count / total_count * 100) if total_count > 0 else 0,
+            "incorrect_pct": (incorrect_count / total_count * 100) if total_count > 0 else 0,
+            "results": results,
+            "runs": data["runs"]
+        }
+        runs_data.append(run_info)
 
     return pd.DataFrame(runs_data)
 
@@ -76,17 +132,13 @@ st.title("CoT Legibility Explorer")
 
 st.markdown("---")
 
-col1, col2 = st.columns(2)
+st.subheader("Model")
+model_options = ["Select a model..."] + sorted(df["model_display"].unique().tolist())
+selected_model = st.selectbox("", model_options, label_visibility="collapsed", key="model")
 
-with col1:
-    st.subheader("Model")
-    model_options = ["Select a model..."] + sorted(df["model_display"].unique().tolist())
-    selected_model = st.selectbox("", model_options, label_visibility="collapsed")
-
-with col2:
-    st.subheader("Dataset")
-    dataset_options = ["Select a dataset..."] + sorted(df["dataset"].unique().tolist())
-    selected_dataset = st.selectbox("", dataset_options, label_visibility="collapsed")
+st.subheader("Dataset")
+dataset_options = ["Select a dataset..."] + sorted(df["dataset"].unique().tolist())
+selected_dataset = st.selectbox("", dataset_options, label_visibility="collapsed", key="dataset")
 
 if selected_model != "Select a model..." and selected_dataset != "Select a dataset...":
     run_data = df[(df["model_display"] == selected_model) & (df["dataset"] == selected_dataset)]
@@ -100,15 +152,19 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.subheader("Summary Statistics")
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.metric("Avg Legibility", f"{run['avg_legibility']:.2f}")
+            st.metric("Samples", f"{run['num_questions']}")
         with col2:
-            st.metric("Correct", f"{run['correct_pct']:.1f}%")
+            st.metric("Avg Legibility", f"{run['avg_legibility']:.2f}")
         with col3:
-            st.metric("Partially Correct", f"{run['partial_pct']:.1f}%")
+            st.metric("Correct", f"{run['correct_pct']:.1f}%")
         with col4:
+            st.metric("Partially Correct", f"{run['partial_pct']:.1f}%")
+        with col5:
             st.metric("Incorrect", f"{run['incorrect_pct']:.1f}%")
+
+        st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
 
         st.markdown("---")
 
@@ -183,7 +239,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     st.markdown("#### Question")
                     st.write(result.get("question", "N/A"))
 
-                    st.markdown("#### Correct Answer")
+                    st.markdown("#### Expected Answer")
                     st.write(result.get("correct_answer", "N/A"))
 
                     if result.get("reasoning"):
