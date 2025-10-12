@@ -227,38 +227,77 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             if "selected_question_idx" not in st.session_state:
                 st.session_state.selected_question_idx = None
 
-            table_data = []
-            for i, result in enumerate(filtered_results):
-                qid = result.get("question_id", f"Question {i+1}")
-                leg_score = result.get("legibility", {}).get("score", 0)
-                correctness = result.get("correctness", {}).get("correctness", "unknown")
+            st.markdown("""
+                <style>
+                [data-testid="column"] {
+                    padding: 0px !important;
+                    margin: 0px !important;
+                }
+                .stHorizontalBlock {
+                    gap: 0px !important;
+                }
+                .table-cell {
+                    padding: 10px 12px;
+                    margin: 0;
+                    border-bottom: 1px solid #e9ecef;
+                    font-size: 13px;
+                }
+                .table-header-cell {
+                    background-color: #f8f9fa;
+                    padding: 10px 12px;
+                    font-weight: 600;
+                    color: #333;
+                    border-bottom: 2px solid #dee2e6;
+                    font-size: 13px;
+                }
+                .row-even {
+                    background-color: #f8f9fa;
+                }
+                .row-odd {
+                    background-color: white;
+                }
+                .stButton button {
+                    padding: 4px 12px !important;
+                    font-size: 12px !important;
+                    height: 28px !important;
+                    min-height: 28px !important;
+                    line-height: 1.2 !important;
+                    width: auto !important;
+                    background-color: transparent !important;
+                    border: 1px solid #dee2e6 !important;
+                }
+                </style>
+            """, unsafe_allow_html=True)
 
-                correctness_display = {
-                    "correct": "✓ Correct",
-                    "partially_correct": "~ Partially Correct",
-                    "incorrect": "✗ Incorrect"
-                }.get(correctness, "? Unknown")
+            cols = st.columns([2, 1, 2, 1])
+            cols[0].markdown("<div class='table-header-cell'>ID</div>", unsafe_allow_html=True)
+            cols[1].markdown("<div class='table-header-cell'>Legibility</div>", unsafe_allow_html=True)
+            cols[2].markdown("<div class='table-header-cell'>Correctness</div>", unsafe_allow_html=True)
+            cols[3].markdown("<div class='table-header-cell'>Action</div>", unsafe_allow_html=True)
 
-                table_data.append({
-                    "ID": qid,
-                    "Legibility": f"{leg_score:.2f}",
-                    "Correctness": correctness_display
-                })
+            with st.container(height=400):
+                for i, result in enumerate(filtered_results):
+                    qid = result.get("question_id", f"Question {i+1}")
+                    leg_score = result.get("legibility", {}).get("score", 0)
+                    correctness = result.get("correctness", {}).get("correctness", "unknown")
 
-            table_df = pd.DataFrame(table_data)
+                    correctness_display = {
+                        "correct": "✓ Correct",
+                        "partially_correct": "~ Partially Correct",
+                        "incorrect": "✗ Incorrect"
+                    }.get(correctness, "? Unknown")
 
-            event = st.dataframe(
-                table_df,
-                use_container_width=True,
-                hide_index=True,
-                height=400,
-                on_select="rerun",
-                selection_mode="single-row"
-            )
+                    row_class = "row-even" if i % 2 == 0 else "row-odd"
 
-            if event.selection and "rows" in event.selection and len(event.selection["rows"]) > 0:
-                selected_row = event.selection["rows"][0]
-                st.session_state.selected_question_idx = selected_row
+                    cols = st.columns([2, 1, 2, 1])
+                    cols[0].markdown(f"<div class='table-cell {row_class}'>{qid}</div>", unsafe_allow_html=True)
+                    cols[1].markdown(f"<div class='table-cell {row_class}'>{leg_score:.2f}</div>", unsafe_allow_html=True)
+                    cols[2].markdown(f"<div class='table-cell {row_class}'>{correctness_display}</div>", unsafe_allow_html=True)
+                    with cols[3]:
+                        st.markdown(f"<div style='background-color: {'#f8f9fa' if i % 2 == 0 else 'white'}; padding: 6px 0; border-bottom: 1px solid #e9ecef;'>", unsafe_allow_html=True)
+                        if st.button("View", key=f"view_{i}"):
+                            st.session_state.selected_question_idx = i
+                        st.markdown("</div>", unsafe_allow_html=True)
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
