@@ -239,27 +239,28 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             st.markdown("---")
 
-            for i, result in enumerate(filtered_results):
-                qid = result.get("question_id", f"Question {i+1}")
-                leg_score = result.get("legibility", {}).get("score", 0)
-                correctness = result.get("correctness", {}).get("correctness", "unknown")
+            with st.container(height=400):
+                for i, result in enumerate(filtered_results):
+                    qid = result.get("question_id", f"Question {i+1}")
+                    leg_score = result.get("legibility", {}).get("score", 0)
+                    correctness = result.get("correctness", {}).get("correctness", "unknown")
 
-                correctness_display = {
-                    "correct": "✓ Correct",
-                    "partially_correct": "~ Partially Correct",
-                    "incorrect": "✗ Incorrect"
-                }.get(correctness, "? Unknown")
+                    correctness_display = {
+                        "correct": "✓ Correct",
+                        "partially_correct": "~ Partially Correct",
+                        "incorrect": "✗ Incorrect"
+                    }.get(correctness, "? Unknown")
 
-                col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
-                with col1:
-                    st.text(qid)
-                with col2:
-                    st.text(f"{leg_score:.2f}")
-                with col3:
-                    st.text(correctness_display)
-                with col4:
-                    if st.button("View", key=f"view_{i}"):
-                        st.session_state.selected_question_idx = i
+                    col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
+                    with col1:
+                        st.text(qid)
+                    with col2:
+                        st.text(f"{leg_score:.2f}")
+                    with col3:
+                        st.text(correctness_display)
+                    with col4:
+                        if st.button("View", key=f"view_{i}"):
+                            st.session_state.selected_question_idx = i
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
