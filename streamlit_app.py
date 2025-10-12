@@ -229,82 +229,75 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             st.markdown("""
                 <style>
-                .table-header {
-                    background-color: #f0f0f0;
-                    padding: 8px 12px;
+                .grid-table {
+                    display: grid;
+                    grid-template-columns: 2fr 1fr 2fr 100px;
+                    border: 1px solid #dee2e6;
+                    border-radius: 4px;
+                    overflow: hidden;
+                    font-size: 13px;
+                }
+                .grid-cell {
+                    padding: 10px 12px;
+                    border-bottom: 1px solid #e9ecef;
+                }
+                .grid-header {
+                    background-color: #f8f9fa;
                     font-weight: 600;
-                    border-bottom: 1px solid #ccc;
-                    font-size: 13px;
                     color: #333;
-                    margin: 0;
-                    line-height: 1.4;
+                    border-bottom: 2px solid #dee2e6;
                 }
-                .table-row-even {
-                    background-color: #fafafa;
-                    padding: 8px 12px;
-                    border-bottom: 1px solid #f0f0f0;
-                    font-size: 13px;
-                    line-height: 1.4;
-                    margin: 0;
+                .grid-row-even {
+                    background-color: #f8f9fa;
                 }
-                .table-row-odd {
+                .grid-row-odd {
                     background-color: white;
-                    padding: 8px 12px;
-                    border-bottom: 1px solid #f0f0f0;
-                    font-size: 13px;
-                    line-height: 1.4;
-                    margin: 0;
                 }
-                div[data-testid="column"] {
-                    padding: 0px !important;
-                    gap: 0px !important;
-                    margin: 0px !important;
-                }
-                .stButton button {
-                    padding: 4px 12px !important;
-                    font-size: 12px !important;
-                    height: 28px !important;
-                    min-height: 28px !important;
-                    line-height: 1.2 !important;
-                    width: auto !important;
+                .grid-action {
+                    text-align: right;
                 }
                 </style>
             """, unsafe_allow_html=True)
 
-            col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
-            with col1:
-                st.markdown("<div class='table-header'>ID</div>", unsafe_allow_html=True)
-            with col2:
-                st.markdown("<div class='table-header'>Legibility</div>", unsafe_allow_html=True)
-            with col3:
-                st.markdown("<div class='table-header'>Correctness</div>", unsafe_allow_html=True)
-            with col4:
-                st.markdown("<div class='table-header'>Action</div>", unsafe_allow_html=True)
+            table_html = '<div class="grid-table">'
+            table_html += '<div class="grid-cell grid-header">ID</div>'
+            table_html += '<div class="grid-cell grid-header">Legibility</div>'
+            table_html += '<div class="grid-cell grid-header">Correctness</div>'
+            table_html += '<div class="grid-cell grid-header grid-action">Action</div>'
+
+            for i, result in enumerate(filtered_results):
+                qid = result.get("question_id", f"Question {i+1}")
+                leg_score = result.get("legibility", {}).get("score", 0)
+                correctness = result.get("correctness", {}).get("correctness", "unknown")
+
+                correctness_display = {
+                    "correct": "✓ Correct",
+                    "partially_correct": "~ Partially Correct",
+                    "incorrect": "✗ Incorrect"
+                }.get(correctness, "? Unknown")
+
+                row_class = "grid-row-even" if i % 2 == 0 else "grid-row-odd"
+
+                table_html += f'<div class="grid-cell {row_class}">{qid}</div>'
+                table_html += f'<div class="grid-cell {row_class}">{leg_score:.2f}</div>'
+                table_html += f'<div class="grid-cell {row_class}">{correctness_display}</div>'
+                table_html += f'<div class="grid-cell {row_class} grid-action">#{i+1}</div>'
+
+            table_html += '</div>'
 
             with st.container(height=400):
-                for i, result in enumerate(filtered_results):
-                    qid = result.get("question_id", f"Question {i+1}")
-                    leg_score = result.get("legibility", {}).get("score", 0)
-                    correctness = result.get("correctness", {}).get("correctness", "unknown")
+                st.markdown(table_html, unsafe_allow_html=True)
 
-                    correctness_display = {
-                        "correct": "✓ Correct",
-                        "partially_correct": "~ Partially Correct",
-                        "incorrect": "✗ Incorrect"
-                    }.get(correctness, "? Unknown")
-
-                    row_class = "table-row-even" if i % 2 == 0 else "table-row-odd"
-
-                    col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
-                    with col1:
-                        st.markdown(f"<div class='{row_class}'>{qid}</div>", unsafe_allow_html=True)
-                    with col2:
-                        st.markdown(f"<div class='{row_class}'>{leg_score:.2f}</div>", unsafe_allow_html=True)
-                    with col3:
-                        st.markdown(f"<div class='{row_class}'>{correctness_display}</div>", unsafe_allow_html=True)
-                    with col4:
-                        if st.button("View", key=f"view_{i}"):
-                            st.session_state.selected_question_idx = i
+            question_num = st.number_input(
+                "Enter question number to view details:",
+                min_value=1,
+                max_value=len(filtered_results),
+                value=1,
+                step=1,
+                key="question_selector"
+            )
+            if st.button("View Question"):
+                st.session_state.selected_question_idx = question_num - 1
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
