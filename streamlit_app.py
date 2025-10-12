@@ -168,21 +168,13 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.markdown("---")
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-
-        correctness_data = [run['correct_pct'], run['partial_pct'], run['incorrect_pct']]
-        correctness_labels = ['Correct', 'Partially Correct', 'Incorrect']
-        colors = ['#90EE90', '#FFD700', '#FF6B6B']
-        ax1.bar(correctness_labels, correctness_data, color=colors)
-        ax1.set_ylabel('Percentage (%)')
-        ax1.set_title('Correctness Breakdown')
-        ax1.set_ylim(0, 100)
+        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 
         legibility_scores = [r.get("legibility", {}).get("score", 0) for r in run["results"]]
-        ax2.hist(legibility_scores, bins=10, color='#87CEEB', edgecolor='black')
-        ax2.set_xlabel('Legibility Score (1=legible, 10=illegible)')
-        ax2.set_ylabel('Count')
-        ax2.set_title('Legibility Score Distribution')
+        ax.hist(legibility_scores, bins=10, color='#87CEEB', edgecolor='black')
+        ax.set_xlabel('Legibility Score (1=legible, 9=illegible)')
+        ax.set_ylabel('Count')
+        ax.set_title('Legibility Score Distribution')
 
         st.pyplot(fig)
         plt.close()
@@ -192,20 +184,18 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
         st.subheader("Questions")
 
         with st.expander("Filters", expanded=True):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                min_leg = float(min(legibility_scores) if legibility_scores else 1.0)
-                max_leg = float(max(legibility_scores) if legibility_scores else 9.0)
-                min_leg = max(1.0, min(min_leg, 9.0))
-                max_leg = max(1.0, min(max_leg, 9.0))
+            min_leg = float(min(legibility_scores) if legibility_scores else 1.0)
+            max_leg = float(max(legibility_scores) if legibility_scores else 9.0)
+            min_leg = max(1.0, min(min_leg, 9.0))
+            max_leg = max(1.0, min(max_leg, 9.0))
 
-                legibility_range = st.slider(
-                    "Legibility Score Range",
-                    min_value=1.0,
-                    max_value=9.0,
-                    value=(min_leg, max_leg),
-                    step=0.1
-                )
+            legibility_range = st.slider(
+                "Legibility Score Range",
+                min_value=1.0,
+                max_value=9.0,
+                value=(min_leg, max_leg),
+                step=0.1
+            )
 
             correctness_options = st.multiselect(
                 "Correctness",
