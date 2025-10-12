@@ -221,17 +221,12 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 correctness in correctness_options):
                 filtered_results.append(result)
 
-        col1, col2, col3 = st.columns([0.45, 0.3, 3.25])
-        with col1:
-            st.markdown("**Entries to show:**")
-        with col2:
-            entries_to_show = st.selectbox(
-                "Entries to show:",
-                options=[10, 25, 50, 100, len(filtered_results)],
-                index=1,
-                key="entries_select",
-                label_visibility="collapsed"
-            )
+        entries_to_show = st.selectbox(
+            "Entries to show",
+            options=[10, 25, 50, 100, len(filtered_results)],
+            index=1,
+            key="entries_select"
+        )
 
         search_query = st.text_input("", placeholder="Search by ID...", label_visibility="collapsed", key="search")
 
