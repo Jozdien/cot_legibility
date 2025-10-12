@@ -221,7 +221,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 correctness in correctness_options):
                 filtered_results.append(result)
 
-        col1, col2, col3 = st.columns([0.6, 0.5, 3], gap="small")
+        col1, col2, col3 = st.columns([0.45, 0.3, 3.25])
         with col1:
             st.markdown("**Entries to show:**")
         with col2:
