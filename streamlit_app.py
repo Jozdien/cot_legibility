@@ -168,16 +168,18 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.markdown("---")
 
-        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
-        legibility_scores = [r.get("legibility", {}).get("score", 0) for r in run["results"]]
-        ax.hist(legibility_scores, bins=10, color='#87CEEB', edgecolor='black')
-        ax.set_xlabel('Legibility Score (1=legible, 9=illegible)')
-        ax.set_ylabel('Count')
-        ax.set_title('Legibility Score Distribution')
+            legibility_scores = [r.get("legibility", {}).get("score", 0) for r in run["results"]]
+            ax.hist(legibility_scores, bins=10, color='#87CEEB', edgecolor='black')
+            ax.set_xlabel('Legibility Score (1=legible, 9=illegible)')
+            ax.set_ylabel('Count')
+            ax.set_title('Legibility Score Distribution')
 
-        st.pyplot(fig)
-        plt.close()
+            st.pyplot(fig)
+            plt.close()
 
         st.markdown("---")
 
@@ -249,6 +251,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     "original_index": i
                 })
 
+            table_data.sort(key=lambda x: x["ID"])
             table_data = table_data[:entries_to_show]
             table_df = pd.DataFrame(table_data)
 
