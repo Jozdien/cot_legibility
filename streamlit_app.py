@@ -222,7 +222,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             ax.set_xlabel("Legibility Score (1=legible, 9=illegible)")
             ax.set_ylabel("Count")
             ax.set_title("Legibility Score Distribution")
-            ax.set_xlim(1, 9)
+            ax.set_xlim(0, 10)
+            ax.set_xticks(range(1, 10))
 
             st.pyplot(fig)
             plt.close()
