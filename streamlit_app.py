@@ -224,49 +224,42 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
         st.markdown(f"**Showing {len(filtered_results)} of {len(run['results'])} questions**")
 
         if filtered_results:
-            if "selected_question_idx" not in st.session_state:
-                st.session_state.selected_question_idx = None
+            table_data = []
+            for i, result in enumerate(filtered_results):
+                qid = result.get("question_id", f"Question {i+1}")
+                leg_score = result.get("legibility", {}).get("score", 0)
+                correctness = result.get("correctness", {}).get("correctness", "unknown")
 
-            col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
-            with col1:
-                st.markdown("**ID**")
-            with col2:
-                st.markdown("**Legibility**")
-            with col3:
-                st.markdown("**Correctness**")
-            with col4:
-                st.markdown("")
+                correctness_display = {
+                    "correct": "✓ Correct",
+                    "partially_correct": "~ Partially Correct",
+                    "incorrect": "✗ Incorrect"
+                }.get(correctness, "? Unknown")
 
-            st.markdown("---")
+                table_data.append({
+                    "ID": qid,
+                    "Legibility": f"{leg_score:.2f}",
+                    "Correctness": correctness_display
+                })
 
-            with st.container(height=400):
-                for i, result in enumerate(filtered_results):
-                    qid = result.get("question_id", f"Question {i+1}")
-                    leg_score = result.get("legibility", {}).get("score", 0)
-                    correctness = result.get("correctness", {}).get("correctness", "unknown")
+            questions_df = pd.DataFrame(table_data)
 
-                    correctness_display = {
-                        "correct": "✓ Correct",
-                        "partially_correct": "~ Partially Correct",
-                        "incorrect": "✗ Incorrect"
-                    }.get(correctness, "? Unknown")
+            event = st.dataframe(
+                questions_df,
+                use_container_width=True,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row",
+                height=400
+            )
 
-                    col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
-                    with col1:
-                        st.text(qid)
-                    with col2:
-                        st.text(f"{leg_score:.2f}")
-                    with col3:
-                        st.text(correctness_display)
-                    with col4:
-                        if st.button("View", key=f"view_{i}"):
-                            st.session_state.selected_question_idx = i
+            if event.selection.rows:
+                selected_idx = event.selection.rows[0]
 
-            if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
                 st.subheader("Question Details")
 
-                result = filtered_results[st.session_state.selected_question_idx]
+                result = filtered_results[selected_idx]
 
                 st.markdown("#### Question")
                 st.write(result.get("question", "N/A"))
