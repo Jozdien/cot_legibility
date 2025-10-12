@@ -12,6 +12,13 @@ def process_question(question_data: dict, model_config: dict, provider) -> dict:
     try:
         result = provider.generate(question_data["question"], model_config)
 
+        metadata = {
+            "duration_ms": result["duration_ms"],
+            "tokens": result.get("tokens"),
+        }
+        if "provider_model" in result:
+            metadata["provider_model"] = result["provider_model"]
+
         return {
             **question_data,
             "answer": result["answer"],
@@ -19,10 +26,7 @@ def process_question(question_data: dict, model_config: dict, provider) -> dict:
             "model": model_config["name"],
             "temperature": model_config.get("temperature", 1.0),
             "timestamp": datetime.utcnow().isoformat() + "Z",
-            "metadata": {
-                "duration_ms": result["duration_ms"],
-                "tokens": result.get("tokens"),
-            },
+            "metadata": metadata,
         }
     except Exception as e:
         return {

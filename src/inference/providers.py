@@ -53,6 +53,9 @@ class OpenRouterProvider(Provider):
         if hasattr(completion, "usage"):
             result["tokens"] = completion.usage.total_tokens
 
+        if hasattr(completion, "model"):
+            result["provider_model"] = completion.model
+
         return result
 
 
