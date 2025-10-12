@@ -11,7 +11,7 @@ wheels/
 
 venv/
 data/
-runs/
 archive/
+runs/
 
 .DS_Store
