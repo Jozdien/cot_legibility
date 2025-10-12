@@ -1,12 +1,12 @@
 # CoT Faithfulness Research Pipeline
 
-Refactored pipeline for analyzing Chain-of-Thought reasoning legibility and correctness in large language models.
-
 ## Quick Start
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
+
+# Add (OpenRouter, OpenAI, Anthropic) API keys to .env
 
 # Download a dataset (if needed)
 python get_gpqa_d.py
@@ -14,8 +14,8 @@ python get_gpqa_d.py
 # Run quick test
 ./run.sh config/quick_test.yaml
 
-# Run full pipeline
-./run.sh config/default.yaml
+# Explore results (optional)
+streamlit run streamlit_app.py
 ```
 
 ## Structure
@@ -32,21 +32,20 @@ cot_faithfulness/
 │   ├── evaluation/          # Grade responses
 │   ├── analysis/            # Generate plots
 │   └── utils/               # Shared utilities
-├── data/                     # Downloaded datasets
 ├── runs/                     # All pipeline outputs
 │   └── YYYYMMDD_HHMMSS_MODEL_DATASET/
 │       ├── inference.jsonl
 │       ├── evaluation.json
 │       ├── plots/
 │       └── run.log
-└── archive/                  # Old data from previous codebase
+└── data/                     # Downloaded datasets
 ```
 
 ## Pipeline Stages
 
 ### 1. Inference
 - Loads dataset from `data/`
-- Calls model APIs (OpenRouter, Anthropic, OpenAI)
+- Calls model APIs
 - Streams results to `inference.jsonl`
 
 ### 2. Evaluation
@@ -100,18 +99,6 @@ analysis:
 
 ## Usage Examples
 
-### Test a single model
-```bash
-./run.sh config/quick_test.yaml
-# Creates: runs/20250730_120345_R1_gpqa/
-```
-
-### Test multiple models
-```bash
-./run.sh config/examples/multi_model.yaml
-# Creates separate directories for each model
-```
-
 ### Run only evaluation on existing inference
 ```yaml
 # config/regrade.yaml
@@ -156,12 +143,16 @@ Download with: `python get_<dataset>.py`
 - **Anthropic**: Direct Claude API
 - **OpenAI**: Direct GPT API
 
-Set API keys in `.env`:
-```
-OPENROUTER_API_KEY=...
-ANTHROPIC_API_KEY=...
-OPENAI_API_KEY=...
-```
+## Interactive Explorer
+
+`streamlit_app.py` provides a web interface for exploring results:
+
+- Select model and dataset to view statistics
+- Filter questions by legibility score and correctness
+- View detailed question/answer/reasoning for each sample
+- See distribution histograms and summary metrics
+
+Automatically aggregates multiple runs of the same model+dataset combination.
 
 ## Output Formats
 
@@ -203,13 +194,3 @@ OPENAI_API_KEY=...
 1. Add function in `src/analysis/plots.py`
 2. Register in `PLOT_FUNCTIONS` or `COMPARISON_PLOT_FUNCTIONS`
 3. Use in config: `plots: [your_new_plot]`
-
-## Migration from Old Codebase
-
-Old data is preserved in `archive/`:
-- `archive/r1_rollouts/` - Model responses (markdown format)
-- `archive/scores/` - Grading results (JSON)
-- `archive/answers/` - Human-readable analysis (markdown)
-- `archive/plots/` - Generated plots
-
-To re-analyze old results with new plots, convert data format or use archived results as reference.
