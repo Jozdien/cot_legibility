@@ -221,29 +221,18 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 correctness in correctness_options):
                 filtered_results.append(result)
 
-        col1, col2 = st.columns([1, 4])
+        col1, col2 = st.columns([1, 3])
         with col1:
-            num_to_show = st.selectbox(
-                "Show",
-                options=[25, 50, 100, len(filtered_results)],
-                format_func=lambda x: f"{x} outputs" if x != len(filtered_results) else "All outputs",
-                key="num_outputs"
+            entries_to_show = st.selectbox(
+                "Entries to show:",
+                options=[10, 25, 50, 100, len(filtered_results)],
+                index=1,
+                key="entries_select"
             )
 
-        st.caption("Select the checkbox on the left of each row to view details")
+        st.caption("Click the checkbox on the left of a row to view details")
 
-        search_query = st.text_input("Search", placeholder="Search by ID, legibility, or correctness...", key="search_query")
-
-        if search_query:
-            search_lower = search_query.lower()
-            filtered_results = [
-                r for r in filtered_results
-                if search_lower in str(r.get("question_id", "")).lower() or
-                   search_lower in str(r.get("legibility", {}).get("score", "")).lower() or
-                   search_lower in str(r.get("correctness", {}).get("correctness", "")).lower()
-            ]
-
-        filtered_results = filtered_results[:num_to_show]
+        search_query = st.text_input("", placeholder="Search by ID...", label_visibility="collapsed", key="search")
 
         if filtered_results:
             if "selected_question_idx" not in st.session_state:
@@ -255,6 +244,9 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 leg_score = result.get("legibility", {}).get("score", 0)
                 correctness = result.get("correctness", {}).get("correctness", "unknown")
 
+                if search_query and search_query.lower() not in qid.lower():
+                    continue
+
                 correctness_display = {
                     "correct": "✓ Correct",
                     "partially_correct": "~ Partially Correct",
@@ -264,13 +256,19 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 table_data.append({
                     "ID": qid,
                     "Legibility": f"{leg_score:.2f}",
-                    "Correctness": correctness_display
+                    "Correctness": correctness_display,
+                    "original_index": i
                 })
+
+            table_data = table_data[:entries_to_show]
+
+            with col2:
+                st.markdown(f"**Showing {len(table_data)} of {len(run['results'])} questions**")
 
             table_df = pd.DataFrame(table_data)
 
             event = st.dataframe(
-                table_df,
+                table_df[["ID", "Legibility", "Correctness"]],
                 use_container_width=True,
                 hide_index=True,
                 height=400,
@@ -280,7 +278,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             if event.selection and "rows" in event.selection and len(event.selection["rows"]) > 0:
                 selected_row = event.selection["rows"][0]
-                st.session_state.selected_question_idx = selected_row
+                st.session_state.selected_question_idx = table_df.iloc[selected_row]["original_index"]
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
