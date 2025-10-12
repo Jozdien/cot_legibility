@@ -221,7 +221,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 correctness in correctness_options):
                 filtered_results.append(result)
 
-        col1, col2 = st.columns([1, 4])
+        col1, col2, col3 = st.columns([1, 2, 1.5])
         with col1:
             entries_to_show = st.selectbox(
                 "Entries to show",
@@ -229,8 +229,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 index=1,
                 key="entries_select"
             )
-
-        search_query = st.text_input("", placeholder="Search by ID...", label_visibility="collapsed", key="search")
+        with col3:
+            search_query = st.text_input("Search", placeholder="Search by ID...", key="search")
 
         if filtered_results:
             if "selected_question_idx" not in st.session_state:
