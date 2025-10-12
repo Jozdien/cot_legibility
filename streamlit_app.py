@@ -221,16 +221,12 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 correctness in correctness_options):
                 filtered_results.append(result)
 
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            entries_to_show = st.selectbox(
-                "Entries to show:",
-                options=[10, 25, 50, 100, len(filtered_results)],
-                index=1,
-                key="entries_select"
-            )
-
-        st.caption("Click the checkbox on the left of a row to view details")
+        entries_to_show = st.selectbox(
+            "Entries to show:",
+            options=[10, 25, 50, 100, len(filtered_results)],
+            index=1,
+            key="entries_select"
+        )
 
         search_query = st.text_input("", placeholder="Search by ID...", label_visibility="collapsed", key="search")
 
@@ -261,10 +257,6 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 })
 
             table_data = table_data[:entries_to_show]
-
-            with col2:
-                st.markdown(f"**Showing {len(table_data)} of {len(run['results'])} questions**")
-
             table_df = pd.DataFrame(table_data)
 
             event = st.dataframe(
@@ -275,6 +267,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 on_select="rerun",
                 selection_mode="single-row"
             )
+
+            st.caption("Click the checkbox on the left of a row to view details")
 
             if event.selection and "rows" in event.selection and len(event.selection["rows"]) > 0:
                 selected_row = event.selection["rows"][0]
