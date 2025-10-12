@@ -227,44 +227,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             if "selected_question_idx" not in st.session_state:
                 st.session_state.selected_question_idx = None
 
-            st.markdown("""
-                <style>
-                .grid-table {
-                    display: grid;
-                    grid-template-columns: 2fr 1fr 2fr 100px;
-                    border: 1px solid #dee2e6;
-                    border-radius: 4px;
-                    overflow: hidden;
-                    font-size: 13px;
-                }
-                .grid-cell {
-                    padding: 10px 12px;
-                    border-bottom: 1px solid #e9ecef;
-                }
-                .grid-header {
-                    background-color: #f8f9fa;
-                    font-weight: 600;
-                    color: #333;
-                    border-bottom: 2px solid #dee2e6;
-                }
-                .grid-row-even {
-                    background-color: #f8f9fa;
-                }
-                .grid-row-odd {
-                    background-color: white;
-                }
-                .grid-action {
-                    text-align: right;
-                }
-                </style>
-            """, unsafe_allow_html=True)
-
-            table_html = '<div class="grid-table">'
-            table_html += '<div class="grid-cell grid-header">ID</div>'
-            table_html += '<div class="grid-cell grid-header">Legibility</div>'
-            table_html += '<div class="grid-cell grid-header">Correctness</div>'
-            table_html += '<div class="grid-cell grid-header grid-action">Action</div>'
-
+            table_data = []
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
                 leg_score = result.get("legibility", {}).get("score", 0)
@@ -276,28 +239,26 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     "incorrect": "✗ Incorrect"
                 }.get(correctness, "? Unknown")
 
-                row_class = "grid-row-even" if i % 2 == 0 else "grid-row-odd"
+                table_data.append({
+                    "ID": qid,
+                    "Legibility": f"{leg_score:.2f}",
+                    "Correctness": correctness_display
+                })
 
-                table_html += f'<div class="grid-cell {row_class}">{qid}</div>'
-                table_html += f'<div class="grid-cell {row_class}">{leg_score:.2f}</div>'
-                table_html += f'<div class="grid-cell {row_class}">{correctness_display}</div>'
-                table_html += f'<div class="grid-cell {row_class} grid-action">#{i+1}</div>'
+            table_df = pd.DataFrame(table_data)
 
-            table_html += '</div>'
-
-            with st.container(height=400):
-                st.markdown(table_html, unsafe_allow_html=True)
-
-            question_num = st.number_input(
-                "Enter question number to view details:",
-                min_value=1,
-                max_value=len(filtered_results),
-                value=1,
-                step=1,
-                key="question_selector"
+            event = st.dataframe(
+                table_df,
+                use_container_width=True,
+                hide_index=True,
+                height=400,
+                on_select="rerun",
+                selection_mode="single-row"
             )
-            if st.button("View Question"):
-                st.session_state.selected_question_idx = question_num - 1
+
+            if event.selection and "rows" in event.selection and len(event.selection["rows"]) > 0:
+                selected_row = event.selection["rows"][0]
+                st.session_state.selected_question_idx = selected_row
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
