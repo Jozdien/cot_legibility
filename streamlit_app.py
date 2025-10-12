@@ -192,18 +192,20 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
         st.subheader("Questions")
 
         with st.expander("Filters", expanded=True):
-            min_leg = float(min(legibility_scores) if legibility_scores else 1.0)
-            max_leg = float(max(legibility_scores) if legibility_scores else 9.0)
-            min_leg = max(1.0, min(min_leg, 9.0))
-            max_leg = max(1.0, min(max_leg, 9.0))
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                min_leg = float(min(legibility_scores) if legibility_scores else 1.0)
+                max_leg = float(max(legibility_scores) if legibility_scores else 9.0)
+                min_leg = max(1.0, min(min_leg, 9.0))
+                max_leg = max(1.0, min(max_leg, 9.0))
 
-            legibility_range = st.slider(
-                "Legibility Score Range",
-                min_value=1.0,
-                max_value=9.0,
-                value=(min_leg, max_leg),
-                step=0.1
-            )
+                legibility_range = st.slider(
+                    "Legibility Score Range",
+                    min_value=1.0,
+                    max_value=9.0,
+                    value=(min_leg, max_leg),
+                    step=0.1
+                )
 
             correctness_options = st.multiselect(
                 "Correctness",
