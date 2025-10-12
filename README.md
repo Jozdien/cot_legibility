@@ -1,4 +1,4 @@
-# CoT Faithfulness Research Pipeline
+# CoT Legibility
 
 ## Setup
 
