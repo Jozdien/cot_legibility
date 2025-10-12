@@ -231,24 +231,40 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 <style>
                 .table-header {
                     background-color: #f1f1f1;
-                    padding: 12px 8px;
+                    padding: 6px 4px;
                     font-weight: bold;
                     border-bottom: 2px solid #ddd;
-                    font-size: 14px;
-                    color: #333;
+                    font-size: 13px;
+                    color: #555;
+                    margin: 0;
+                    line-height: 1.2;
                 }
                 .table-row-even {
                     background-color: #f9f9f9;
-                    padding: 8px;
-                    border-bottom: 1px solid #ddd;
+                    padding: 4px;
+                    border-bottom: 1px solid #e0e0e0;
+                    font-size: 13px;
+                    line-height: 1.2;
+                    margin: 0;
                 }
                 .table-row-odd {
                     background-color: white;
-                    padding: 8px;
-                    border-bottom: 1px solid #ddd;
+                    padding: 4px;
+                    border-bottom: 1px solid #e0e0e0;
+                    font-size: 13px;
+                    line-height: 1.2;
+                    margin: 0;
                 }
                 div[data-testid="column"] {
                     padding: 0px !important;
+                    gap: 0px !important;
+                }
+                .stButton button {
+                    padding: 2px 8px !important;
+                    font-size: 12px !important;
+                    height: 24px !important;
+                    min-height: 24px !important;
+                    line-height: 1 !important;
                 }
                 </style>
             """, unsafe_allow_html=True)
