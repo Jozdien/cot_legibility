@@ -222,21 +222,17 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 filtered_results.append(result)
 
         if filtered_results:
-            col1, col2, col3 = st.columns([0.5, 1, 5])
+            col1, col2 = st.columns([2, 5])
             with col1:
-                st.markdown("<div style='padding-top: 8px;'>Show</div>", unsafe_allow_html=True)
-            with col2:
                 num_to_show = st.selectbox(
                     "outputs",
                     options=[10, 25, 50, 100, len(filtered_results)],
                     index=1 if len(filtered_results) > 25 else len([10, 25, 50, 100, len(filtered_results)]) - 1,
                     key="num_outputs",
-                    label_visibility="collapsed"
+                    format_func=lambda x: f"Show {x} outputs"
                 )
-            with col3:
-                st.markdown("<div style='padding-top: 8px;'>outputs</div>", unsafe_allow_html=True)
-
-            st.caption("Select the checkbox on the left of each row to view details")
+            with col2:
+                st.markdown("<div style='padding-top: 8px; color: #6c757d; font-size: 0.875rem;'>← Select the checkbox on the left of each row to view details</div>", unsafe_allow_html=True)
 
             search_query = st.text_input("Search", placeholder="Search by ID, legibility, or correctness...", key="search", label_visibility="collapsed")
 
