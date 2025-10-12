@@ -1,4 +1,4 @@
-# CoT Legibility
+# Chain-of-Thought Legibility
 
 ## Setup
 

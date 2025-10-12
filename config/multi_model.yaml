@@ -15,7 +15,7 @@ inference:
 
   datasets:
     - name: "gpqa"
-      num_questions: 5
+      num_questions: 100
       shuffle: true
 
   concurrency:
