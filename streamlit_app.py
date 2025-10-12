@@ -230,41 +230,43 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             st.markdown("""
                 <style>
                 .table-header {
-                    background-color: #f1f1f1;
-                    padding: 6px 4px;
-                    font-weight: bold;
-                    border-bottom: 2px solid #ddd;
+                    background-color: #f0f0f0;
+                    padding: 8px 12px;
+                    font-weight: 600;
+                    border-bottom: 1px solid #ccc;
                     font-size: 13px;
-                    color: #555;
+                    color: #333;
                     margin: 0;
-                    line-height: 1.2;
+                    line-height: 1.4;
                 }
                 .table-row-even {
-                    background-color: #f9f9f9;
-                    padding: 4px;
-                    border-bottom: 1px solid #e0e0e0;
+                    background-color: #fafafa;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid #f0f0f0;
                     font-size: 13px;
-                    line-height: 1.2;
+                    line-height: 1.4;
                     margin: 0;
                 }
                 .table-row-odd {
                     background-color: white;
-                    padding: 4px;
-                    border-bottom: 1px solid #e0e0e0;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid #f0f0f0;
                     font-size: 13px;
-                    line-height: 1.2;
+                    line-height: 1.4;
                     margin: 0;
                 }
                 div[data-testid="column"] {
                     padding: 0px !important;
                     gap: 0px !important;
+                    margin: 0px !important;
                 }
                 .stButton button {
-                    padding: 2px 8px !important;
+                    padding: 4px 12px !important;
                     font-size: 12px !important;
-                    height: 24px !important;
-                    min-height: 24px !important;
-                    line-height: 1 !important;
+                    height: 28px !important;
+                    min-height: 28px !important;
+                    line-height: 1.2 !important;
+                    width: auto !important;
                 }
                 </style>
             """, unsafe_allow_html=True)
@@ -301,7 +303,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     with col3:
                         st.markdown(f"<div class='{row_class}'>{correctness_display}</div>", unsafe_allow_html=True)
                     with col4:
-                        if st.button("View", key=f"view_{i}", use_container_width=True):
+                        if st.button("View", key=f"view_{i}"):
                             st.session_state.selected_question_idx = i
 
             if st.session_state.selected_question_idx is not None:
