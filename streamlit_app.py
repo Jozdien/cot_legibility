@@ -1,9 +1,10 @@
-import streamlit as st
-import pandas as pd
 import json
-import yaml
 from pathlib import Path
+
 import matplotlib.pyplot as plt
+import pandas as pd
+import streamlit as st
+import yaml
 
 st.set_page_config(page_title="CoT Legibility Explorer", layout="wide")
 
@@ -18,11 +19,13 @@ MODEL_DISPLAY_NAMES = {
     "o3-mini": "O3-Mini",
 }
 
+
 def get_model_display_name(model_name, temperature):
     display_name = MODEL_DISPLAY_NAMES.get(model_name, model_name)
     if temperature is not None and temperature != 1.0:
         return f"{display_name} (temperature={temperature})"
     return display_name
+
 
 @st.cache_data
 def load_runs_data():
@@ -75,7 +78,9 @@ def load_runs_data():
             for result in eval_data.get("results", []):
                 qid = result.get("question_id")
                 if qid in inference_data:
-                    result["correct_answer"] = inference_data[qid].get("correct_answer", "N/A")
+                    result["correct_answer"] = inference_data[qid].get(
+                        "correct_answer", "N/A"
+                    )
                     result["reasoning"] = inference_data[qid].get("reasoning")
                     result["answer"] = inference_data[qid].get("answer", "N/A")
 
@@ -87,7 +92,7 @@ def load_runs_data():
                     "model_display": model_display,
                     "dataset": dataset,
                     "results": [],
-                    "runs": []
+                    "runs": [],
                 }
 
             aggregated_data[key]["results"].extend(eval_data.get("results", []))
@@ -101,26 +106,49 @@ def load_runs_data():
         results = data["results"]
         legibility_scores = [r.get("legibility", {}).get("score", 0) for r in results]
 
-        correct_count = sum(1 for r in results if r.get("correctness", {}).get("correctness") == "correct")
-        partial_count = sum(1 for r in results if r.get("correctness", {}).get("correctness") == "partially_correct")
-        incorrect_count = sum(1 for r in results if r.get("correctness", {}).get("correctness") == "incorrect")
+        correct_count = sum(
+            1
+            for r in results
+            if r.get("correctness", {}).get("correctness") == "correct"
+        )
+        partial_count = sum(
+            1
+            for r in results
+            if r.get("correctness", {}).get("correctness") == "partially_correct"
+        )
+        incorrect_count = sum(
+            1
+            for r in results
+            if r.get("correctness", {}).get("correctness") == "incorrect"
+        )
         total_count = len(results)
 
         run_info = {
             "model_display": data["model_display"],
             "dataset": data["dataset"],
-            "avg_legibility": sum(legibility_scores) / len(legibility_scores) if legibility_scores else 0,
-            "legibility_std": pd.Series(legibility_scores).std() if len(legibility_scores) > 1 else 0,
+            "avg_legibility": sum(legibility_scores) / len(legibility_scores)
+            if legibility_scores
+            else 0,
+            "legibility_std": pd.Series(legibility_scores).std()
+            if len(legibility_scores) > 1
+            else 0,
             "num_questions": total_count,
-            "correct_pct": (correct_count / total_count * 100) if total_count > 0 else 0,
-            "partial_pct": (partial_count / total_count * 100) if total_count > 0 else 0,
-            "incorrect_pct": (incorrect_count / total_count * 100) if total_count > 0 else 0,
+            "correct_pct": (correct_count / total_count * 100)
+            if total_count > 0
+            else 0,
+            "partial_pct": (partial_count / total_count * 100)
+            if total_count > 0
+            else 0,
+            "incorrect_pct": (incorrect_count / total_count * 100)
+            if total_count > 0
+            else 0,
             "results": results,
-            "runs": data["runs"]
+            "runs": data["runs"],
         }
         runs_data.append(run_info)
 
     return pd.DataFrame(runs_data)
+
 
 df = load_runs_data()
 
@@ -134,14 +162,20 @@ st.markdown("---")
 
 st.subheader("Model")
 model_options = ["Select a model..."] + sorted(df["model_display"].unique().tolist())
-selected_model = st.selectbox("", model_options, label_visibility="collapsed", key="model")
+selected_model = st.selectbox(
+    "", model_options, label_visibility="collapsed", key="model"
+)
 
 st.subheader("Dataset")
 dataset_options = ["Select a dataset..."] + sorted(df["dataset"].unique().tolist())
-selected_dataset = st.selectbox("", dataset_options, label_visibility="collapsed", key="dataset")
+selected_dataset = st.selectbox(
+    "", dataset_options, label_visibility="collapsed", key="dataset"
+)
 
 if selected_model != "Select a model..." and selected_dataset != "Select a dataset...":
-    run_data = df[(df["model_display"] == selected_model) & (df["dataset"] == selected_dataset)]
+    run_data = df[
+        (df["model_display"] == selected_model) & (df["dataset"] == selected_dataset)
+    ]
 
     if run_data.empty:
         st.warning("No runs found for this combination")
@@ -150,33 +184,24 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.markdown("---")
 
-        st.subheader("Summary Statistics")
+        col_stats, col_plot = st.columns([2, 1])
 
-        col1, col2, col3, col4, col5 = st.columns(5)
-        with col1:
-            st.metric("Samples", f"{run['num_questions']}")
-        with col2:
-            st.metric("Avg Legibility", f"{run['avg_legibility']:.2f}")
-        with col3:
-            st.metric("Correct", f"{run['correct_pct']:.1f}%")
-        with col4:
-            st.metric("Partially Correct", f"{run['partial_pct']:.1f}%")
-        with col5:
-            st.metric("Incorrect", f"{run['incorrect_pct']:.1f}%")
+        with col_stats:
+            st.markdown(f"**Samples:** {run['num_questions']}")
+            st.markdown(f"**Legibility:** {run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
+            st.markdown(f"**Correct:** {run['correct_pct']:.1f}%   **Partially Correct:** {run['partial_pct']:.1f}%   **Incorrect:** {run['incorrect_pct']:.1f}%")
+            st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
 
-        st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
+        with col_plot:
+            fig, ax = plt.subplots(1, 1, figsize=(5, 4))
 
-        st.markdown("---")
-
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-
-            legibility_scores = [r.get("legibility", {}).get("score", 0) for r in run["results"]]
-            ax.hist(legibility_scores, bins=10, color='#87CEEB', edgecolor='black')
-            ax.set_xlabel('Legibility Score (1=legible, 9=illegible)')
-            ax.set_ylabel('Count')
-            ax.set_title('Legibility Score Distribution')
+            legibility_scores = [
+                r.get("legibility", {}).get("score", 0) for r in run["results"]
+            ]
+            ax.hist(legibility_scores, bins=10, color="#87CEEB", edgecolor="black")
+            ax.set_xlabel("Legibility Score (1=legible, 9=illegible)")
+            ax.set_ylabel("Count")
+            ax.set_title("Legibility Score Distribution")
 
             st.pyplot(fig)
             plt.close()
@@ -196,13 +221,13 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 min_value=1.0,
                 max_value=9.0,
                 value=(min_leg, max_leg),
-                step=0.1
+                step=0.1,
             )
 
             correctness_options = st.multiselect(
                 "Correctness",
                 options=["correct", "partially_correct", "incorrect"],
-                default=["correct", "partially_correct", "incorrect"]
+                default=["correct", "partially_correct", "incorrect"],
             )
 
         filtered_results = []
@@ -210,8 +235,10 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             leg_score = result.get("legibility", {}).get("score", 0)
             correctness = result.get("correctness", {}).get("correctness", "unknown")
 
-            if (legibility_range[0] <= leg_score <= legibility_range[1] and
-                correctness in correctness_options):
+            if (
+                legibility_range[0] <= leg_score <= legibility_range[1]
+                and correctness in correctness_options
+            ):
                 filtered_results.append(result)
 
         col1, col2, col3 = st.columns([1, 2, 1.5])
@@ -220,10 +247,12 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 "Entries to show",
                 options=[10, 25, 50, 100, len(filtered_results)],
                 index=1,
-                key="entries_select"
+                key="entries_select",
             )
         with col3:
-            search_query = st.text_input("Search", placeholder="Search by ID...", key="search")
+            search_query = st.text_input(
+                "Search", placeholder="Search by ID...", key="search"
+            )
 
         if filtered_results:
             if "selected_question_idx" not in st.session_state:
@@ -233,7 +262,9 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
                 leg_score = result.get("legibility", {}).get("score", 0)
-                correctness = result.get("correctness", {}).get("correctness", "unknown")
+                correctness = result.get("correctness", {}).get(
+                    "correctness", "unknown"
+                )
 
                 if search_query and search_query.lower() not in qid.lower():
                     continue
@@ -241,15 +272,17 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 correctness_display = {
                     "correct": "✓ Correct",
                     "partially_correct": "~ Partially Correct",
-                    "incorrect": "✗ Incorrect"
+                    "incorrect": "✗ Incorrect",
                 }.get(correctness, "? Unknown")
 
-                table_data.append({
-                    "ID": qid,
-                    "Legibility": f"{leg_score:.2f}",
-                    "Correctness": correctness_display,
-                    "original_index": i
-                })
+                table_data.append(
+                    {
+                        "ID": qid,
+                        "Legibility": f"{leg_score:.2f}",
+                        "Correctness": correctness_display,
+                        "original_index": i,
+                    }
+                )
 
             table_data.sort(key=lambda x: x["ID"])
             table_data = table_data[:entries_to_show]
@@ -261,14 +294,20 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 hide_index=True,
                 height=400,
                 on_select="rerun",
-                selection_mode="single-row"
+                selection_mode="single-row",
             )
 
             st.caption("Click the checkbox on the left of a row to view details")
 
-            if event.selection and "rows" in event.selection and len(event.selection["rows"]) > 0:
+            if (
+                event.selection
+                and "rows" in event.selection
+                and len(event.selection["rows"]) > 0
+            ):
                 selected_row = event.selection["rows"][0]
-                st.session_state.selected_question_idx = table_df.iloc[selected_row]["original_index"]
+                st.session_state.selected_question_idx = table_df.iloc[selected_row][
+                    "original_index"
+                ]
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
@@ -284,16 +323,30 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
                 if result.get("reasoning"):
                     st.markdown("#### Model Reasoning")
-                    st.text_area("", result.get("reasoning"), height=200, key="reasoning_detail", label_visibility="collapsed")
+                    st.text_area(
+                        "",
+                        result.get("reasoning"),
+                        height=200,
+                        key="reasoning_detail",
+                        label_visibility="collapsed",
+                    )
 
                 st.markdown("#### Model Answer")
-                st.text_area("", result.get("answer", "N/A"), height=200, key="answer_detail", label_visibility="collapsed")
+                st.text_area(
+                    "",
+                    result.get("answer", "N/A"),
+                    height=200,
+                    key="answer_detail",
+                    label_visibility="collapsed",
+                )
 
                 st.markdown("#### Scores")
                 col1, col2 = st.columns(2)
 
                 leg_score = result.get("legibility", {}).get("score", 0)
-                correctness = result.get("correctness", {}).get("correctness", "unknown")
+                correctness = result.get("correctness", {}).get(
+                    "correctness", "unknown"
+                )
 
                 with col1:
                     st.markdown("**Legibility**")
