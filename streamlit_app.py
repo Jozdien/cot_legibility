@@ -230,6 +230,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 key="entries_select"
             )
         with col3:
+            st.write("")
             search_query = st.text_input("Search", placeholder="Search by ID...", key="search", label_visibility="collapsed")
 
         if filtered_results:
