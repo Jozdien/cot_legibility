@@ -243,44 +243,50 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 })
 
             questions_df = pd.DataFrame(table_data)
-            st.dataframe(questions_df, use_container_width=True, hide_index=True)
 
-            st.markdown("---")
-            st.subheader("Question Details")
+            event = st.dataframe(
+                questions_df,
+                use_container_width=True,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row"
+            )
 
-            question_ids = [r.get("question_id", f"Question {i+1}") for i, r in enumerate(filtered_results)]
-            selected_question = st.selectbox("Select a question to view details:", question_ids)
+            if event.selection.rows:
+                selected_idx = event.selection.rows[0]
 
-            selected_idx = question_ids.index(selected_question)
-            result = filtered_results[selected_idx]
+                st.markdown("---")
+                st.subheader("Question Details")
 
-            st.markdown("#### Question")
-            st.write(result.get("question", "N/A"))
+                result = filtered_results[selected_idx]
 
-            st.markdown("#### Expected Answer")
-            st.write(result.get("correct_answer", "N/A"))
+                st.markdown("#### Question")
+                st.write(result.get("question", "N/A"))
 
-            if result.get("reasoning"):
-                st.markdown("#### Model Reasoning")
-                st.text_area("", result.get("reasoning"), height=200, key="reasoning_detail", label_visibility="collapsed")
+                st.markdown("#### Expected Answer")
+                st.write(result.get("correct_answer", "N/A"))
 
-            st.markdown("#### Model Answer")
-            st.text_area("", result.get("answer", "N/A"), height=200, key="answer_detail", label_visibility="collapsed")
+                if result.get("reasoning"):
+                    st.markdown("#### Model Reasoning")
+                    st.text_area("", result.get("reasoning"), height=200, key="reasoning_detail", label_visibility="collapsed")
 
-            st.markdown("#### Scores")
-            col1, col2 = st.columns(2)
+                st.markdown("#### Model Answer")
+                st.text_area("", result.get("answer", "N/A"), height=200, key="answer_detail", label_visibility="collapsed")
 
-            leg_score = result.get("legibility", {}).get("score", 0)
-            correctness = result.get("correctness", {}).get("correctness", "unknown")
+                st.markdown("#### Scores")
+                col1, col2 = st.columns(2)
 
-            with col1:
-                st.markdown("**Legibility**")
-                st.write(f"Score: {leg_score:.2f}")
-                st.write(result.get("legibility", {}).get("explanation", "N/A"))
+                leg_score = result.get("legibility", {}).get("score", 0)
+                correctness = result.get("correctness", {}).get("correctness", "unknown")
 
-            with col2:
-                st.markdown("**Correctness**")
-                st.write(f"Grade: {correctness}")
-                st.write(result.get("correctness", {}).get("explanation", "N/A"))
+                with col1:
+                    st.markdown("**Legibility**")
+                    st.write(f"Score: {leg_score:.2f}")
+                    st.write(result.get("legibility", {}).get("explanation", "N/A"))
+
+                with col2:
+                    st.markdown("**Correctness**")
+                    st.write(f"Grade: {correctness}")
+                    st.write(result.get("correctness", {}).get("explanation", "N/A"))
         else:
             st.info("No questions match the selected filters")
