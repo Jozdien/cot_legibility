@@ -3,8 +3,9 @@ import pandas as pd
 import json
 import yaml
 from pathlib import Path
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="CoT Legibility Runs", layout="wide")
+st.set_page_config(page_title="CoT Legibility Explorer", layout="wide")
 
 @st.cache_data
 def load_runs_data():
@@ -49,6 +50,7 @@ def load_runs_data():
                 "model": model,
                 "temperature": temperature,
                 "dataset": dataset,
+                "model_display": f"{model}@{temperature}" if temperature is not None else model,
                 "avg_legibility": leg_stats.get("mean"),
                 "legibility_std": leg_stats.get("std"),
                 "num_questions": leg_stats.get("count", 0),
@@ -59,8 +61,7 @@ def load_runs_data():
             }
             runs_data.append(run_info)
 
-        except Exception as e:
-            st.warning(f"Failed to load {run_path.name}: {e}")
+        except Exception:
             continue
 
     return pd.DataFrame(runs_data)
@@ -71,99 +72,138 @@ if df.empty:
     st.error("No runs found with evaluation data")
     st.stop()
 
-st.title("CoT Legibility Run Viewer")
+st.title("CoT Legibility Explorer")
 
-st.sidebar.header("Filters")
+st.markdown("---")
 
-models = st.sidebar.multiselect(
-    "Model",
-    options=sorted(df["model"].unique()),
-    default=sorted(df["model"].unique())
-)
+col1, col2 = st.columns(2)
 
-temperatures = df["temperature"].dropna().unique()
-if len(temperatures) > 0:
-    selected_temps = st.sidebar.multiselect(
-        "Temperature",
-        options=sorted(temperatures),
-        default=sorted(temperatures)
-    )
-else:
-    selected_temps = []
-
-datasets = st.sidebar.multiselect(
-    "Dataset",
-    options=sorted(df["dataset"].unique()),
-    default=sorted(df["dataset"].unique())
-)
-
-legibility_range = st.sidebar.slider(
-    "Avg Legibility Score (1=legible, 10=illegible)",
-    min_value=1.0,
-    max_value=10.0,
-    value=(1.0, 10.0),
-    step=0.1
-)
-
-correctness_filter = st.sidebar.multiselect(
-    "Filter by Correctness (at question level)",
-    options=["correct", "partially_correct", "incorrect"],
-    default=["correct", "partially_correct", "incorrect"]
-)
-
-filtered_df = df[
-    (df["model"].isin(models)) &
-    (df["dataset"].isin(datasets)) &
-    (df["avg_legibility"].between(legibility_range[0], legibility_range[1]))
-]
-
-if len(selected_temps) > 0:
-    filtered_df = filtered_df[filtered_df["temperature"].isin(selected_temps)]
-
-st.header(f"Summary: {len(filtered_df)} runs")
-
-col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("Avg Legibility (across runs)", f"{filtered_df['avg_legibility'].mean():.2f}")
+    st.subheader("Model")
+    model_options = ["Select a model..."] + sorted(df["model_display"].unique().tolist())
+    selected_model = st.selectbox("", model_options, label_visibility="collapsed")
+
 with col2:
-    st.metric("Avg Correct %", f"{filtered_df['correct_pct'].mean():.1f}%")
-with col3:
-    st.metric("Total Questions", int(filtered_df["num_questions"].sum()))
+    st.subheader("Dataset")
+    dataset_options = ["Select a dataset..."] + sorted(df["dataset"].unique().tolist())
+    selected_dataset = st.selectbox("", dataset_options, label_visibility="collapsed")
 
-st.header("Runs Overview")
+if selected_model != "Select a model..." and selected_dataset != "Select a dataset...":
+    run_data = df[(df["model_display"] == selected_model) & (df["dataset"] == selected_dataset)]
 
-display_df = filtered_df[[
-    "model", "temperature", "dataset", "avg_legibility",
-    "correct_pct", "partial_pct", "incorrect_pct", "num_questions", "timestamp"
-]].copy()
+    if run_data.empty:
+        st.warning("No runs found for this combination")
+    else:
+        run = run_data.iloc[0]
 
-display_df = display_df.round(2)
-display_df = display_df.sort_values("timestamp", ascending=False)
+        st.markdown("---")
 
-st.dataframe(display_df, use_container_width=True)
+        st.subheader("Summary Statistics")
 
-st.header("Question-Level Details")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Avg Legibility", f"{run['avg_legibility']:.2f}")
+        with col2:
+            st.metric("Correct", f"{run['correct_pct']:.1f}%")
+        with col3:
+            st.metric("Partially Correct", f"{run['partial_pct']:.1f}%")
+        with col4:
+            st.metric("Incorrect", f"{run['incorrect_pct']:.1f}%")
 
-for _, row in filtered_df.iterrows():
-    with st.expander(f"{row['model']} - {row['dataset']} ({row['timestamp']})"):
-        questions_data = []
-        for result in row["results"]:
+        st.markdown("---")
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
+        correctness_data = [run['correct_pct'], run['partial_pct'], run['incorrect_pct']]
+        correctness_labels = ['Correct', 'Partially Correct', 'Incorrect']
+        colors = ['#90EE90', '#FFD700', '#FF6B6B']
+        ax1.bar(correctness_labels, correctness_data, color=colors)
+        ax1.set_ylabel('Percentage (%)')
+        ax1.set_title('Correctness Breakdown')
+        ax1.set_ylim(0, 100)
+
+        legibility_scores = [r.get("legibility", {}).get("score", 0) for r in run["results"]]
+        ax2.hist(legibility_scores, bins=10, color='#87CEEB', edgecolor='black')
+        ax2.set_xlabel('Legibility Score (1=legible, 10=illegible)')
+        ax2.set_ylabel('Count')
+        ax2.set_title('Legibility Score Distribution')
+
+        st.pyplot(fig)
+        plt.close()
+
+        st.markdown("---")
+
+        st.subheader("Questions")
+
+        with st.expander("Filters", expanded=True):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                min_leg = float(min(legibility_scores) if legibility_scores else 1.0)
+                max_leg = float(max(legibility_scores) if legibility_scores else 10.0)
+                legibility_range = st.slider(
+                    "Legibility Score Range",
+                    min_value=1.0,
+                    max_value=10.0,
+                    value=(min_leg, max_leg),
+                    step=0.1
+                )
+
+            with col2:
+                correctness_options = st.multiselect(
+                    "Correctness",
+                    options=["correct", "partially_correct", "incorrect"],
+                    default=["correct", "partially_correct", "incorrect"]
+                )
+
+        filtered_results = []
+        for result in run["results"]:
+            leg_score = result.get("legibility", {}).get("score", 0)
             correctness = result.get("correctness", {}).get("correctness", "unknown")
-            if correctness not in correctness_filter:
-                continue
 
-            questions_data.append({
-                "Question ID": result.get("question_id"),
-                "Legibility": result.get("legibility", {}).get("score"),
-                "Correctness": correctness,
-                "Question": result.get("question", "")[:100] + "..."
-            })
+            if (legibility_range[0] <= leg_score <= legibility_range[1] and
+                correctness in correctness_options):
+                filtered_results.append(result)
 
-        if questions_data:
-            q_df = pd.DataFrame(questions_data)
-            st.dataframe(q_df, use_container_width=True)
+        st.markdown(f"**Showing {len(filtered_results)} of {len(run['results'])} questions**")
+
+        if filtered_results:
+            for i, result in enumerate(filtered_results):
+                qid = result.get("question_id", f"Question {i+1}")
+                leg_score = result.get("legibility", {}).get("score", 0)
+                correctness = result.get("correctness", {}).get("correctness", "unknown")
+
+                correctness_color = {
+                    "correct": "🟢",
+                    "partially_correct": "🟡",
+                    "incorrect": "🔴"
+                }.get(correctness, "⚪")
+
+                with st.expander(f"{correctness_color} {qid} - Legibility: {leg_score:.2f}"):
+                    st.markdown("#### Question")
+                    st.write(result.get("question", "N/A"))
+
+                    st.markdown("#### Correct Answer")
+                    st.write(result.get("correct_answer", "N/A"))
+
+                    if result.get("reasoning"):
+                        st.markdown("#### Model Reasoning")
+                        st.text_area("", result.get("reasoning"), height=200, key=f"reasoning_{i}", label_visibility="collapsed")
+
+                    st.markdown("#### Model Answer")
+                    st.text_area("", result.get("answer", "N/A"), height=200, key=f"answer_{i}", label_visibility="collapsed")
+
+                    st.markdown("#### Scores")
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown("**Legibility**")
+                        st.write(f"Score: {leg_score:.2f}")
+                        st.write(result.get("legibility", {}).get("explanation", "N/A"))
+
+                    with col2:
+                        st.markdown("**Correctness**")
+                        st.write(f"Grade: {correctness}")
+                        st.write(result.get("correctness", {}).get("explanation", "N/A"))
         else:
-            st.info("No questions match the selected correctness filter")
-
-st.sidebar.markdown("---")
-st.sidebar.caption(f"Total runs in database: {len(df)}")
+            st.info("No questions match the selected filters")
