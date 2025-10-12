@@ -224,42 +224,63 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
         st.markdown(f"**Showing {len(filtered_results)} of {len(run['results'])} questions**")
 
         if filtered_results:
+            table_data = []
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
                 leg_score = result.get("legibility", {}).get("score", 0)
                 correctness = result.get("correctness", {}).get("correctness", "unknown")
 
-                correctness_color = {
-                    "correct": "🟢",
-                    "partially_correct": "🟡",
-                    "incorrect": "🔴"
-                }.get(correctness, "⚪")
+                correctness_display = {
+                    "correct": "✓ Correct",
+                    "partially_correct": "~ Partially Correct",
+                    "incorrect": "✗ Incorrect"
+                }.get(correctness, "? Unknown")
 
-                with st.expander(f"{correctness_color} {qid} - Legibility: {leg_score:.2f}"):
-                    st.markdown("#### Question")
-                    st.write(result.get("question", "N/A"))
+                table_data.append({
+                    "ID": qid,
+                    "Legibility": f"{leg_score:.2f}",
+                    "Correctness": correctness_display
+                })
 
-                    st.markdown("#### Expected Answer")
-                    st.write(result.get("correct_answer", "N/A"))
+            questions_df = pd.DataFrame(table_data)
+            st.dataframe(questions_df, use_container_width=True, hide_index=True)
 
-                    if result.get("reasoning"):
-                        st.markdown("#### Model Reasoning")
-                        st.text_area("", result.get("reasoning"), height=200, key=f"reasoning_{i}", label_visibility="collapsed")
+            st.markdown("---")
+            st.subheader("Question Details")
 
-                    st.markdown("#### Model Answer")
-                    st.text_area("", result.get("answer", "N/A"), height=200, key=f"answer_{i}", label_visibility="collapsed")
+            question_ids = [r.get("question_id", f"Question {i+1}") for i, r in enumerate(filtered_results)]
+            selected_question = st.selectbox("Select a question to view details:", question_ids)
 
-                    st.markdown("#### Scores")
-                    col1, col2 = st.columns(2)
+            selected_idx = question_ids.index(selected_question)
+            result = filtered_results[selected_idx]
 
-                    with col1:
-                        st.markdown("**Legibility**")
-                        st.write(f"Score: {leg_score:.2f}")
-                        st.write(result.get("legibility", {}).get("explanation", "N/A"))
+            st.markdown("#### Question")
+            st.write(result.get("question", "N/A"))
 
-                    with col2:
-                        st.markdown("**Correctness**")
-                        st.write(f"Grade: {correctness}")
-                        st.write(result.get("correctness", {}).get("explanation", "N/A"))
+            st.markdown("#### Expected Answer")
+            st.write(result.get("correct_answer", "N/A"))
+
+            if result.get("reasoning"):
+                st.markdown("#### Model Reasoning")
+                st.text_area("", result.get("reasoning"), height=200, key="reasoning_detail", label_visibility="collapsed")
+
+            st.markdown("#### Model Answer")
+            st.text_area("", result.get("answer", "N/A"), height=200, key="answer_detail", label_visibility="collapsed")
+
+            st.markdown("#### Scores")
+            col1, col2 = st.columns(2)
+
+            leg_score = result.get("legibility", {}).get("score", 0)
+            correctness = result.get("correctness", {}).get("correctness", "unknown")
+
+            with col1:
+                st.markdown("**Legibility**")
+                st.write(f"Score: {leg_score:.2f}")
+                st.write(result.get("legibility", {}).get("explanation", "N/A"))
+
+            with col2:
+                st.markdown("**Correctness**")
+                st.write(f"Grade: {correctness}")
+                st.write(result.get("correctness", {}).get("explanation", "N/A"))
         else:
             st.info("No questions match the selected filters")
