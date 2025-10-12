@@ -229,22 +229,39 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             st.markdown("""
                 <style>
-                .compact-table-row {
-                    padding: 2px 0px;
-                    margin: 0px;
+                .table-header {
+                    background-color: #f1f1f1;
+                    padding: 12px 8px;
+                    font-weight: bold;
+                    border-bottom: 2px solid #ddd;
+                    font-size: 14px;
+                    color: #333;
+                }
+                .table-row-even {
+                    background-color: #f9f9f9;
+                    padding: 8px;
+                    border-bottom: 1px solid #ddd;
+                }
+                .table-row-odd {
+                    background-color: white;
+                    padding: 8px;
+                    border-bottom: 1px solid #ddd;
+                }
+                div[data-testid="column"] {
+                    padding: 0px !important;
                 }
                 </style>
             """, unsafe_allow_html=True)
 
             col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
             with col1:
-                st.markdown("**ID**")
+                st.markdown("<div class='table-header'>ID</div>", unsafe_allow_html=True)
             with col2:
-                st.markdown("**Legibility**")
+                st.markdown("<div class='table-header'>Legibility</div>", unsafe_allow_html=True)
             with col3:
-                st.markdown("**Correctness**")
+                st.markdown("<div class='table-header'>Correctness</div>", unsafe_allow_html=True)
             with col4:
-                st.markdown("**Action**")
+                st.markdown("<div class='table-header'>Action</div>", unsafe_allow_html=True)
 
             with st.container(height=400):
                 for i, result in enumerate(filtered_results):
@@ -258,13 +275,15 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                         "incorrect": "✗ Incorrect"
                     }.get(correctness, "? Unknown")
 
+                    row_class = "table-row-even" if i % 2 == 0 else "table-row-odd"
+
                     col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
                     with col1:
-                        st.markdown(f"<div class='compact-table-row'>{qid}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='{row_class}'>{qid}</div>", unsafe_allow_html=True)
                     with col2:
-                        st.markdown(f"<div class='compact-table-row'>{leg_score:.2f}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='{row_class}'>{leg_score:.2f}</div>", unsafe_allow_html=True)
                     with col3:
-                        st.markdown(f"<div class='compact-table-row'>{correctness_display}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='{row_class}'>{correctness_display}</div>", unsafe_allow_html=True)
                     with col4:
                         if st.button("View", key=f"view_{i}", use_container_width=True):
                             st.session_state.selected_question_idx = i
