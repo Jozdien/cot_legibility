@@ -2,23 +2,23 @@
 
 ## Setup
 
-1. Install dependencies:
+1. **Install dependencies**:
 
 ```bash
 uv pip install -r requirements.txt
 ```
 
-2. Set up environment variables:
+2. **Set up environment variables**:
 
 You should copy `.env.example` to `.env` and fill in the API keys. Which ones are necessary depend on which models you're evaluating—e.g. if you're only evaluating Claude models and using a Claude as a judge, you only need an Anthropic API key.
 
-3. Test pipeline:
+3. **Test pipeline**:
 
 ```bash
 ./run.sh config/quick_test.yaml
 ```
 
-4. Run Streamlit app
+4. **Run Streamlit app**
 
 ```bash
 streamlit run streamlit_app.py
