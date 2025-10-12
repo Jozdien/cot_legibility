@@ -24,6 +24,13 @@ class OpenRouterProvider(Provider):
         if model_config.get("include_reasoning"):
             extra_body["include_reasoning"] = True
 
+        if "openrouter_provider" in model_config:
+            provider_config = model_config["openrouter_provider"]
+            if isinstance(provider_config, str):
+                extra_body["provider"] = {"order": [provider_config], "allow_fallbacks": False}
+            elif isinstance(provider_config, dict):
+                extra_body["provider"] = provider_config
+
         completion = self.client.chat.completions.create(
             model=model_config["model_id"],
             messages=[{"role": "user", "content": question}],
