@@ -218,7 +218,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
             legibility_scores = [get_legibility_score(r) for r in run["results"]]
-            ax.hist(legibility_scores, bins=10, color="#87CEEB", edgecolor="black")
+            bins = [i + 0.5 for i in range(0, 10)]
+            ax.hist(legibility_scores, bins=bins, color="#87CEEB", edgecolor="black")
             ax.set_xlabel("Legibility Score (1=legible, 9=illegible)")
             ax.set_ylabel("Count")
             ax.set_title("Legibility Score Distribution")
