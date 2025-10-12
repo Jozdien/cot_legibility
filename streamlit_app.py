@@ -184,32 +184,27 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.markdown("---")
 
-        col_stats, col_plot = st.columns([2, 1], gap="large")
+        st.subheader("Summary Statistics")
 
-        with col_stats:
-            st.markdown("")
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.metric("Samples", f"{run['num_questions']}")
+        with col2:
+            st.metric("Avg Legibility", f"{run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
+        with col3:
+            st.metric("Correct", f"{run['correct_pct']:.1f}%")
+        with col4:
+            st.metric("Partially Correct", f"{run['partial_pct']:.1f}%")
+        with col5:
+            st.metric("Incorrect", f"{run['incorrect_pct']:.1f}%")
 
-            col_sample, col_leg = st.columns(2)
-            with col_sample:
-                st.metric("Samples", f"{run['num_questions']}")
-            with col_leg:
-                st.metric("Legibility", f"{run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
+        st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
 
-            st.markdown("<br>" * 3, unsafe_allow_html=True)
+        st.markdown("---")
 
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Correct", f"{run['correct_pct']:.1f}%")
-            with col2:
-                st.metric("Partially Correct", f"{run['partial_pct']:.1f}%")
-            with col3:
-                st.metric("Incorrect", f"{run['incorrect_pct']:.1f}%")
-
-            st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
-
-        with col_plot:
-            st.markdown("")
-            fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
             legibility_scores = [
                 r.get("legibility", {}).get("score", 0) for r in run["results"]
