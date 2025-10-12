@@ -221,27 +221,35 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 correctness in correctness_options):
                 filtered_results.append(result)
 
-        if filtered_results:
-            col1, col2 = st.columns([2, 5])
-            with col1:
-                num_to_show = st.selectbox(
-                    "outputs",
-                    options=[10, 25, 50, 100, len(filtered_results)],
-                    index=1 if len(filtered_results) > 25 else len([10, 25, 50, 100, len(filtered_results)]) - 1,
-                    key="num_outputs",
-                    format_func=lambda x: f"Show {x} outputs"
-                )
-            with col2:
-                st.markdown("<div style='padding-top: 8px; color: #6c757d; font-size: 0.875rem;'>← Select the checkbox on the left of each row to view details</div>", unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            num_to_show = st.selectbox(
+                "Show",
+                options=[25, 50, 100, len(filtered_results)],
+                format_func=lambda x: f"{x} outputs" if x != len(filtered_results) else "All outputs",
+                key="num_outputs"
+            )
 
-            search_query = st.text_input("Search", placeholder="Search by ID, legibility, or correctness...", key="search", label_visibility="collapsed")
+        st.caption("Select the checkbox on the left of each row to view details")
+
+        search_query = st.text_input("Search", placeholder="Search by ID, legibility, or correctness...", key="search_query")
+
+        if search_query:
+            search_lower = search_query.lower()
+            filtered_results = [
+                r for r in filtered_results
+                if search_lower in str(r.get("question_id", "")).lower() or
+                   search_lower in str(r.get("legibility", {}).get("score", "")).lower() or
+                   search_lower in str(r.get("correctness", {}).get("correctness", "")).lower()
+            ]
+
+        filtered_results = filtered_results[:num_to_show]
 
         if filtered_results:
             if "selected_question_idx" not in st.session_state:
                 st.session_state.selected_question_idx = None
 
             table_data = []
-            result_indices = []
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
                 leg_score = result.get("legibility", {}).get("score", 0)
@@ -253,22 +261,12 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     "incorrect": "✗ Incorrect"
                 }.get(correctness, "? Unknown")
 
-                if search_query:
-                    search_lower = search_query.lower()
-                    if not (search_lower in qid.lower() or
-                            search_lower in f"{leg_score:.2f}" or
-                            search_lower in correctness_display.lower()):
-                        continue
-
                 table_data.append({
                     "ID": qid,
                     "Legibility": f"{leg_score:.2f}",
                     "Correctness": correctness_display
                 })
-                result_indices.append(i)
 
-            table_data = table_data[:num_to_show]
-            result_indices = result_indices[:num_to_show]
             table_df = pd.DataFrame(table_data)
 
             event = st.dataframe(
@@ -281,8 +279,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             )
 
             if event.selection and "rows" in event.selection and len(event.selection["rows"]) > 0:
-                selected_row_in_table = event.selection["rows"][0]
-                st.session_state.selected_question_idx = result_indices[selected_row_in_table]
+                selected_row = event.selection["rows"][0]
+                st.session_state.selected_question_idx = selected_row
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
