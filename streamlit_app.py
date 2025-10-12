@@ -188,8 +188,14 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         with col_stats:
             st.markdown("")
-            st.metric("Samples", f"{run['num_questions']}")
-            st.metric("Legibility", f"{run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
+
+            col_sample, col_leg = st.columns(2)
+            with col_sample:
+                st.metric("Samples", f"{run['num_questions']}")
+            with col_leg:
+                st.metric("Legibility", f"{run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
+
+            st.markdown("<br>" * 3, unsafe_allow_html=True)
 
             col1, col2, col3 = st.columns(3)
             with col1:
