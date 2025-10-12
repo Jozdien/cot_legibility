@@ -227,46 +227,47 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             if "selected_question_idx" not in st.session_state:
                 st.session_state.selected_question_idx = None
 
-            table_data = []
-            for i, result in enumerate(filtered_results):
-                qid = result.get("question_id", f"Question {i+1}")
-                leg_score = result.get("legibility", {}).get("score", 0)
-                correctness = result.get("correctness", {}).get("correctness", "unknown")
+            st.markdown("""
+                <style>
+                .compact-table-row {
+                    padding: 2px 0px;
+                    margin: 0px;
+                }
+                </style>
+            """, unsafe_allow_html=True)
 
-                correctness_display = {
-                    "correct": "✓ Correct",
-                    "partially_correct": "~ Partially Correct",
-                    "incorrect": "✗ Incorrect"
-                }.get(correctness, "? Unknown")
-
-                table_data.append({
-                    "ID": qid,
-                    "Legibility": f"{leg_score:.2f}",
-                    "Correctness": correctness_display
-                })
-
-            questions_df = pd.DataFrame(table_data)
-
-            col1, col2 = st.columns([5, 1])
+            col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
             with col1:
-                event = st.dataframe(
-                    questions_df,
-                    use_container_width=True,
-                    hide_index=True,
-                    on_select="rerun",
-                    selection_mode="single-row",
-                    height=400
-                )
-
+                st.markdown("**ID**")
             with col2:
-                st.markdown("<div style='height: 400px; overflow-y: auto;'>", unsafe_allow_html=True)
-                for i in range(len(filtered_results)):
-                    if st.button("View", key=f"view_{i}", use_container_width=True):
-                        st.session_state.selected_question_idx = i
-                st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("**Legibility**")
+            with col3:
+                st.markdown("**Correctness**")
+            with col4:
+                st.markdown("**Action**")
 
-            if event.selection.rows:
-                st.session_state.selected_question_idx = event.selection.rows[0]
+            with st.container(height=400):
+                for i, result in enumerate(filtered_results):
+                    qid = result.get("question_id", f"Question {i+1}")
+                    leg_score = result.get("legibility", {}).get("score", 0)
+                    correctness = result.get("correctness", {}).get("correctness", "unknown")
+
+                    correctness_display = {
+                        "correct": "✓ Correct",
+                        "partially_correct": "~ Partially Correct",
+                        "incorrect": "✗ Incorrect"
+                    }.get(correctness, "? Unknown")
+
+                    col1, col2, col3, col4 = st.columns([3, 1, 2, 1])
+                    with col1:
+                        st.markdown(f"<div class='compact-table-row'>{qid}</div>", unsafe_allow_html=True)
+                    with col2:
+                        st.markdown(f"<div class='compact-table-row'>{leg_score:.2f}</div>", unsafe_allow_html=True)
+                    with col3:
+                        st.markdown(f"<div class='compact-table-row'>{correctness_display}</div>", unsafe_allow_html=True)
+                    with col4:
+                        if st.button("View", key=f"view_{i}", use_container_width=True):
+                            st.session_state.selected_question_idx = i
 
             if st.session_state.selected_question_idx is not None:
                 st.markdown("---")
