@@ -2,6 +2,7 @@ from datasets import load_from_disk
 from pathlib import Path
 from typing import Iterator
 import random
+from .download import download_dataset
 
 
 class Dataset:
@@ -23,7 +24,8 @@ class Dataset:
 
         dataset_path = self.data_dir / dataset_map[self.name]
         if not dataset_path.exists():
-            raise FileNotFoundError(f"Dataset not found at {dataset_path}. Run get_{self.name}.py to download.")
+            print(f"Dataset not found at {dataset_path}, downloading...")
+            download_dataset(dataset_map[self.name], self.data_dir)
 
         self._data = load_from_disk(str(dataset_path))
 
