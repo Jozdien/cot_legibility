@@ -334,7 +334,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 if result.get("reasoning"):
                     st.markdown("#### Model Reasoning")
                     st.text_area(
-                        "",
+                        "Model Reasoning",
                         result.get("reasoning"),
                         height=200,
                         key="reasoning_detail",
@@ -343,7 +343,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
                 st.markdown("#### Model Answer")
                 st.text_area(
-                    "",
+                    "Model Answer",
                     result.get("answer", "N/A"),
                     height=200,
                     key="answer_detail",
