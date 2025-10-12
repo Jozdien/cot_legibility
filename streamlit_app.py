@@ -184,15 +184,25 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.markdown("---")
 
-        col_stats, col_plot = st.columns([2, 1])
+        col_stats, col_plot = st.columns([2, 1], gap="large")
 
         with col_stats:
-            st.markdown(f"**Samples:** {run['num_questions']}")
-            st.markdown(f"**Legibility:** {run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
-            st.markdown(f"**Correct:** {run['correct_pct']:.1f}%   **Partially Correct:** {run['partial_pct']:.1f}%   **Incorrect:** {run['incorrect_pct']:.1f}%")
+            st.markdown("")
+            st.metric("Samples", f"{run['num_questions']}")
+            st.metric("Legibility", f"{run['avg_legibility']:.2f}±{run['legibility_std']:.2f}")
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Correct", f"{run['correct_pct']:.1f}%")
+            with col2:
+                st.metric("Partially Correct", f"{run['partial_pct']:.1f}%")
+            with col3:
+                st.metric("Incorrect", f"{run['incorrect_pct']:.1f}%")
+
             st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
 
         with col_plot:
+            st.markdown("")
             fig, ax = plt.subplots(1, 1, figsize=(5, 4))
 
             legibility_scores = [
