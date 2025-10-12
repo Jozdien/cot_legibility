@@ -1,20 +1,26 @@
 # CoT Faithfulness Research Pipeline
 
-## Quick Start
+## Setup
+
+1. Install dependencies:
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+uv pip install -r requirements.txt
+```
 
-# Add (OpenRouter, OpenAI, Anthropic) API keys to .env
+2. Set up environment variables:
 
-# Download a dataset (if needed)
-python get_gpqa_d.py
+You should copy `.env.example` to `.env` and fill in the API keys. Which ones are necessary depend on which models you're evaluating—e.g. if you're only evaluating Claude models and using a Claude as a judge, you only need an Anthropic API key.
 
-# Run quick test
+3. Test pipeline:
+
+```bash
 ./run.sh config/quick_test.yaml
+```
 
-# Explore results (optional)
+4. Run Streamlit app
+
+```bash
 streamlit run streamlit_app.py
 ```
 
@@ -44,7 +50,7 @@ cot_faithfulness/
 ## Pipeline Stages
 
 ### 1. Inference
-- Loads dataset from `data/`
+- Downloads dataset to `data/`, or simply loads dataset if already present
 - Calls model APIs
 - Streams results to `inference.jsonl`
 
