@@ -269,7 +269,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             )
         with col3:
             search_query = st.text_input(
-                "Search", placeholder="Search by ID...", key="search"
+                "Search", placeholder="Search all content...", key="search"
             )
 
         if filtered_results:
@@ -280,8 +280,19 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
 
-                if search_query and search_query.lower() not in qid.lower():
-                    continue
+                if search_query:
+                    searchable_text = " ".join([
+                        str(result.get("question_id", "")),
+                        str(result.get("question", "")),
+                        str(result.get("reasoning", "")),
+                        str(result.get("answer", "")),
+                        str(result.get("correct_answer", "")),
+                        str(result.get("legibility", {}).get("explanation", "")),
+                        str(result.get("correctness", {}).get("explanation", "")),
+                    ]).lower()
+
+                    if search_query.lower() not in searchable_text:
+                        continue
 
                 correctness_display = CORRECTNESS_DISPLAY.get(
                     get_correctness(result), "? Unknown"
