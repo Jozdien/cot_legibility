@@ -83,8 +83,10 @@ inference:
       include_reasoning: true
   datasets:
     - name: "gpqa"              # gpqa, mmlu_pro, scienceqa, chembench
-      num_questions: 200
-      shuffle: true
+      num_questions: 200        # Number of questions to sample (ignored if question_ids provided)
+      shuffle: true             # Shuffle questions before sampling
+      samples_per_question: 1   # Number of samples to generate per question (default: 1)
+      # question_ids: ["gpqa_0", "gpqa_1"]  # Optional: specific question IDs to use
   concurrency:
     max_workers: 30
 
@@ -114,8 +116,8 @@ Use these in the `plots:` list for analyzing individual runs:
 - **`legibility_by_correctness`**: Boxplots comparing legibility across correctness categories
 - **`length_vs_legibility`**: Scatter plot of answer length vs legibility score
 - **`legibility_by_difficulty`**: Boxplots grouped by question difficulty (easy/medium/hard). Requires `baseline_file` in config
-- **`correctness_vs_legibility_scatter`**: Density scatter plot showing relationship between correctness and legibility with KDE coloring
-- **`correctness_vs_legibility_scatter_normalized`**: Same as above but with normalized legibility scores (score per 1000 characters of reasoning)
+- **`correctness_vs_legibility_scatter`**: Density scatter plot showing within-question variance (requires multiple samples per question)
+- **`correctness_vs_legibility_scatter_normalized`**: Same as above but with length-normalized scores (scaled by median reasoning length)
 - **`legibility_progression`**: Boxplots showing how legibility changes through CoT chunks. Requires `grade_legibility_chunks: true` in evaluation config
 
 ### Comparison Plots
@@ -125,8 +127,8 @@ Use these in `comparison.plot_types:` for analyzing multiple runs:
 - **`model_comparison`**: Side-by-side boxplots of Response and Reasoning legibility across models
 - **`legibility_comparison`**: Bar chart comparing mean legibility scores with error bars
 - **`legibility_by_difficulty_comparison`**: Multi-model version of legibility by difficulty. Requires `baseline_file` in config
-- **`correctness_vs_legibility_scatter_comparison`**: Density scatter aggregating all runs
-- **`correctness_vs_legibility_scatter_comparison_normalized`**: Same with normalized scores (score per 1000 characters of reasoning)
+- **`correctness_vs_legibility_scatter_comparison`**: Density scatter showing within-question variance across all runs
+- **`correctness_vs_legibility_scatter_comparison_normalized`**: Same with length-normalized scores (scaled by median reasoning length)
 
 ### Config Notes
 
@@ -143,6 +145,26 @@ analysis:
 ```
 
 ## Usage Examples
+
+### Multiple samples per question
+```yaml
+# Generate 5 samples per question for variance analysis
+inference:
+  datasets:
+    - name: "gpqa"
+      num_questions: 10
+      samples_per_question: 5  # Creates 50 total samples (10 questions × 5 samples)
+```
+
+### Specific question IDs with multiple samples
+```yaml
+# Generate multiple samples for specific questions only
+inference:
+  datasets:
+    - name: "gpqa"
+      question_ids: ["gpqa_0", "gpqa_5", "gpqa_10"]  # Select specific questions
+      samples_per_question: 3  # Creates 9 total samples (3 questions × 3 samples)
+```
 
 ### Run only evaluation on existing inference
 ```yaml
@@ -201,9 +223,16 @@ Automatically aggregates multiple runs of the same model+dataset combination.
 
 ## Output Formats
 
-### inference.jsonl
+### inference.json
 ```json
 {"question_id": "gpqa_0", "question": "...", "answer": "...", "reasoning": "...", "model": "R1", "dataset": "gpqa", "temperature": 1.0, "timestamp": "...", "metadata": {...}}
+```
+
+When using `samples_per_question > 1`, samples share the same `question_id` but have unique `sample_index`:
+```json
+{"question_id": "gpqa_0", "sample_index": 0, ...}
+{"question_id": "gpqa_0", "sample_index": 1, ...}
+{"question_id": "gpqa_0", "sample_index": 2, ...}
 ```
 
 ### evaluation.json

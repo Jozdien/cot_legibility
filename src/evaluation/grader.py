@@ -71,7 +71,12 @@ class Grader:
 
 
 def grade_item(item: dict, grader: Grader, config: dict) -> dict:
-    result = {"question_id": item["question_id"], "question": item["question"], "answer": item.get("answer")}
+    result = {
+        "question_id": item["question_id"],
+        "sample_index": item.get("sample_index", 0),
+        "question": item["question"],
+        "answer": item.get("answer")
+    }
 
     reasoning = item.get("reasoning")
     if reasoning:

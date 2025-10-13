@@ -18,6 +18,8 @@ def process_question(question_data: dict, model_config: dict, provider) -> dict:
         }
         if "provider_model" in result:
             metadata["provider_model"] = result["provider_model"]
+        if "openrouter_provider" in result:
+            metadata["openrouter_provider"] = result["openrouter_provider"]
 
         return {
             **question_data,
@@ -43,9 +45,33 @@ def run_inference_stage(config: dict, output_dir: Path, logger) -> None:
 
     logger.info(f"Loading dataset: {dataset_config['name']}")
     dataset = Dataset(dataset_config["name"])
-    questions = list(dataset.get_questions(dataset_config.get("num_questions"), dataset_config.get("shuffle", False)))
 
-    logger.info(f"Loaded {len(questions)} questions")
+    question_ids = dataset_config.get("question_ids")
+    if question_ids:
+        logger.info(f"Filtering to {len(question_ids)} specific question IDs")
+        all_questions = list(dataset.get_questions(num_questions=None, shuffle=False))
+        question_map = {q["question_id"]: q for q in all_questions}
+        questions = [question_map[qid] for qid in question_ids if qid in question_map]
+        if len(questions) < len(question_ids):
+            logger.warning(f"Could not find {len(question_ids) - len(questions)} question IDs in dataset")
+    else:
+        questions = list(dataset.get_questions(dataset_config.get("num_questions"), dataset_config.get("shuffle", False)))
+
+    samples_per_question = dataset_config.get("samples_per_question", 1)
+    if samples_per_question > 1:
+        logger.info(f"Generating {samples_per_question} samples per question")
+        expanded_questions = []
+        for q in questions:
+            for sample_idx in range(samples_per_question):
+                sample_q = q.copy()
+                sample_q["sample_index"] = sample_idx
+                expanded_questions.append(sample_q)
+        questions = expanded_questions
+    else:
+        for q in questions:
+            q["sample_index"] = 0
+
+    logger.info(f"Loaded {len(questions)} total samples ({len(questions) // samples_per_question} unique questions)")
     logger.info(f"Initializing provider: {model_config['provider']}")
 
     provider = get_provider(model_config["provider"])

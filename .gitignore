@@ -15,4 +15,6 @@ data/
 archive/
 runs/
 
+*.pdf
+
 .DS_Store

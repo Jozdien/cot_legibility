@@ -118,16 +118,31 @@ def plot_legibility_by_correctness(evaluation: dict, output_dir: Path) -> None:
 def plot_length_vs_legibility(evaluation: dict, output_dir: Path) -> None:
     results = evaluation["results"]
 
+    length_map = {}
+    inference_file = evaluation.get("metadata", {}).get("inference_file")
+    if inference_file and Path(inference_file).exists():
+        inference_data = read_json(inference_file)
+        for item in inference_data:
+            reasoning = item.get("reasoning", "")
+            if reasoning:
+                q_id = item["question_id"]
+                sample_idx = item.get("sample_index", 0)
+                length_map[(q_id, sample_idx)] = len(reasoning)
+
     lengths = []
     scores = []
 
     for r in results:
-        if "legibility" in r and "answer" in r:
-            score = r["legibility"].get("score")
-            text = r.get("answer", "")
-            if isinstance(score, (int, float)) and text:
-                lengths.append(len(text))
-                scores.append(score)
+        q_id = r.get("question_id")
+        sample_idx = r.get("sample_index", 0)
+        length = length_map.get((q_id, sample_idx))
+        if not length:
+            continue
+
+        score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
+        if isinstance(score, (int, float)):
+            lengths.append(length)
+            scores.append(score)
 
     if not lengths:
         return
@@ -135,9 +150,9 @@ def plot_length_vs_legibility(evaluation: dict, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.scatter(lengths, scores, alpha=0.5, color="#3498db")
 
-    ax.set_xlabel("Text Length (characters)", fontsize=12)
+    ax.set_xlabel("Reasoning Length (characters)", fontsize=12)
     ax.set_ylabel("Illegibility Score", fontsize=12)
-    ax.set_title("Text Length vs Illegibility", fontsize=14)
+    ax.set_title("Reasoning Length vs Illegibility", fontsize=14)
     ax.set_ylim(0, 10)
     ax.grid(True, alpha=0.3)
 
@@ -412,12 +427,15 @@ def plot_correctness_vs_legibility_scatter(
             for item in inference_data:
                 reasoning = item.get("reasoning", "")
                 if reasoning:
-                    length_map[item["question_id"]] = len(reasoning)
+                    q_id = item["question_id"]
+                    sample_idx = item.get("sample_index", 0)
+                    length_map[(q_id, sample_idx)] = len(reasoning)
 
-    correctness_vals = []
-    legibility_vals = []
+    median_length = np.median(list(length_map.values())) if length_map else 1
 
+    by_question = {}
     for r in evaluation["results"]:
+        q_id = r.get("question_id")
         corr = r.get("correctness", {}).get("correctness")
         if corr not in correctness_map:
             continue
@@ -427,55 +445,101 @@ def plot_correctness_vs_legibility_scatter(
             continue
 
         if use_normalized:
-            q_id = r.get("question_id")
-            length = length_map.get(q_id)
+            sample_idx = r.get("sample_index", 0)
+            length = length_map.get((q_id, sample_idx))
             if not length or length == 0:
                 continue
-            score = score / length * 1000
+            score = (score / length) * median_length
 
-        correctness_vals.append(correctness_map[corr])
-        legibility_vals.append(score)
+        if q_id not in by_question:
+            by_question[q_id] = {"correctness": [], "legibility": [], "question": r.get("question", "")}
+        by_question[q_id]["correctness"].append(correctness_map[corr])
+        by_question[q_id]["legibility"].append(score)
 
-    if not correctness_vals or not legibility_vals:
+    questions_with_multiple = {q_id: data for q_id, data in by_question.items() if len(data["correctness"]) > 1}
+
+    if not questions_with_multiple:
+        print("  Skipping correctness_vs_legibility_scatter: no questions with multiple samples")
         return
 
-    correctness_vals = np.array(correctness_vals)
-    legibility_vals = np.array(legibility_vals)
+    question_correlations = []
+    for q_id, data in questions_with_multiple.items():
+        corr_vals = np.array(data["correctness"])
+        leg_vals = np.array(data["legibility"])
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    for x_val in [0, 0.5, 1]:
-        mask = correctness_vals == x_val
-        if not mask.any():
+        if len(set(corr_vals)) <= 1:
             continue
 
-        y = legibility_vals[mask]
-        if len(y) < 2:
-            ax.scatter([x_val] * len(y), y, alpha=0.6, s=30, color="#3498db")
-            continue
+        if len(set(leg_vals)) > 1:
+            corr_coef, _ = scipy_stats.pearsonr(corr_vals, leg_vals)
+        else:
+            corr_coef = 0
+        question_correlations.append((q_id, corr_coef, data))
 
-        x_jitter = np.random.normal(0, 0.02, size=len(y)) + x_val
-        xy = np.vstack([x_jitter, y])
+    if not question_correlations:
+        print("  Skipping correctness_vs_legibility_scatter: no questions with variance in correctness")
+        return
 
-        try:
-            density = scipy_stats.gaussian_kde(xy)(xy)
-            density_scaled = (density - density.min()) / (density.max() - density.min())
-            ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
-        except Exception:
-            ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
+    question_correlations.sort(key=lambda x: x[1])
 
-    boxplot_data = [legibility_vals[correctness_vals == x] for x in [0, 0.5, 1]]
-    bp = ax.boxplot(boxplot_data, positions=[0, 0.5, 1], widths=0.1, patch_artist=True)
-    for box in bp["boxes"]:
-        box.set(facecolor="white", alpha=0.5)
+    n_questions = len(question_correlations)
+    if n_questions == 1:
+        selected_indices = [0]
+    elif n_questions == 2:
+        selected_indices = [0, 1]
+    elif n_questions == 3:
+        selected_indices = [0, 1, 2]
+    else:
+        selected_indices = [0, n_questions // 3, 2 * n_questions // 3, n_questions - 1]
 
-    ax.set_xticks([0, 0.5, 1])
-    ax.set_xticklabels(["Incorrect", "Partial", "Correct"])
-    ax.set_ylabel(
-        f"{'Normalized ' if use_normalized else ''}Illegibility Score", fontsize=12
-    )
-    ax.set_ylim(0, 10)
-    ax.grid(True, linestyle="--", alpha=0.3)
+    selected_questions = [question_correlations[i] for i in selected_indices]
+
+    n_cols = min(2, len(selected_questions))
+    n_rows = (len(selected_questions) + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows))
+    if n_rows * n_cols == 1:
+        axes = [axes]
+    else:
+        axes = axes.flatten()
+
+    for idx, (q_id, corr_coef, data) in enumerate(selected_questions):
+        ax = axes[idx]
+
+        corr_vals = np.array(data["correctness"])
+        leg_vals = np.array(data["legibility"])
+
+        for x_val in [0, 0.5, 1]:
+            mask = corr_vals == x_val
+            if not mask.any():
+                continue
+
+            y = leg_vals[mask]
+            if len(y) < 2:
+                ax.scatter([x_val] * len(y), y, alpha=0.6, s=30, color="#3498db")
+                continue
+
+            x_jitter = np.random.normal(0, 0.02, size=len(y)) + x_val
+            xy = np.vstack([x_jitter, y])
+
+            try:
+                density = scipy_stats.gaussian_kde(xy)(xy)
+                density_scaled = (density - density.min()) / (density.max() - density.min())
+                ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
+            except Exception:
+                ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
+
+        ax.set_xticks([0, 0.5, 1])
+        ax.set_xticklabels(["Inc", "Part", "Corr"], fontsize=9)
+        ax.set_ylabel(f"{'Norm ' if use_normalized else ''}Illegibility", fontsize=10)
+        ax.set_ylim(0, 10)
+        ax.grid(True, linestyle="--", alpha=0.3)
+
+        question_preview = data["question"][:60] + "..." if len(data["question"]) > 60 else data["question"]
+        ax.set_title(f"r={corr_coef:.2f}, n={len(corr_vals)}\n{question_preview}", fontsize=9)
+
+    for idx in range(len(selected_questions), len(axes)):
+        axes[idx].set_visible(False)
 
     plt.tight_layout()
     suffix = "_normalized" if use_normalized else ""
@@ -490,8 +554,8 @@ def plot_correctness_vs_legibility_scatter_comparison(
 
     correctness_map = {"correct": 1, "partially_correct": 0.5, "incorrect": 0}
 
-    all_correctness = []
-    all_legibility = []
+    by_question = {}
+    all_lengths = []
 
     for _, ev in evaluations:
         length_map = {}
@@ -502,9 +566,29 @@ def plot_correctness_vs_legibility_scatter_comparison(
                 for item in inference_data:
                     reasoning = item.get("reasoning", "")
                     if reasoning:
-                        length_map[item["question_id"]] = len(reasoning)
+                        q_id = item["question_id"]
+                        sample_idx = item.get("sample_index", 0)
+                        length = len(reasoning)
+                        length_map[(q_id, sample_idx)] = length
+                        all_lengths.append(length)
+
+    median_length = np.median(all_lengths) if all_lengths else 1
+
+    for _, ev in evaluations:
+        length_map = {}
+        if use_normalized:
+            inference_file = ev.get("metadata", {}).get("inference_file")
+            if inference_file and Path(inference_file).exists():
+                inference_data = read_json(inference_file)
+                for item in inference_data:
+                    reasoning = item.get("reasoning", "")
+                    if reasoning:
+                        q_id = item["question_id"]
+                        sample_idx = item.get("sample_index", 0)
+                        length_map[(q_id, sample_idx)] = len(reasoning)
 
         for r in ev["results"]:
+            q_id = r.get("question_id")
             corr = r.get("correctness", {}).get("correctness")
             if corr not in correctness_map:
                 continue
@@ -514,55 +598,101 @@ def plot_correctness_vs_legibility_scatter_comparison(
                 continue
 
             if use_normalized:
-                q_id = r.get("question_id")
-                length = length_map.get(q_id)
+                sample_idx = r.get("sample_index", 0)
+                length = length_map.get((q_id, sample_idx))
                 if not length or length == 0:
                     continue
-                score = score / length * 1000
+                score = (score / length) * median_length
 
-            all_correctness.append(correctness_map[corr])
-            all_legibility.append(score)
+            if q_id not in by_question:
+                by_question[q_id] = {"correctness": [], "legibility": [], "question": r.get("question", "")}
+            by_question[q_id]["correctness"].append(correctness_map[corr])
+            by_question[q_id]["legibility"].append(score)
 
-    if not all_correctness or not all_legibility:
+    questions_with_multiple = {q_id: data for q_id, data in by_question.items() if len(data["correctness"]) > 1}
+
+    if not questions_with_multiple:
+        print("  Skipping correctness_vs_legibility_scatter_comparison: no questions with multiple samples")
         return
 
-    correctness_vals = np.array(all_correctness)
-    legibility_vals = np.array(all_legibility)
+    question_correlations = []
+    for q_id, data in questions_with_multiple.items():
+        corr_vals = np.array(data["correctness"])
+        leg_vals = np.array(data["legibility"])
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    for x_val in [0, 0.5, 1]:
-        mask = correctness_vals == x_val
-        if not mask.any():
+        if len(set(corr_vals)) <= 1:
             continue
 
-        y = legibility_vals[mask]
-        if len(y) < 2:
-            ax.scatter([x_val] * len(y), y, alpha=0.6, s=30, color="#3498db")
-            continue
+        if len(set(leg_vals)) > 1:
+            corr_coef, _ = scipy_stats.pearsonr(corr_vals, leg_vals)
+        else:
+            corr_coef = 0
+        question_correlations.append((q_id, corr_coef, data))
 
-        x_jitter = np.random.normal(0, 0.02, size=len(y)) + x_val
-        xy = np.vstack([x_jitter, y])
+    if not question_correlations:
+        print("  Skipping correctness_vs_legibility_scatter_comparison: no questions with variance in correctness")
+        return
 
-        try:
-            density = scipy_stats.gaussian_kde(xy)(xy)
-            density_scaled = (density - density.min()) / (density.max() - density.min())
-            ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
-        except Exception:
-            ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
+    question_correlations.sort(key=lambda x: x[1])
 
-    boxplot_data = [legibility_vals[correctness_vals == x] for x in [0, 0.5, 1]]
-    bp = ax.boxplot(boxplot_data, positions=[0, 0.5, 1], widths=0.1, patch_artist=True)
-    for box in bp["boxes"]:
-        box.set(facecolor="white", alpha=0.5)
+    n_questions = len(question_correlations)
+    if n_questions == 1:
+        selected_indices = [0]
+    elif n_questions == 2:
+        selected_indices = [0, 1]
+    elif n_questions == 3:
+        selected_indices = [0, 1, 2]
+    else:
+        selected_indices = [0, n_questions // 3, 2 * n_questions // 3, n_questions - 1]
 
-    ax.set_xticks([0, 0.5, 1])
-    ax.set_xticklabels(["Incorrect", "Partial", "Correct"])
-    ax.set_ylabel(
-        f"{'Normalized ' if use_normalized else ''}Illegibility Score", fontsize=12
-    )
-    ax.set_ylim(0, 10)
-    ax.grid(True, linestyle="--", alpha=0.3)
+    selected_questions = [question_correlations[i] for i in selected_indices]
+
+    n_cols = min(2, len(selected_questions))
+    n_rows = (len(selected_questions) + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows))
+    if n_rows * n_cols == 1:
+        axes = [axes]
+    else:
+        axes = axes.flatten()
+
+    for idx, (q_id, corr_coef, data) in enumerate(selected_questions):
+        ax = axes[idx]
+
+        corr_vals = np.array(data["correctness"])
+        leg_vals = np.array(data["legibility"])
+
+        for x_val in [0, 0.5, 1]:
+            mask = corr_vals == x_val
+            if not mask.any():
+                continue
+
+            y = leg_vals[mask]
+            if len(y) < 2:
+                ax.scatter([x_val] * len(y), y, alpha=0.6, s=30, color="#3498db")
+                continue
+
+            x_jitter = np.random.normal(0, 0.02, size=len(y)) + x_val
+            xy = np.vstack([x_jitter, y])
+
+            try:
+                density = scipy_stats.gaussian_kde(xy)(xy)
+                density_scaled = (density - density.min()) / (density.max() - density.min())
+                ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
+            except Exception:
+                ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
+
+        ax.set_xticks([0, 0.5, 1])
+        ax.set_xticklabels(["Inc", "Part", "Corr"], fontsize=9)
+        ax.set_ylabel(f"{'Norm ' if use_normalized else ''}Illegibility", fontsize=10)
+        ax.set_ylim(0, 10)
+        ax.grid(True, linestyle="--", alpha=0.3)
+
+        question_preview = data["question"][:60] + "..." if len(data["question"]) > 60 else data["question"]
+        ax.set_title(f"r={corr_coef:.2f}, n={len(corr_vals)}\n{question_preview}", fontsize=9)
+
+    for idx in range(len(selected_questions), len(axes)):
+        axes[idx].set_visible(False)
 
     plt.tight_layout()
     suffix = "_normalized" if use_normalized else ""

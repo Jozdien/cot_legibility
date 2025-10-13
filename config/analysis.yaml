@@ -6,15 +6,12 @@ analysis:
   comparison:
     enabled: true
     runs:
-      - "runs/20251012_014518_gpt-4o_gpqa"
-      - "runs/20251012_015033_R1_gpqa"
+      - "runs/20251013_001335_claude-3-7-sonnet-latest_gpqa"
+      - "runs/20251013_002904_gpt-4o_gpqa"
+      - "runs/20251013_035305_R1_gpqa"
     plot_types:
       - model_comparison
       - legibility_comparison
-
-  plots:
-    - legibility_scores_boxplot
-    - correctness_assessment
 
   statistics:
     - summary

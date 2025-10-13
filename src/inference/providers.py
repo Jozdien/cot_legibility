@@ -56,6 +56,9 @@ class OpenRouterProvider(Provider):
         if hasattr(completion, "model"):
             result["provider_model"] = completion.model
 
+        if hasattr(completion, "provider"):
+            result["openrouter_provider"] = completion.provider
+
         return result
 
 

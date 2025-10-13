@@ -12,7 +12,8 @@ inference:
 
   datasets:
     - name: "gpqa"
-      num_questions: 100
+      num_questions: 10
+      samples_per_question: 5
       shuffle: false
 
   concurrency:
@@ -25,6 +26,12 @@ evaluation:
   grade_correctness: true
 
 analysis:
+  baseline_file: "runs/20251013_001335_claude-3-7-sonnet-latest_gpqa/evaluation.json"
   plots:
     - legibility_scores_boxplot
     - correctness_assessment
+    - legibility_by_correctness
+    - length_vs_legibility
+    - correctness_vs_legibility_scatter
+    - correctness_vs_legibility_scatter_normalized
+    - legibility_by_difficulty
