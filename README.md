@@ -103,6 +103,45 @@ analysis:
     enabled: false
 ```
 
+## Available Plots
+
+### Single-Run Plots
+
+Use these in the `plots:` list for analyzing individual runs:
+
+- **`legibility_scores_boxplot`**: Basic boxplot of all legibility scores
+- **`correctness_assessment`**: Bar chart showing % correct/partial/incorrect
+- **`legibility_by_correctness`**: Boxplots comparing legibility across correctness categories
+- **`length_vs_legibility`**: Scatter plot of answer length vs legibility score
+- **`legibility_by_difficulty`**: Boxplots grouped by question difficulty (easy/medium/hard). Requires `baseline_file` in config
+- **`correctness_vs_legibility_scatter`**: Density scatter plot showing relationship between correctness and legibility with KDE coloring
+- **`correctness_vs_legibility_scatter_normalized`**: Same as above but with normalized legibility scores
+- **`legibility_progression`**: Boxplots showing how legibility changes through CoT chunks. Requires `grade_legibility_chunks: true` in evaluation config
+
+### Comparison Plots
+
+Use these in `comparison.plot_types:` for analyzing multiple runs:
+
+- **`model_comparison`**: Side-by-side boxplots of Response and Reasoning legibility across models
+- **`legibility_comparison`**: Bar chart comparing mean legibility scores with error bars
+- **`legibility_by_difficulty_comparison`**: Multi-model version of legibility by difficulty. Requires `baseline_file` in config
+- **`correctness_vs_legibility_scatter_comparison`**: Density scatter aggregating all runs
+- **`correctness_vs_legibility_scatter_comparison_normalized`**: Same with normalized scores
+
+### Config Notes
+
+```yaml
+# Enable separate response/reasoning grading
+evaluation:
+  grade_response_reasoning_separately: true  # For model_comparison boxplots
+  grade_legibility_chunks: true  # For legibility_progression (expensive!)
+  chunk_size: 5000
+
+# Provide baseline for difficulty-based plots
+analysis:
+  baseline_file: "runs/baseline_run/evaluation.json"
+```
+
 ## Usage Examples
 
 ### Run only evaluation on existing inference
