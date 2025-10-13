@@ -404,6 +404,16 @@ def plot_correctness_vs_legibility_scatter(
 
     correctness_map = {"correct": 1, "partially_correct": 0.5, "incorrect": 0}
 
+    length_map = {}
+    if use_normalized:
+        inference_file = evaluation.get("metadata", {}).get("inference_file")
+        if inference_file and Path(inference_file).exists():
+            inference_data = read_json(inference_file)
+            for item in inference_data:
+                reasoning = item.get("reasoning", "")
+                if reasoning:
+                    length_map[item["question_id"]] = len(reasoning)
+
     correctness_vals = []
     legibility_vals = []
 
@@ -412,15 +422,16 @@ def plot_correctness_vs_legibility_scatter(
         if corr not in correctness_map:
             continue
 
-        if use_normalized:
-            score = r.get("legibility_reasoning", r.get("legibility", {})).get(
-                "normalized_score"
-            )
-        else:
-            score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
-
+        score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
         if not isinstance(score, (int, float)):
             continue
+
+        if use_normalized:
+            q_id = r.get("question_id")
+            length = length_map.get(q_id)
+            if not length or length == 0:
+                continue
+            score = score / length * 1000
 
         correctness_vals.append(correctness_map[corr])
         legibility_vals.append(score)
@@ -483,22 +494,31 @@ def plot_correctness_vs_legibility_scatter_comparison(
     all_legibility = []
 
     for _, ev in evaluations:
+        length_map = {}
+        if use_normalized:
+            inference_file = ev.get("metadata", {}).get("inference_file")
+            if inference_file and Path(inference_file).exists():
+                inference_data = read_json(inference_file)
+                for item in inference_data:
+                    reasoning = item.get("reasoning", "")
+                    if reasoning:
+                        length_map[item["question_id"]] = len(reasoning)
+
         for r in ev["results"]:
             corr = r.get("correctness", {}).get("correctness")
             if corr not in correctness_map:
                 continue
 
-            if use_normalized:
-                score = r.get("legibility_reasoning", r.get("legibility", {})).get(
-                    "normalized_score"
-                )
-            else:
-                score = r.get("legibility_reasoning", r.get("legibility", {})).get(
-                    "score"
-                )
-
+            score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
             if not isinstance(score, (int, float)):
                 continue
+
+            if use_normalized:
+                q_id = r.get("question_id")
+                length = length_map.get(q_id)
+                if not length or length == 0:
+                    continue
+                score = score / length * 1000
 
             all_correctness.append(correctness_map[corr])
             all_legibility.append(score)
