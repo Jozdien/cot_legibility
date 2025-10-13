@@ -222,7 +222,8 @@ def plot_legibility_by_difficulty(evaluation: dict, output_dir: Path, baseline_p
         return
 
     baseline_data = read_json(baseline_path)
-    baseline_map = {item["question_id"]: item.get("correctness", {}).get("correctness") for item in baseline_data}
+    baseline_results = baseline_data.get("results", baseline_data) if isinstance(baseline_data, dict) else baseline_data
+    baseline_map = {item["question_id"]: item.get("correctness", {}).get("correctness") for item in baseline_results}
 
     categorized = {"correct": [], "partially_correct": [], "incorrect": []}
 
@@ -266,7 +267,8 @@ def plot_legibility_by_difficulty_comparison(evaluations: list[tuple[str, dict]]
         return
 
     baseline_data = read_json(baseline_path)
-    baseline_map = {item["question_id"]: item.get("correctness", {}).get("correctness") for item in baseline_data}
+    baseline_results = baseline_data.get("results", baseline_data) if isinstance(baseline_data, dict) else baseline_data
+    baseline_map = {item["question_id"]: item.get("correctness", {}).get("correctness") for item in baseline_results}
 
     model_names = [name for name, _ in evaluations]
     x = np.arange(len(model_names)) * 1.5
