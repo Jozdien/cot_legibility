@@ -49,6 +49,18 @@ class Grader:
         result = self.provider.generate(prompt, grading_config)
         return parse_json_response(result["answer"])
 
+    def grade_legibility_chunks(self, text: str, chunk_size: int = 5000) -> list[dict]:
+        chunks = []
+        for i in range(0, len(text), chunk_size):
+            chunk_text = text[i:i + chunk_size]
+            grade = self.grade_legibility(chunk_text, max_chars=chunk_size)
+            chunks.append({
+                "start_pos": i,
+                "end_pos": min(i + chunk_size, len(text)),
+                **grade
+            })
+        return chunks
+
     def grade_correctness(self, predicted: str, actual: str, question: str) -> dict:
         grading_text = f"QUESTION: {question}\n\nPREDICTED ANSWER: {predicted}\n\nACTUAL ANSWER: {actual}"
         prompt = f"{CORRECTNESS_GRADING_PROMPT}\n\n{grading_text}"
@@ -66,10 +78,22 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
         result["reasoning_excerpt"] = reasoning[-500:]
 
     if config.get("grade_legibility"):
-        text_to_grade = reasoning if reasoning else item.get("answer", "")
-        if text_to_grade:
-            legibility = grader.grade_legibility(text_to_grade, config.get("max_chars_legibility", 5000))
-            result["legibility"] = legibility
+        answer_text = item.get("answer", "")
+
+        if config.get("grade_response_reasoning_separately", False):
+            if reasoning:
+                result["legibility_reasoning"] = grader.grade_legibility(reasoning, config.get("max_chars_legibility", 5000))
+            if answer_text:
+                result["legibility_response"] = grader.grade_legibility(answer_text, config.get("max_chars_legibility", 5000))
+        else:
+            text_to_grade = reasoning if reasoning else answer_text
+            if text_to_grade:
+                legibility = grader.grade_legibility(text_to_grade, config.get("max_chars_legibility", 5000))
+                result["legibility"] = legibility
+
+        if config.get("grade_legibility_chunks", False) and reasoning:
+            chunk_size = config.get("chunk_size", 5000)
+            result["legibility_chunks"] = grader.grade_legibility_chunks(reasoning, chunk_size)
 
     if config.get("grade_correctness"):
         predicted = item.get("answer", "")
@@ -84,19 +108,20 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
 def compute_statistics(results: list[dict]) -> dict:
     stats = {"legibility": {}, "correctness": {}}
 
-    if any("legibility" in r for r in results):
-        scores = [r["legibility"]["score"] for r in results if "legibility" in r and isinstance(r["legibility"].get("score"), (int, float))]
-        if scores:
-            import numpy as np
+    import numpy as np
 
-            stats["legibility"] = {
-                "mean": float(np.mean(scores)),
-                "std": float(np.std(scores)),
-                "median": float(np.median(scores)),
-                "min": float(np.min(scores)),
-                "max": float(np.max(scores)),
-                "count": len(scores),
-            }
+    for key in ["legibility", "legibility_reasoning", "legibility_response"]:
+        if any(key in r for r in results):
+            scores = [r[key]["score"] for r in results if key in r and isinstance(r[key].get("score"), (int, float))]
+            if scores:
+                stats[key] = {
+                    "mean": float(np.mean(scores)),
+                    "std": float(np.std(scores)),
+                    "median": float(np.median(scores)),
+                    "min": float(np.min(scores)),
+                    "max": float(np.max(scores)),
+                    "count": len(scores),
+                }
 
     if any("correctness" in r for r in results):
         grades = [r["correctness"]["correctness"] for r in results if "correctness" in r]
