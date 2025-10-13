@@ -115,7 +115,7 @@ Use these in the `plots:` list for analyzing individual runs:
 - **`length_vs_legibility`**: Scatter plot of answer length vs legibility score
 - **`legibility_by_difficulty`**: Boxplots grouped by question difficulty (easy/medium/hard). Requires `baseline_file` in config
 - **`correctness_vs_legibility_scatter`**: Density scatter plot showing relationship between correctness and legibility with KDE coloring
-- **`correctness_vs_legibility_scatter_normalized`**: Same as above but with normalized legibility scores
+- **`correctness_vs_legibility_scatter_normalized`**: Same as above but with normalized legibility scores. Requires running `scripts/normalize_scores.py` first
 - **`legibility_progression`**: Boxplots showing how legibility changes through CoT chunks. Requires `grade_legibility_chunks: true` in evaluation config
 
 ### Comparison Plots
@@ -126,7 +126,7 @@ Use these in `comparison.plot_types:` for analyzing multiple runs:
 - **`legibility_comparison`**: Bar chart comparing mean legibility scores with error bars
 - **`legibility_by_difficulty_comparison`**: Multi-model version of legibility by difficulty. Requires `baseline_file` in config
 - **`correctness_vs_legibility_scatter_comparison`**: Density scatter aggregating all runs
-- **`correctness_vs_legibility_scatter_comparison_normalized`**: Same with normalized scores
+- **`correctness_vs_legibility_scatter_comparison_normalized`**: Same with normalized scores. Requires running `scripts/normalize_scores.py` first
 
 ### Config Notes
 

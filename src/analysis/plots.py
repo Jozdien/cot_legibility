@@ -1,9 +1,10 @@
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-import numpy as np
 from pathlib import Path
 
-from ..utils.io import read_json, ensure_dir
+import matplotlib.font_manager as fm
+import matplotlib.pyplot as plt
+import numpy as np
+
+from ..utils.io import ensure_dir, read_json
 
 
 def setup_matplotlib():
@@ -16,7 +17,11 @@ def setup_matplotlib():
 
 def plot_legibility_scores_boxplot(evaluation: dict, output_dir: Path) -> None:
     results = evaluation["results"]
-    scores = [r["legibility"]["score"] for r in results if "legibility" in r and isinstance(r["legibility"].get("score"), (int, float))]
+    scores = [
+        r["legibility"]["score"]
+        for r in results
+        if "legibility" in r and isinstance(r["legibility"].get("score"), (int, float))
+    ]
 
     if not scores:
         return
@@ -52,7 +57,13 @@ def plot_correctness_assessment(evaluation: dict, output_dir: Path) -> None:
 
     for bar, pct in zip(bars, percentages):
         if pct > 0:
-            ax.text(bar.get_x() + bar.get_width() / 2, pct + 2, f"{pct:.1f}%", ha="center", fontsize=10)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                pct + 2,
+                f"{pct:.1f}%",
+                ha="center",
+                fontsize=10,
+            )
 
     ax.set_ylabel("Percentage (%)", fontsize=12)
     ax.set_title(f"Correctness Assessment (n={stats['total']})", fontsize=14)
@@ -79,7 +90,11 @@ def plot_legibility_by_correctness(evaluation: dict, output_dir: Path) -> None:
     if not any(categories.values()):
         return
 
-    data = [categories["correct"], categories["partially_correct"], categories["incorrect"]]
+    data = [
+        categories["correct"],
+        categories["partially_correct"],
+        categories["incorrect"],
+    ]
     labels = ["Correct", "Partially\nCorrect", "Incorrect"]
     colors = ["#2ecc71", "#f39c12", "#e74c3c"]
 
@@ -131,7 +146,9 @@ def plot_length_vs_legibility(evaluation: dict, output_dir: Path) -> None:
     plt.close()
 
 
-def plot_model_comparison(evaluations: list[tuple[str, dict]], output_dir: Path) -> None:
+def plot_model_comparison(
+    evaluations: list[tuple[str, dict]], output_dir: Path
+) -> None:
     model_names = [name for name, _ in evaluations]
 
     response_data = []
@@ -140,11 +157,15 @@ def plot_model_comparison(evaluations: list[tuple[str, dict]], output_dir: Path)
     for _, ev in evaluations:
         results = ev["results"]
 
-        response_scores = [r.get("legibility_response", {}).get("score") for r in results]
+        response_scores = [
+            r.get("legibility_response", {}).get("score") for r in results
+        ]
         response_scores = [s for s in response_scores if isinstance(s, (int, float))]
         response_data.append(response_scores)
 
-        reasoning_scores = [r.get("legibility_reasoning", {}).get("score") for r in results]
+        reasoning_scores = [
+            r.get("legibility_reasoning", {}).get("score") for r in results
+        ]
         reasoning_scores = [s for s in reasoning_scores if isinstance(s, (int, float))]
         reasoning_data.append(reasoning_scores)
 
@@ -170,7 +191,9 @@ def plot_model_comparison(evaluations: list[tuple[str, dict]], output_dir: Path)
 
     if any(reasoning_data):
         offset = 1 if any(response_data) else 0
-        bp_reasoning = ax.boxplot(reasoning_data, positions=positions + offset, **bp_kwargs)
+        bp_reasoning = ax.boxplot(
+            reasoning_data, positions=positions + offset, **bp_kwargs
+        )
         for box in bp_reasoning["boxes"]:
             box.set(facecolor="#d65e00", alpha=1)
 
@@ -183,7 +206,7 @@ def plot_model_comparison(evaluations: list[tuple[str, dict]], output_dir: Path)
     if any(response_data) and any(reasoning_data):
         legend_elements = [
             plt.Rectangle((0, 0), 1, 1, facecolor="#0273b2", label="Response"),
-            plt.Rectangle((0, 0), 1, 1, facecolor="#d65e00", label="Reasoning")
+            plt.Rectangle((0, 0), 1, 1, facecolor="#d65e00", label="Reasoning"),
         ]
         ax.legend(handles=legend_elements, loc="upper right")
 
@@ -192,10 +215,20 @@ def plot_model_comparison(evaluations: list[tuple[str, dict]], output_dir: Path)
     plt.close()
 
 
-def plot_legibility_comparison(evaluations: list[tuple[str, dict]], output_dir: Path) -> None:
+def plot_legibility_comparison(
+    evaluations: list[tuple[str, dict]], output_dir: Path
+) -> None:
     model_names = [name for name, _ in evaluations]
-    means = [ev["statistics"]["legibility"]["mean"] for _, ev in evaluations if "legibility" in ev["statistics"]]
-    stds = [ev["statistics"]["legibility"]["std"] for _, ev in evaluations if "legibility" in ev["statistics"]]
+    means = [
+        ev["statistics"]["legibility"]["mean"]
+        for _, ev in evaluations
+        if "legibility" in ev["statistics"]
+    ]
+    stds = [
+        ev["statistics"]["legibility"]["std"]
+        for _, ev in evaluations
+        if "legibility" in ev["statistics"]
+    ]
 
     if not means:
         return
@@ -217,13 +250,22 @@ def plot_legibility_comparison(evaluations: list[tuple[str, dict]], output_dir: 
     plt.close()
 
 
-def plot_legibility_by_difficulty(evaluation: dict, output_dir: Path, baseline_path: str = None) -> None:
+def plot_legibility_by_difficulty(
+    evaluation: dict, output_dir: Path, baseline_path: str = None
+) -> None:
     if not baseline_path:
         return
 
     baseline_data = read_json(baseline_path)
-    baseline_results = baseline_data.get("results", baseline_data) if isinstance(baseline_data, dict) else baseline_data
-    baseline_map = {item["question_id"]: item.get("correctness", {}).get("correctness") for item in baseline_results}
+    baseline_results = (
+        baseline_data.get("results", baseline_data)
+        if isinstance(baseline_data, dict)
+        else baseline_data
+    )
+    baseline_map = {
+        item["question_id"]: item.get("correctness", {}).get("correctness")
+        for item in baseline_results
+    }
 
     categorized = {"correct": [], "partially_correct": [], "incorrect": []}
 
@@ -240,8 +282,16 @@ def plot_legibility_by_difficulty(evaluation: dict, output_dir: Path, baseline_p
         if isinstance(score, (int, float)):
             categorized[category].append(score)
 
-    data = [categorized["correct"], categorized["partially_correct"], categorized["incorrect"]]
-    labels = ["Easy\n(Baseline Correct)", "Medium\n(Baseline Partial)", "Hard\n(Baseline Incorrect)"]
+    data = [
+        categorized["correct"],
+        categorized["partially_correct"],
+        categorized["incorrect"],
+    ]
+    labels = [
+        "Easy\n(Baseline Correct)",
+        "Medium\n(Baseline Partial)",
+        "Hard\n(Baseline Incorrect)",
+    ]
     colors = ["#2ecc71", "#f39c12", "#e74c3c"]
     hatches = ["", "///", "xxx"]
 
@@ -262,19 +312,32 @@ def plot_legibility_by_difficulty(evaluation: dict, output_dir: Path, baseline_p
     plt.close()
 
 
-def plot_legibility_by_difficulty_comparison(evaluations: list[tuple[str, dict]], output_dir: Path, baseline_path: str = None) -> None:
+def plot_legibility_by_difficulty_comparison(
+    evaluations: list[tuple[str, dict]], output_dir: Path, baseline_path: str = None
+) -> None:
     if not baseline_path:
         return
 
     baseline_data = read_json(baseline_path)
-    baseline_results = baseline_data.get("results", baseline_data) if isinstance(baseline_data, dict) else baseline_data
-    baseline_map = {item["question_id"]: item.get("correctness", {}).get("correctness") for item in baseline_results}
+    baseline_results = (
+        baseline_data.get("results", baseline_data)
+        if isinstance(baseline_data, dict)
+        else baseline_data
+    )
+    baseline_map = {
+        item["question_id"]: item.get("correctness", {}).get("correctness")
+        for item in baseline_results
+    }
 
     model_names = [name for name, _ in evaluations]
     x = np.arange(len(model_names)) * 1.5
     width = 0.4
 
-    colors = {"correct": "#2ecc71", "partially_correct": "#f39c12", "incorrect": "#e74c3c"}
+    colors = {
+        "correct": "#2ecc71",
+        "partially_correct": "#f39c12",
+        "incorrect": "#e74c3c",
+    }
     hatches = {"correct": "", "partially_correct": "///", "incorrect": "xxx"}
 
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -287,13 +350,17 @@ def plot_legibility_by_difficulty_comparison(evaluations: list[tuple[str, dict]]
             for r in ev["results"]:
                 q_id = r["question_id"]
                 if q_id in baseline_map and baseline_map[q_id] == category:
-                    score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
+                    score = r.get("legibility_reasoning", r.get("legibility", {})).get(
+                        "score"
+                    )
                     if isinstance(score, (int, float)):
                         scores.append(score)
             all_data.append(scores)
 
         positions = x + (i - 1) * width
-        bp = ax.boxplot(all_data, positions=positions, widths=width * 0.8, patch_artist=True)
+        bp = ax.boxplot(
+            all_data, positions=positions, widths=width * 0.8, patch_artist=True
+        )
 
         for box in bp["boxes"]:
             box.set(facecolor=colors[category], alpha=0.8, hatch=hatches[category])
@@ -305,10 +372,23 @@ def plot_legibility_by_difficulty_comparison(evaluations: list[tuple[str, dict]]
     ax.grid(axis="y", linestyle="--", alpha=0.7)
 
     from matplotlib.patches import Patch
+
     legend_elements = [
-        Patch(facecolor=colors["correct"], hatch=hatches["correct"], label="Easy (Baseline Correct)"),
-        Patch(facecolor=colors["partially_correct"], hatch=hatches["partially_correct"], label="Medium (Baseline Partial)"),
-        Patch(facecolor=colors["incorrect"], hatch=hatches["incorrect"], label="Hard (Baseline Incorrect)")
+        Patch(
+            facecolor=colors["correct"],
+            hatch=hatches["correct"],
+            label="Easy (Baseline Correct)",
+        ),
+        Patch(
+            facecolor=colors["partially_correct"],
+            hatch=hatches["partially_correct"],
+            label="Medium (Baseline Partial)",
+        ),
+        Patch(
+            facecolor=colors["incorrect"],
+            hatch=hatches["incorrect"],
+            label="Hard (Baseline Incorrect)",
+        ),
     ]
     ax.legend(handles=legend_elements)
 
@@ -317,7 +397,9 @@ def plot_legibility_by_difficulty_comparison(evaluations: list[tuple[str, dict]]
     plt.close()
 
 
-def plot_correctness_vs_legibility_scatter(evaluation: dict, output_dir: Path, use_normalized: bool = False) -> None:
+def plot_correctness_vs_legibility_scatter(
+    evaluation: dict, output_dir: Path, use_normalized: bool = False
+) -> None:
     from scipy import stats as scipy_stats
 
     correctness_map = {"correct": 1, "partially_correct": 0.5, "incorrect": 0}
@@ -331,7 +413,9 @@ def plot_correctness_vs_legibility_scatter(evaluation: dict, output_dir: Path, u
             continue
 
         if use_normalized:
-            score = r.get("legibility_reasoning", r.get("legibility", {})).get("normalized_score")
+            score = r.get("legibility_reasoning", r.get("legibility", {})).get(
+                "normalized_score"
+            )
         else:
             score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
 
@@ -340,6 +424,9 @@ def plot_correctness_vs_legibility_scatter(evaluation: dict, output_dir: Path, u
 
         correctness_vals.append(correctness_map[corr])
         legibility_vals.append(score)
+
+    if not correctness_vals or not legibility_vals:
+        return
 
     correctness_vals = np.array(correctness_vals)
     legibility_vals = np.array(legibility_vals)
@@ -373,7 +460,9 @@ def plot_correctness_vs_legibility_scatter(evaluation: dict, output_dir: Path, u
 
     ax.set_xticks([0, 0.5, 1])
     ax.set_xticklabels(["Incorrect", "Partial", "Correct"])
-    ax.set_ylabel(f"{'Normalized ' if use_normalized else ''}Illegibility Score", fontsize=12)
+    ax.set_ylabel(
+        f"{'Normalized ' if use_normalized else ''}Illegibility Score", fontsize=12
+    )
     ax.set_ylim(0, 10)
     ax.grid(True, linestyle="--", alpha=0.3)
 
@@ -383,7 +472,9 @@ def plot_correctness_vs_legibility_scatter(evaluation: dict, output_dir: Path, u
     plt.close()
 
 
-def plot_correctness_vs_legibility_scatter_comparison(evaluations: list[tuple[str, dict]], output_dir: Path, use_normalized: bool = False) -> None:
+def plot_correctness_vs_legibility_scatter_comparison(
+    evaluations: list[tuple[str, dict]], output_dir: Path, use_normalized: bool = False
+) -> None:
     from scipy import stats as scipy_stats
 
     correctness_map = {"correct": 1, "partially_correct": 0.5, "incorrect": 0}
@@ -398,15 +489,22 @@ def plot_correctness_vs_legibility_scatter_comparison(evaluations: list[tuple[st
                 continue
 
             if use_normalized:
-                score = r.get("legibility_reasoning", r.get("legibility", {})).get("normalized_score")
+                score = r.get("legibility_reasoning", r.get("legibility", {})).get(
+                    "normalized_score"
+                )
             else:
-                score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
+                score = r.get("legibility_reasoning", r.get("legibility", {})).get(
+                    "score"
+                )
 
             if not isinstance(score, (int, float)):
                 continue
 
             all_correctness.append(correctness_map[corr])
             all_legibility.append(score)
+
+    if not all_correctness or not all_legibility:
+        return
 
     correctness_vals = np.array(all_correctness)
     legibility_vals = np.array(all_legibility)
@@ -440,13 +538,18 @@ def plot_correctness_vs_legibility_scatter_comparison(evaluations: list[tuple[st
 
     ax.set_xticks([0, 0.5, 1])
     ax.set_xticklabels(["Incorrect", "Partial", "Correct"])
-    ax.set_ylabel(f"{'Normalized ' if use_normalized else ''}Illegibility Score", fontsize=12)
+    ax.set_ylabel(
+        f"{'Normalized ' if use_normalized else ''}Illegibility Score", fontsize=12
+    )
     ax.set_ylim(0, 10)
     ax.grid(True, linestyle="--", alpha=0.3)
 
     plt.tight_layout()
     suffix = "_normalized" if use_normalized else ""
-    plt.savefig(output_dir / f"correctness_vs_legibility_scatter_comparison{suffix}.png", dpi=150)
+    plt.savefig(
+        output_dir / f"correctness_vs_legibility_scatter_comparison{suffix}.png",
+        dpi=150,
+    )
     plt.close()
 
 
@@ -470,7 +573,9 @@ def plot_legibility_progression(evaluation: dict, output_dir: Path) -> None:
     data = [chunk_scores_by_position[p] for p in positions]
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    bp = ax.boxplot(data, positions=range(len(positions)), patch_artist=True, widths=0.6)
+    bp = ax.boxplot(
+        data, positions=range(len(positions)), patch_artist=True, widths=0.6
+    )
 
     for box in bp["boxes"]:
         box.set(facecolor="#3498db", alpha=0.8)
@@ -494,7 +599,8 @@ PLOT_FUNCTIONS = {
     "length_vs_legibility": plot_length_vs_legibility,
     "legibility_by_difficulty": plot_legibility_by_difficulty,
     "correctness_vs_legibility_scatter": plot_correctness_vs_legibility_scatter,
-    "correctness_vs_legibility_scatter_normalized": lambda e, o: plot_correctness_vs_legibility_scatter(e, o, use_normalized=True),
+    "correctness_vs_legibility_scatter_normalized": lambda e,
+    o: plot_correctness_vs_legibility_scatter(e, o, use_normalized=True),
     "legibility_progression": plot_legibility_progression,
 }
 
@@ -503,7 +609,11 @@ COMPARISON_PLOT_FUNCTIONS = {
     "legibility_comparison": plot_legibility_comparison,
     "legibility_by_difficulty_comparison": plot_legibility_by_difficulty_comparison,
     "correctness_vs_legibility_scatter_comparison": plot_correctness_vs_legibility_scatter_comparison,
-    "correctness_vs_legibility_scatter_comparison_normalized": lambda e, o, b=None: plot_correctness_vs_legibility_scatter_comparison(e, o, use_normalized=True),
+    "correctness_vs_legibility_scatter_comparison_normalized": lambda e,
+    o,
+    b=None: plot_correctness_vs_legibility_scatter_comparison(
+        e, o, use_normalized=True
+    ),
 }
 
 
