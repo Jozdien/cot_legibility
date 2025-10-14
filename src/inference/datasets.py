@@ -2,6 +2,7 @@ from datasets import load_from_disk
 from pathlib import Path
 from typing import Iterator
 import random
+import json
 from .download import download_dataset
 
 
@@ -73,15 +74,27 @@ class Dataset:
                 "dataset": "scienceqa",
             }
         elif self.name == "chembench":
-            question_text = item.get("question", "")
-            if "options" in item and item["options"]:
-                options = "\n".join([f"{chr(65+i)}. {opt}" for i, opt in enumerate(item["options"])])
-                question_text = f"{question_text}\n\n{options}"
+            examples = item.get("examples", [])
+            if examples and len(examples) > 0:
+                question_text = examples[0].get("input", "")
+                correct_answer = examples[0].get("target", "")
+
+                if not correct_answer:
+                    target_scores = examples[0].get("target_scores", "")
+                    if target_scores:
+                        scores_dict = json.loads(target_scores)
+                        for answer, score in scores_dict.items():
+                            if score == 1.0:
+                                correct_answer = answer
+                                break
+            else:
+                question_text = ""
+                correct_answer = ""
 
             return {
                 "question_id": f"chembench_{idx}",
                 "question": question_text,
-                "correct_answer": item.get("answer"),
+                "correct_answer": correct_answer,
                 "dataset": "chembench",
             }
 

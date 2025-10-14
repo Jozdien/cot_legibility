@@ -11,9 +11,9 @@ inference:
       include_reasoning: true
 
   datasets:
-    - name: "gpqa"
+    - name: "chembench"
       num_questions: 10
-      samples_per_question: 5
+      samples_per_question: 3
       shuffle: false
 
   concurrency:
@@ -24,6 +24,7 @@ evaluation:
   max_workers: 50
   grade_legibility: true
   grade_correctness: true
+  grade_legibility_chunks: true
 
 analysis:
   baseline_file: "runs/20251013_001335_claude-3-7-sonnet-latest_gpqa/evaluation.json"
@@ -35,3 +36,4 @@ analysis:
     - correctness_vs_legibility_scatter
     - correctness_vs_legibility_scatter_normalized
     - legibility_by_difficulty
+    - legibility_progression

@@ -524,8 +524,12 @@ def plot_correctness_vs_legibility_scatter(
 
             try:
                 density = scipy_stats.gaussian_kde(xy)(xy)
-                density_scaled = (density - density.min()) / (density.max() - density.min())
-                ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
+                density_range = density.max() - density.min()
+                if density_range > 0:
+                    density_scaled = (density - density.min()) / density_range
+                    ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
+                else:
+                    ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
             except Exception:
                 ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
 
@@ -677,8 +681,12 @@ def plot_correctness_vs_legibility_scatter_comparison(
 
             try:
                 density = scipy_stats.gaussian_kde(xy)(xy)
-                density_scaled = (density - density.min()) / (density.max() - density.min())
-                ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
+                density_range = density.max() - density.min()
+                if density_range > 0:
+                    density_scaled = (density - density.min()) / density_range
+                    ax.scatter(x_jitter, y, c=plt.cm.viridis(density_scaled), alpha=0.6, s=30)
+                else:
+                    ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
             except Exception:
                 ax.scatter(x_jitter, y, alpha=0.6, s=30, color="#3498db")
 

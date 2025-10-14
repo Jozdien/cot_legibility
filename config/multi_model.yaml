@@ -16,6 +16,7 @@ inference:
   datasets:
     - name: "gpqa"
       num_questions: 100
+      samples_per_question: 3
       shuffle: true
 
   concurrency:
@@ -32,3 +33,7 @@ analysis:
     - legibility_scores_boxplot
     - correctness_assessment
     - legibility_by_correctness
+    - length_vs_legibility
+    - correctness_vs_legibility_scatter
+    - correctness_vs_legibility_scatter_normalized
+    - legibility_by_difficulty

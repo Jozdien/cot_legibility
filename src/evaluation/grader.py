@@ -75,7 +75,13 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
         "question_id": item["question_id"],
         "sample_index": item.get("sample_index", 0),
         "question": item["question"],
-        "answer": item.get("answer")
+        "answer": item.get("answer"),
+        "correct_answer": item.get("correct_answer"),
+        "dataset": item.get("dataset"),
+        "model": item.get("model"),
+        "temperature": item.get("temperature"),
+        "timestamp": item.get("timestamp"),
+        "metadata": item.get("metadata")
     }
 
     reasoning = item.get("reasoning")

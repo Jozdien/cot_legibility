@@ -25,6 +25,7 @@ CORRECTNESS_DISPLAY = {
     "correct": "✓ Correct",
     "partially_correct": "~ Partially Correct",
     "incorrect": "✗ Incorrect",
+    "unknown": "? Unknown",
 }
 
 
@@ -48,34 +49,46 @@ def load_inference_data(run_path):
         if inference_file.suffix == ".jsonl":
             for line in f:
                 item = json.loads(line)
-                inference_data[item["question_id"]] = item
+                key = (item["question_id"], item.get("sample_index", 0))
+                inference_data[key] = item
         else:
             for item in json.load(f):
-                inference_data[item["question_id"]] = item
+                key = (item["question_id"], item.get("sample_index", 0))
+                inference_data[key] = item
     return inference_data
 
 
-def get_temperature_from_config(run_path, model):
+def get_temperature_from_config(run_path, model, inference_data=None):
     config_file = run_path / "config.yaml"
-    if not config_file.exists():
-        return None
+    if config_file.exists():
+        with open(config_file) as f:
+            config = yaml.safe_load(f)
+            models = config.get("inference", {}).get("models", [])
+            for m in models:
+                if m.get("name") == model:
+                    return m.get("temperature")
 
-    with open(config_file) as f:
-        config = yaml.safe_load(f)
-        models = config.get("inference", {}).get("models", [])
-        for m in models:
-            if m.get("name") == model:
-                return m.get("temperature")
+    if inference_data is None:
+        inference_data = load_inference_data(run_path)
+
+    if inference_data:
+        first_item = next(iter(inference_data.values()))
+        return first_item.get("temperature")
+
     return None
 
 
 def enrich_results_with_inference(results, inference_data):
     for result in results:
         qid = result.get("question_id")
-        if qid in inference_data:
-            result["correct_answer"] = inference_data[qid].get("correct_answer", "N/A")
-            result["reasoning"] = inference_data[qid].get("reasoning")
-            result["answer"] = inference_data[qid].get("answer", "N/A")
+        sample_idx = result.get("sample_index", 0)
+        key = (qid, sample_idx)
+        if key in inference_data:
+            if not result.get("question"):
+                result["question"] = inference_data[key].get("question", "N/A")
+            result["correct_answer"] = inference_data[key].get("correct_answer", "N/A")
+            result["reasoning"] = inference_data[key].get("reasoning")
+            result["answer"] = inference_data[key].get("answer", "N/A")
 
 
 def get_legibility_score(result):
@@ -101,7 +114,7 @@ def calculate_statistics(results):
     }
 
 
-@st.cache_data
+@st.cache_data(ttl=60)
 def load_runs_data():
     runs_dir = Path("runs")
     aggregated_data = {}
@@ -115,15 +128,21 @@ def load_runs_data():
             continue
 
         try:
-            parts = run_path.name.split("_")
-            dataset = parts[-1]
-            model = "_".join(parts[2:-1])
-
             with open(eval_file) as f:
                 eval_data = json.load(f)
 
-            temperature = get_temperature_from_config(run_path, model)
             inference_data = load_inference_data(run_path)
+
+            if inference_data:
+                first_item = next(iter(inference_data.values()))
+                model = first_item.get("model", "unknown")
+                dataset = first_item.get("dataset", "unknown")
+            else:
+                parts = run_path.name.split("_")
+                dataset = parts[-1]
+                model = "_".join(parts[2:-1])
+
+            temperature = get_temperature_from_config(run_path, model, inference_data)
             enrich_results_with_inference(eval_data.get("results", []), inference_data)
 
             model_display = get_model_display_name(model, temperature)
@@ -249,8 +268,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             correctness_options = st.multiselect(
                 "Correctness",
-                options=CORRECTNESS_VALUES,
-                default=CORRECTNESS_VALUES,
+                options=CORRECTNESS_VALUES + ["unknown"],
+                default=CORRECTNESS_VALUES + ["unknown"],
             )
 
         filtered_results = [
@@ -279,6 +298,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             table_data = []
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
+                sample_idx = result.get("sample_index", 0)
 
                 if search_query:
                     searchable_text = " ".join([
