@@ -19,7 +19,11 @@ MODEL_REGISTRY = {
         "model_id": "deepseek/deepseek-r1",
         "openrouter_provider": ["targon/fp8", "Nebius"],
     },
-    "qwq": {"provider": "openrouter", "model_id": "qwen/qwq-32b"},
+    "qwq": {
+        "provider": "openrouter",
+        "model_id": "qwen/qwq-32b",
+        "openrouter_provider": ["deepinfra/bf16", "nebius/fp8"],
+    },
     "o3-mini": {"provider": "openrouter", "model_id": "openai/o3-mini"},
 }
 
