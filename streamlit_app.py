@@ -188,13 +188,23 @@ st.title("CoT Legibility Explorer")
 st.markdown("---")
 
 st.subheader("Model")
-model_options = ["Select a model..."] + sorted(df["model_display"].unique().tolist())
+all_models = sorted(df["model_display"].unique().tolist())
+if "dataset" in st.session_state and st.session_state.dataset != "Select a dataset...":
+    available_models = sorted(df[df["dataset"] == st.session_state.dataset]["model_display"].unique().tolist())
+    model_options = ["Select a model..."] + available_models
+else:
+    model_options = ["Select a model..."] + all_models
 selected_model = st.selectbox(
     "", model_options, label_visibility="collapsed", key="model"
 )
 
 st.subheader("Dataset")
-dataset_options = ["Select a dataset..."] + sorted(df["dataset"].unique().tolist())
+all_datasets = sorted(df["dataset"].unique().tolist())
+if selected_model != "Select a model...":
+    available_datasets = sorted(df[df["model_display"] == selected_model]["dataset"].unique().tolist())
+    dataset_options = ["Select a dataset..."] + available_datasets
+else:
+    dataset_options = ["Select a dataset..."] + all_datasets
 selected_dataset = st.selectbox(
     "", dataset_options, label_visibility="collapsed", key="dataset"
 )
