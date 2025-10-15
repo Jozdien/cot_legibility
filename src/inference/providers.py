@@ -15,7 +15,7 @@ class OpenRouterProvider(Provider):
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY not found in environment")
-        self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+        self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key, timeout=600.0)
 
     def generate(self, question: str, model_config: dict) -> dict:
         start_time = time.time()
@@ -50,7 +50,16 @@ class OpenRouterProvider(Provider):
         if "max_tokens" in model_config:
             kwargs["max_tokens"] = model_config["max_tokens"]
 
-        completion = self.client.chat.completions.create(**kwargs)
+        try:
+            completion = self.client.chat.completions.create(**kwargs)
+        except Exception as e:
+            error_msg = str(e)
+            if hasattr(e, 'response'):
+                try:
+                    error_msg = f"{error_msg} | Response: {e.response.text[:500]}"
+                except Exception:
+                    pass
+            raise Exception(error_msg)
 
         duration_ms = int((time.time() - start_time) * 1000)
 
