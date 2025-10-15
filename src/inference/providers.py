@@ -22,7 +22,15 @@ class OpenRouterProvider(Provider):
 
         extra_body = {}
         if model_config.get("include_reasoning"):
-            extra_body["include_reasoning"] = True
+            reasoning_config = {}
+            if "reasoning_effort" in model_config:
+                reasoning_config["effort"] = model_config["reasoning_effort"]
+            if "reasoning_budget_tokens" in model_config:
+                reasoning_config["max_tokens"] = model_config["reasoning_budget_tokens"]
+            if reasoning_config:
+                extra_body["reasoning"] = reasoning_config
+            else:
+                extra_body["include_reasoning"] = True
 
         if "openrouter_provider" in model_config:
             provider_config = model_config["openrouter_provider"]
@@ -33,12 +41,16 @@ class OpenRouterProvider(Provider):
             elif isinstance(provider_config, dict):
                 extra_body["provider"] = provider_config
 
-        completion = self.client.chat.completions.create(
-            model=model_config["model_id"],
-            messages=[{"role": "user", "content": question}],
-            temperature=model_config.get("temperature", 1.0),
-            extra_body=extra_body,
-        )
+        kwargs = {
+            "model": model_config["model_id"],
+            "messages": [{"role": "user", "content": question}],
+            "temperature": model_config.get("temperature", 1.0),
+            "extra_body": extra_body,
+        }
+        if "max_tokens" in model_config:
+            kwargs["max_tokens"] = model_config["max_tokens"]
+
+        completion = self.client.chat.completions.create(**kwargs)
 
         duration_ms = int((time.time() - start_time) * 1000)
 
@@ -85,11 +97,14 @@ class DirectAPIProvider(Provider):
 
         if self.provider_name == "anthropic":
             thinking_config = {}
-            max_tokens = 16000
             if model_config.get("include_reasoning"):
-                thinking_config["thinking"] = {"type": "enabled", "budget_tokens": 10000}
+                default_max_tokens = 16000
+                reasoning_budget = model_config.get("reasoning_budget_tokens", 10000)
+                thinking_config["thinking"] = {"type": "enabled", "budget_tokens": reasoning_budget}
             else:
-                max_tokens = 4096
+                default_max_tokens = 4096
+
+            max_tokens = model_config.get("max_tokens", default_max_tokens)
 
             response = self.client.messages.create(
                 model=model_config["model_id"],
@@ -109,11 +124,15 @@ class DirectAPIProvider(Provider):
 
             tokens = response.usage.input_tokens + response.usage.output_tokens
         else:
-            response = self.client.chat.completions.create(
-                model=model_config["model_id"],
-                messages=[{"role": "user", "content": question}],
-                temperature=model_config.get("temperature", 1.0),
-            )
+            kwargs = {
+                "model": model_config["model_id"],
+                "messages": [{"role": "user", "content": question}],
+                "temperature": model_config.get("temperature", 1.0),
+            }
+            if "max_tokens" in model_config:
+                kwargs["max_tokens"] = model_config["max_tokens"]
+
+            response = self.client.chat.completions.create(**kwargs)
             answer = response.choices[0].message.content or ""
             tokens = response.usage.total_tokens if hasattr(response, "usage") else None
 
