@@ -1,0 +1,22 @@
+run:
+  name: 20251015_043641_R1-Zero_gpqa
+  stages:
+  - evaluation
+  - analysis
+evaluation:
+  inference_file: runs/20251015_043641_R1-Zero_gpqa/inference.json
+  grader_model: gpt-4o
+  grade_legibility: true
+  grade_correctness: true
+  max_workers: 100
+  max_chars_legibility: 5000
+analysis:
+  comparison:
+    enabled: false
+  plots:
+  - legibility_scores_boxplot
+  - correctness_assessment
+  - legibility_by_correctness
+  - length_vs_legibility
+  statistics:
+  - summary

@@ -1,0 +1,21 @@
+run:
+  name: 20251015_002350_R1_chembench
+  stages:
+  - evaluation
+  - analysis
+evaluation:
+  grader_model: claude-3-7-sonnet-latest
+  grade_legibility: true
+  grade_correctness: true
+  max_workers: 10
+  max_chars_legibility: 5000
+analysis:
+  comparison:
+    enabled: false
+  plots:
+  - legibility_scores_boxplot
+  - correctness_assessment
+  - legibility_by_correctness
+  - length_vs_legibility
+  statistics:
+  - summary

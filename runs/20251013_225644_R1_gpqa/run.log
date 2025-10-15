@@ -1,0 +1,67 @@
+2025-10-13 22:56:44,226 - INFO - Starting run: 20251013_225644_R1_gpqa
+2025-10-13 22:56:44,226 - INFO - Config: config/quick_test.yaml
+2025-10-13 22:56:44,226 - INFO - Model: R1, Dataset: gpqa
+2025-10-13 22:56:44,883 - INFO - PyTorch version 2.5.1 available.
+2025-10-13 22:56:45,417 - INFO - Starting inference stage
+2025-10-13 22:56:45,417 - INFO - Loading dataset: gpqa
+2025-10-13 22:56:45,450 - INFO - Loaded 10 questions
+2025-10-13 22:56:45,450 - INFO - Initializing provider: openrouter
+2025-10-13 22:56:45,465 - INFO - Running inference with 50 workers
+2025-10-13 22:56:47,152 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-10-13 22:56:47,154 - INFO - Retrying request to /chat/completions in 0.473266 seconds
+2025-10-13 22:56:47,357 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:47,358 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:47,561 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:47,561 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:47,566 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:47,566 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:47,567 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:47,868 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:48,101 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:56:48,484 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 22:59:59,148 - WARNING - Error on question gpqa_1: Expecting value: line 919 column 1 (char 5049)
+2025-10-13 22:59:59,150 - INFO - Converting results to JSON format
+2025-10-13 22:59:59,159 - INFO - Inference complete. 10 results written to runs/20251013_225644_R1_gpqa/inference.json
+2025-10-13 22:59:59,161 - INFO - Inference stage complete
+2025-10-13 22:59:59,164 - INFO - Starting evaluation stage
+2025-10-13 22:59:59,164 - INFO - Loading inference results from runs/20251013_225644_R1_gpqa/inference.json
+2025-10-13 22:59:59,165 - INFO - Loaded 10 items
+2025-10-13 22:59:59,165 - INFO - Initializing grader with model: gpt-4o
+2025-10-13 22:59:59,191 - INFO - Grading with 50 workers
+2025-10-13 23:00:01,203 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:01,303 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:01,385 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:01,713 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:02,290 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:02,290 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:02,429 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:02,429 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:03,219 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:03,220 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:03,658 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:04,031 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:04,091 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:04,978 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:05,501 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:05,543 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:05,723 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:06,035 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:00:06,082 - INFO - Computing statistics
+2025-10-13 23:00:06,085 - INFO - Evaluation complete. Results written to runs/20251013_225644_R1_gpqa/evaluation.json
+2025-10-13 23:00:06,085 - INFO - 
+Evaluation Summary:
+2025-10-13 23:00:06,085 - INFO -   Legibility: mean=3.11, std=0.87, median=3.00
+2025-10-13 23:00:06,085 - INFO -   Correctness: 55.6% correct, 33.3% partial, 11.1% incorrect
+2025-10-13 23:00:06,086 - INFO - Evaluation stage complete
+2025-10-13 23:00:06,319 - INFO - Starting analysis stage
+2025-10-13 23:00:06,321 - INFO - Loading evaluation from runs/20251013_225644_R1_gpqa/evaluation.json
+2025-10-13 23:00:06,321 - INFO - Generating legibility_scores_boxplot plot
+2025-10-13 23:00:06,469 - INFO - Generating correctness_assessment plot
+2025-10-13 23:00:06,514 - INFO - Generating legibility_by_correctness plot
+2025-10-13 23:00:06,558 - INFO - Generating length_vs_legibility plot
+2025-10-13 23:00:06,606 - INFO - Generating correctness_vs_legibility_scatter plot
+2025-10-13 23:00:07,028 - INFO - Generating correctness_vs_legibility_scatter_normalized plot
+2025-10-13 23:00:07,069 - INFO - Generating legibility_by_difficulty plot
+2025-10-13 23:00:07,109 - INFO - Analysis complete. Plots saved to runs/20251013_225644_R1_gpqa/plots
+2025-10-13 23:00:07,109 - INFO - Analysis stage complete
+2025-10-13 23:00:07,109 - INFO - Run complete. Results in runs/20251013_225644_R1_gpqa

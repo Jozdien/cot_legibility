@@ -1,0 +1,10 @@
+2025-10-13 22:04:49,769 - INFO - Starting analysis-only run: 20251013_220449_analysis
+2025-10-13 22:04:49,769 - INFO - Config: config/analysis.yaml
+2025-10-13 22:04:50,013 - INFO - Starting analysis stage
+2025-10-13 22:04:50,013 - INFO - Running comparison analysis
+2025-10-13 22:04:50,017 - INFO - Loaded 3 evaluations for comparison
+2025-10-13 22:04:50,017 - INFO - Generating model_comparison plot
+2025-10-13 22:04:50,177 - INFO - Generating legibility_comparison plot
+2025-10-13 22:04:50,231 - INFO - Analysis complete. Plots saved to runs/20251013_220449_analysis/plots
+2025-10-13 22:04:50,231 - INFO - Analysis stage complete
+2025-10-13 22:04:50,231 - INFO - Analysis complete. Results in runs/20251013_220449_analysis

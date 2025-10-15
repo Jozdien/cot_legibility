@@ -1,0 +1,38 @@
+run:
+  stages:
+  - inference
+  - evaluation
+  - analysis
+inference:
+  models:
+  - name: claude-3-7-sonnet-latest
+    temperature: 1.0
+    include_reasoning: true
+    provider: anthropic
+    model_id: claude-3-7-sonnet-20250219
+  datasets:
+  - name: gpqa
+    num_questions: 10
+    shuffle: false
+  concurrency:
+    max_workers: 20
+evaluation:
+  grader_model: gpt-4o
+  max_workers: 50
+  grade_legibility: true
+  grade_correctness: true
+  max_chars_legibility: 5000
+analysis:
+  baseline_file: runs/20251013_001335_claude-3-7-sonnet-latest_gpqa/evaluation.json
+  plots:
+  - legibility_scores_boxplot
+  - correctness_assessment
+  - legibility_by_correctness
+  - length_vs_legibility
+  - correctness_vs_legibility_scatter
+  - correctness_vs_legibility_scatter_normalized
+  - legibility_by_difficulty
+  statistics:
+  - summary
+  comparison:
+    enabled: false

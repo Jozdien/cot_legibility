@@ -1,0 +1,67 @@
+2025-10-13 03:53:05,650 - INFO - Starting run: 20251013_035305_R1_gpqa
+2025-10-13 03:53:05,650 - INFO - Config: config/quick_test.yaml
+2025-10-13 03:53:05,651 - INFO - Model: R1, Dataset: gpqa
+2025-10-13 03:53:06,210 - INFO - PyTorch version 2.5.1 available.
+2025-10-13 03:53:06,660 - INFO - Starting inference stage
+2025-10-13 03:53:06,660 - INFO - Loading dataset: gpqa
+2025-10-13 03:53:06,683 - INFO - Loaded 10 questions
+2025-10-13 03:53:06,683 - INFO - Initializing provider: openrouter
+2025-10-13 03:53:06,697 - INFO - Running inference with 50 workers
+2025-10-13 03:53:08,138 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-10-13 03:53:08,140 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-10-13 03:53:08,141 - INFO - Retrying request to /chat/completions in 0.384464 seconds
+2025-10-13 03:53:08,142 - INFO - Retrying request to /chat/completions in 0.387776 seconds
+2025-10-13 03:53:08,541 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:08,542 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:08,542 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:08,752 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:08,753 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:08,753 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:09,262 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:10,733 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:10,734 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:53:11,824 - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:31,635 - INFO - Converting results to JSON format
+2025-10-13 03:58:31,644 - INFO - Inference complete. 10 results written to runs/20251013_035305_R1_gpqa/inference.json
+2025-10-13 03:58:31,646 - INFO - Inference stage complete
+2025-10-13 03:58:31,650 - INFO - Starting evaluation stage
+2025-10-13 03:58:31,650 - INFO - Loading inference results from runs/20251013_035305_R1_gpqa/inference.json
+2025-10-13 03:58:31,651 - INFO - Loaded 10 items
+2025-10-13 03:58:31,651 - INFO - Initializing grader with model: gpt-4o
+2025-10-13 03:58:31,676 - INFO - Grading with 50 workers
+2025-10-13 03:58:33,284 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:33,465 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:33,670 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:33,671 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:33,715 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:33,836 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:33,865 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:34,491 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:34,492 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:35,121 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:35,135 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:35,720 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:35,722 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:35,723 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:35,863 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:36,127 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:36,435 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:36,437 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:42,643 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 503 Service Unavailable"
+2025-10-13 03:58:42,646 - INFO - Retrying request to /chat/completions in 0.412451 seconds
+2025-10-13 03:58:44,627 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:46,368 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 03:58:46,371 - INFO - Computing statistics
+2025-10-13 03:58:46,380 - INFO - Evaluation complete. Results written to runs/20251013_035305_R1_gpqa/evaluation.json
+2025-10-13 03:58:46,380 - INFO - 
+Evaluation Summary:
+2025-10-13 03:58:46,380 - INFO -   Legibility: mean=3.60, std=1.36, median=3.50
+2025-10-13 03:58:46,381 - INFO -   Correctness: 50.0% correct, 20.0% partial, 30.0% incorrect
+2025-10-13 03:58:46,381 - INFO - Evaluation stage complete
+2025-10-13 03:58:46,639 - INFO - Starting analysis stage
+2025-10-13 03:58:46,642 - INFO - Loading evaluation from runs/20251013_035305_R1_gpqa/evaluation.json
+2025-10-13 03:58:46,642 - INFO - Generating legibility_scores_boxplot plot
+2025-10-13 03:58:46,781 - INFO - Generating correctness_assessment plot
+2025-10-13 03:58:46,830 - INFO - Analysis complete. Plots saved to runs/20251013_035305_R1_gpqa/plots
+2025-10-13 03:58:46,830 - INFO - Analysis stage complete
+2025-10-13 03:58:46,830 - INFO - Run complete. Results in runs/20251013_035305_R1_gpqa

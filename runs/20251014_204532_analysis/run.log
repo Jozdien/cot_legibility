@@ -1,0 +1,13 @@
+2025-10-14 20:45:32,325 - INFO - Starting analysis-only run: 20251014_204532_analysis
+2025-10-14 20:45:32,325 - INFO - Config: config/analysis.yaml
+2025-10-14 20:45:32,565 - INFO - Starting analysis stage
+2025-10-14 20:45:32,567 - INFO - Running comparison analysis
+2025-10-14 20:45:32,574 - INFO - Loaded 3 evaluations for comparison
+2025-10-14 20:45:32,574 - INFO - Generating model_comparison plot
+2025-10-14 20:45:32,707 - INFO - Generating legibility_comparison plot
+2025-10-14 20:45:32,757 - INFO - Generating legibility_by_difficulty_comparison plot
+2025-10-14 20:45:32,824 - INFO - Generating correctness_vs_legibility_scatter_comparison plot
+2025-10-14 20:45:33,324 - INFO - Generating correctness_vs_legibility_scatter_comparison_normalized plot
+2025-10-14 20:45:33,520 - INFO - Analysis complete. Plots saved to runs/20251014_204532_analysis/plots
+2025-10-14 20:45:33,520 - INFO - Analysis stage complete
+2025-10-14 20:45:33,520 - INFO - Analysis complete. Results in runs/20251014_204532_analysis

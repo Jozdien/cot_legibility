@@ -1,0 +1,66 @@
+2025-10-13 23:41:44,335 - INFO - Starting run: 20251013_234144_claude-3-7-sonnet-latest_gpqa
+2025-10-13 23:41:44,335 - INFO - Config: config/quick_test.yaml
+2025-10-13 23:41:44,335 - INFO - Model: claude-3-7-sonnet-latest, Dataset: gpqa
+2025-10-13 23:41:44,884 - INFO - PyTorch version 2.5.1 available.
+2025-10-13 23:41:45,348 - INFO - Starting inference stage
+2025-10-13 23:41:45,348 - INFO - Loading dataset: gpqa
+2025-10-13 23:41:45,371 - INFO - Loaded 10 questions
+2025-10-13 23:41:45,371 - INFO - Initializing provider: anthropic
+2025-10-13 23:41:45,462 - INFO - Running inference with 20 workers
+2025-10-13 23:42:42,933 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:42:45,427 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:42:46,355 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:07,410 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:12,217 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:13,238 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:15,497 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:16,299 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:24,256 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:27,073 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:43:27,199 - INFO - Converting results to JSON format
+2025-10-13 23:43:27,205 - INFO - Inference complete. 10 results written to runs/20251013_234144_claude-3-7-sonnet-latest_gpqa/inference.json
+2025-10-13 23:43:27,207 - INFO - Inference stage complete
+2025-10-13 23:43:27,210 - INFO - Starting evaluation stage
+2025-10-13 23:43:27,211 - INFO - Loading inference results from runs/20251013_234144_claude-3-7-sonnet-latest_gpqa/inference.json
+2025-10-13 23:43:27,212 - INFO - Loaded 10 items
+2025-10-13 23:43:27,212 - INFO - Initializing grader with model: gpt-4o
+2025-10-13 23:43:27,280 - INFO - Grading with 50 workers
+2025-10-13 23:43:29,010 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,011 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,011 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,012 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,040 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,049 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,055 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,231 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,484 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:29,854 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,137 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,338 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,548 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,748 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,749 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,805 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,849 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:30,954 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:31,161 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:31,170 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-13 23:43:31,177 - INFO - Computing statistics
+2025-10-13 23:43:31,183 - INFO - Evaluation complete. Results written to runs/20251013_234144_claude-3-7-sonnet-latest_gpqa/evaluation.json
+2025-10-13 23:43:31,183 - INFO - 
+Evaluation Summary:
+2025-10-13 23:43:31,183 - INFO -   Legibility: mean=1.90, std=0.30, median=2.00
+2025-10-13 23:43:31,183 - INFO -   Correctness: 70.0% correct, 20.0% partial, 10.0% incorrect
+2025-10-13 23:43:31,184 - INFO - Evaluation stage complete
+2025-10-13 23:43:31,371 - INFO - Starting analysis stage
+2025-10-13 23:43:31,374 - INFO - Loading evaluation from runs/20251013_234144_claude-3-7-sonnet-latest_gpqa/evaluation.json
+2025-10-13 23:43:31,374 - INFO - Generating legibility_scores_boxplot plot
+2025-10-13 23:43:31,519 - INFO - Generating correctness_assessment plot
+2025-10-13 23:43:31,562 - INFO - Generating legibility_by_correctness plot
+2025-10-13 23:43:31,603 - INFO - Generating length_vs_legibility plot
+2025-10-13 23:43:31,649 - INFO - Generating correctness_vs_legibility_scatter plot
+2025-10-13 23:43:32,008 - INFO - Generating correctness_vs_legibility_scatter_normalized plot
+2025-10-13 23:43:32,008 - INFO - Generating legibility_by_difficulty plot
+2025-10-13 23:43:32,049 - INFO - Analysis complete. Plots saved to runs/20251013_234144_claude-3-7-sonnet-latest_gpqa/plots
+2025-10-13 23:43:32,049 - INFO - Analysis stage complete
+2025-10-13 23:43:32,049 - INFO - Run complete. Results in runs/20251013_234144_claude-3-7-sonnet-latest_gpqa

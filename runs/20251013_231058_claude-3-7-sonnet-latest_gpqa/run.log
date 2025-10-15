@@ -1,0 +1,12 @@
+2025-10-13 23:10:58,150 - INFO - Starting run: 20251013_231058_claude-3-7-sonnet-latest_gpqa
+2025-10-13 23:10:58,150 - INFO - Config: config/quick_test.yaml
+2025-10-13 23:10:58,150 - INFO - Model: claude-3-7-sonnet-latest, Dataset: gpqa
+2025-10-13 23:10:58,691 - INFO - PyTorch version 2.5.1 available.
+2025-10-13 23:10:59,138 - INFO - Starting inference stage
+2025-10-13 23:10:59,138 - INFO - Loading dataset: gpqa
+2025-10-13 23:10:59,181 - INFO - Loaded 100 questions
+2025-10-13 23:10:59,181 - INFO - Initializing provider: anthropic
+2025-10-13 23:10:59,279 - INFO - Running inference with 50 workers
+2025-10-13 23:11:02,939 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-13 23:11:08,939 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 502 Bad Gateway"
+2025-10-13 23:11:08,940 - INFO - Retrying request to /v1/messages in 0.491744 seconds
