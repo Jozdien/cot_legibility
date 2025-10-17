@@ -106,8 +106,6 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
             "prefill_include_reasoning": include_reasoning,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "metadata": metadata,
-            "_request_sample": request_sample,
-            "_full_original_reasoning": reasoning,
         }
         for field in ["correct_answer", "dataset", "model", "temperature"]:
             if field in result:
@@ -118,6 +116,9 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
         returned_reasoning = response.get("reasoning")
         if not include_reasoning and returned_reasoning:
             output["prefill_validation_error"] = "Model returned reasoning when include_reasoning=False"
+
+        output["_request_sample"] = request_sample
+        output["_full_original_reasoning"] = reasoning
 
         return output
     except Exception as e:
@@ -246,6 +247,10 @@ def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
             if "sample_index" in r:
                 sample["sample_index"] = r["sample_index"]
             break
+
+    for r in results:
+        r.pop("_request_sample", None)
+        r.pop("_full_original_reasoning", None)
 
     json_file = output_dir / "prefill_inference.json"
     output_data = {"results": results}
