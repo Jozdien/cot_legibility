@@ -31,8 +31,6 @@ class OpenRouterProvider(Provider):
                 extra_body["reasoning"] = reasoning_config
             else:
                 extra_body["include_reasoning"] = True
-        elif "include_reasoning" in model_config:
-            extra_body["include_reasoning"] = False
 
         if "openrouter_provider" in model_config:
             provider_config = model_config["openrouter_provider"]
@@ -52,76 +50,57 @@ class OpenRouterProvider(Provider):
             "messages": messages,
             "temperature": model_config.get("temperature", 1.0),
             "extra_body": extra_body,
+            "stream": True,
         }
         if "max_tokens" in model_config:
             kwargs["max_tokens"] = model_config["max_tokens"]
 
+        answer = ""
+        reasoning = None
+        stream_complete = False
+        error_msg = None
+        last_chunk = None
+
         try:
-            completion = self.client.chat.completions.create(**kwargs)
+            stream = self.client.chat.completions.create(**kwargs)
+            for chunk in stream:
+                last_chunk = chunk
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        answer += delta.content
+                    if hasattr(delta, "reasoning") and delta.reasoning:
+                        if reasoning is None:
+                            reasoning = ""
+                        reasoning += delta.reasoning
+            stream_complete = True
         except Exception as e:
-            import json
-            from json import JSONDecodeError
-
-            error_details = {
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "model": model_config["model_id"],
-                "temperature": model_config.get("temperature"),
-            }
-
-            if isinstance(e, JSONDecodeError):
-                try:
-                    import httpx
-                    response = httpx.post(
-                        f"{self.client.base_url}/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {self.client.api_key}",
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "model": kwargs["model"],
-                            "messages": kwargs["messages"],
-                            "temperature": kwargs.get("temperature", 1.0),
-                            "max_tokens": kwargs.get("max_tokens"),
-                            **kwargs.get("extra_body", {}),
-                        },
-                        timeout=600.0,
-                    )
-                    error_details["debug_status_code"] = response.status_code
-                    error_details["debug_response_start"] = response.text[:1000]
-                    error_details["debug_response_end"] = response.text[-1000:]
-                    error_details["debug_response_length"] = len(response.text)
-                except Exception as debug_error:
-                    error_details["debug_error"] = str(debug_error)
-
+            error_msg = str(e)
             if hasattr(e, 'response'):
                 try:
-                    error_details["status_code"] = e.response.status_code
-                    error_details["response_headers"] = dict(e.response.headers)
+                    error_msg = f"{error_msg} | Response: {e.response.text[:500]}"
                 except Exception:
                     pass
 
-            error_msg = f"OpenRouter API error: {json.dumps(error_details, indent=2)}"
-            raise Exception(error_msg)
-
         duration_ms = int((time.time() - start_time) * 1000)
 
-        answer = completion.choices[0].message.content or ""
-        reasoning = getattr(completion.choices[0].message, "reasoning", None)
-
-        result = {"answer": answer, "duration_ms": duration_ms}
+        result = {"answer": answer, "duration_ms": duration_ms, "stream_complete": stream_complete}
 
         if reasoning:
             result["reasoning"] = reasoning
 
-        if hasattr(completion, "usage"):
-            result["tokens"] = completion.usage.total_tokens
+        if error_msg:
+            result["error"] = error_msg
 
-        if hasattr(completion, "model"):
-            result["provider_model"] = completion.model
+        if last_chunk:
+            if hasattr(last_chunk, "usage") and last_chunk.usage:
+                result["tokens"] = last_chunk.usage.total_tokens
 
-        if hasattr(completion, "provider"):
-            result["openrouter_provider"] = completion.provider
+            if hasattr(last_chunk, "model"):
+                result["provider_model"] = last_chunk.model
+
+            if hasattr(last_chunk, "provider"):
+                result["openrouter_provider"] = last_chunk.provider
 
         return result
 
