@@ -15,7 +15,22 @@ class OpenRouterProvider(Provider):
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY not found in environment")
-        self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key, timeout=600.0)
+
+        import httpx
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            timeout=600.0,
+            http_client=httpx.Client(
+                event_hooks={
+                    "response": [self._log_response]
+                }
+            )
+        )
+        self.last_response_text = None
+
+    def _log_response(self, response):
+        self.last_response_text = response.text
 
     def generate(self, question: str, model_config: dict, prefill: str | None = None) -> dict:
         start_time = time.time()
@@ -64,13 +79,15 @@ class OpenRouterProvider(Provider):
                 "temperature": model_config.get("temperature"),
             }
 
+            if self.last_response_text:
+                error_details["response_body_start"] = self.last_response_text[:1000]
+                error_details["response_body_end"] = self.last_response_text[-1000:]
+                error_details["response_length"] = len(self.last_response_text)
+
             if hasattr(e, 'response'):
                 try:
                     error_details["status_code"] = e.response.status_code
                     error_details["response_headers"] = dict(e.response.headers)
-                    response_text = e.response.text
-                    error_details["response_body"] = response_text[:1000]
-                    error_details["response_length"] = len(response_text)
                 except Exception:
                     pass
 
