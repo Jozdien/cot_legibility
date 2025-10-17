@@ -57,12 +57,31 @@ class OpenRouterProvider(Provider):
         try:
             completion = self.client.chat.completions.create(**kwargs)
         except Exception as e:
-            error_msg = str(e)
+            error_details = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "model": model_config["model_id"],
+                "temperature": model_config.get("temperature"),
+            }
+
             if hasattr(e, 'response'):
                 try:
-                    error_msg = f"{error_msg} | Response: {e.response.text[:500]}"
+                    error_details["status_code"] = e.response.status_code
+                    error_details["response_headers"] = dict(e.response.headers)
+                    response_text = e.response.text
+                    error_details["response_body"] = response_text[:1000]
+                    error_details["response_length"] = len(response_text)
                 except Exception:
                     pass
+
+            if hasattr(e, 'body'):
+                try:
+                    error_details["error_body"] = str(e.body)[:1000]
+                except Exception:
+                    pass
+
+            import json
+            error_msg = f"OpenRouter API error: {json.dumps(error_details, indent=2)}"
             raise Exception(error_msg)
 
         duration_ms = int((time.time() - start_time) * 1000)
