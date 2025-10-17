@@ -48,6 +48,9 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
 
         extracted_reasoning, skip_reason = extract_reasoning_up_to_threshold(reasoning, legibility_chunks, threshold)
 
+        if extracted_reasoning:
+            extracted_reasoning = f"<think>\n{extracted_reasoning}\n</think>"
+
         if not extracted_reasoning:
             skip_messages = {
                 "no_reasoning": "No reasoning available to extract",
@@ -72,9 +75,13 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
         prefill_model_config = model_config.copy()
         prefill_model_config["include_reasoning"] = include_reasoning
 
+        messages = [
+            {"role": "user", "content": result["question"]},
+            {"role": "assistant", "content": extracted_reasoning}
+        ]
+
         request_sample = {
-            "question": result["question"],
-            "prefill": extracted_reasoning,
+            "messages": messages,
             "model_config": prefill_model_config,
         }
 

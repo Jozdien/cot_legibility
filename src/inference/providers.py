@@ -43,7 +43,7 @@ class OpenRouterProvider(Provider):
 
         messages = [{"role": "user", "content": question}]
         if prefill:
-            messages.append({"role": "assistant", "content": f"<think>\n{prefill}\n</think>"})
+            messages.append({"role": "assistant", "content": prefill})
 
         kwargs = {
             "model": model_config["model_id"],
@@ -139,7 +139,7 @@ class DirectAPIProvider(Provider):
 
             messages = [{"role": "user", "content": question}]
             if prefill:
-                messages.append({"role": "assistant", "content": f"<think>\n{prefill}\n</think>"})
+                messages.append({"role": "assistant", "content": prefill})
 
             response = self.client.messages.create(
                 model=model_config["model_id"],
@@ -161,7 +161,7 @@ class DirectAPIProvider(Provider):
         else:
             messages = [{"role": "user", "content": question}]
             if prefill:
-                messages.append({"role": "assistant", "content": f"<think>\n{prefill}\n</think>"})
+                messages.append({"role": "assistant", "content": prefill})
 
             kwargs = {
                 "model": model_config["model_id"],
