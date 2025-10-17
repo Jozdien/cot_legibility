@@ -65,6 +65,12 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
         prefill_model_config = model_config.copy()
         prefill_model_config["include_reasoning"] = include_reasoning
 
+        request_sample = {
+            "question": result["question"],
+            "prefill": extracted_reasoning,
+            "model_config": prefill_model_config,
+        }
+
         response = provider.generate(result["question"], prefill_model_config, prefill=extracted_reasoning)
 
         returned_reasoning = response.get("reasoning")
@@ -75,6 +81,7 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
                 "prefill_reasoning": returned_reasoning,
                 "prefill_extracted_reasoning": extracted_reasoning,
                 "prefill_reasoning_length": len(extracted_reasoning),
+                "prefill_request_sample": request_sample,
                 "prefill_validation_error": "Model returned reasoning when include_reasoning=False",
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "metadata": {
@@ -98,6 +105,7 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
             "prefill_reasoning": response.get("reasoning"),
             "prefill_extracted_reasoning": extracted_reasoning,
             "prefill_reasoning_length": len(extracted_reasoning),
+            "prefill_request_sample": request_sample,
             "prefill_include_reasoning": include_reasoning,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "metadata": metadata,
