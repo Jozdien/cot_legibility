@@ -7,9 +7,11 @@ from .providers import get_provider
 from ..utils.io import append_jsonl, read_json, read_jsonl, write_json
 
 
-def extract_reasoning_up_to_threshold(reasoning: str, legibility_chunks: list[dict], threshold: int) -> str | None:
-    if not legibility_chunks or not reasoning:
-        return None
+def extract_reasoning_up_to_threshold(reasoning: str, legibility_chunks: list[dict], threshold: int) -> tuple[str | None, str | None]:
+    if not reasoning:
+        return None, "no_reasoning"
+    if not legibility_chunks:
+        return None, "no_chunks"
 
     valid_chunks = []
     for chunk in legibility_chunks:
@@ -22,7 +24,7 @@ def extract_reasoning_up_to_threshold(reasoning: str, legibility_chunks: list[di
             break
 
     if not valid_chunks:
-        return None
+        return None, "all_chunks_above_threshold"
 
     last_chunk = valid_chunks[-1]
     cutoff_pos = last_chunk.get("end_pos", 0)
@@ -33,7 +35,10 @@ def extract_reasoning_up_to_threshold(reasoning: str, legibility_chunks: list[di
     if last_newline != -1:
         extracted = extracted[:last_newline]
 
-    return extracted if extracted.strip() else None
+    if not extracted.strip():
+        return None, "empty_after_extraction"
+
+    return extracted, None
 
 
 def process_prefilled_question(result: dict, model_config: dict, provider, threshold: int, include_reasoning: bool) -> dict:
@@ -41,12 +46,19 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
         reasoning = result.get("reasoning", "")
         legibility_chunks = result.get("legibility_chunks", [])
 
-        extracted_reasoning = extract_reasoning_up_to_threshold(reasoning, legibility_chunks, threshold)
+        extracted_reasoning, skip_reason = extract_reasoning_up_to_threshold(reasoning, legibility_chunks, threshold)
 
         if not extracted_reasoning:
+            skip_messages = {
+                "no_reasoning": "No reasoning available to extract",
+                "no_chunks": "No legibility chunks available",
+                "all_chunks_above_threshold": f"Skipped: all chunks already above threshold ({threshold})",
+                "empty_after_extraction": "Extraction resulted in empty reasoning",
+            }
             return {
                 **result,
-                "prefill_error": "No valid reasoning to extract",
+                "prefill_skip_reason": skip_reason,
+                "prefill_skip_message": skip_messages.get(skip_reason, "Unknown reason"),
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
 
@@ -177,7 +189,9 @@ def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
             result = future.result()
             append_jsonl(prefill_inference_file, result)
 
-            if "prefill_error" in result:
+            if "prefill_skip_reason" in result:
+                logger.info(f"Question {result.get('question_id')}: {result['prefill_skip_message']}")
+            elif "prefill_error" in result:
                 logger.warning(f"Error on question {result.get('question_id')}: {result['prefill_error']}")
             elif "prefill_validation_error" in result:
                 logger.warning(f"Validation error on question {result.get('question_id')}: {result['prefill_validation_error']}")
