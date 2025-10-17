@@ -20,6 +20,10 @@ def process_question(question_data: dict, model_config: dict, provider) -> dict:
             metadata["provider_model"] = result["provider_model"]
         if "openrouter_provider" in result:
             metadata["openrouter_provider"] = result["openrouter_provider"]
+        if "stream_complete" in result:
+            metadata["stream_complete"] = result["stream_complete"]
+        if "error" in result:
+            metadata["error"] = result["error"]
 
         return {
             **question_data,
