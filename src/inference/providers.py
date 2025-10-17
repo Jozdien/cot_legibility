@@ -15,22 +15,7 @@ class OpenRouterProvider(Provider):
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY not found in environment")
-
-        import httpx
-        self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-            timeout=600.0,
-            http_client=httpx.Client(
-                event_hooks={
-                    "response": [self._log_response]
-                }
-            )
-        )
-        self.last_response_text = None
-
-    def _log_response(self, response):
-        self.last_response_text = response.text
+        self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key, timeout=600.0)
 
     def generate(self, question: str, model_config: dict, prefill: str | None = None) -> dict:
         start_time = time.time()
@@ -46,6 +31,8 @@ class OpenRouterProvider(Provider):
                 extra_body["reasoning"] = reasoning_config
             else:
                 extra_body["include_reasoning"] = True
+        elif "include_reasoning" in model_config:
+            extra_body["include_reasoning"] = False
 
         if "openrouter_provider" in model_config:
             provider_config = model_config["openrouter_provider"]
@@ -72,6 +59,9 @@ class OpenRouterProvider(Provider):
         try:
             completion = self.client.chat.completions.create(**kwargs)
         except Exception as e:
+            import json
+            from json import JSONDecodeError
+
             error_details = {
                 "error_type": type(e).__name__,
                 "error_message": str(e),
@@ -79,10 +69,30 @@ class OpenRouterProvider(Provider):
                 "temperature": model_config.get("temperature"),
             }
 
-            if self.last_response_text:
-                error_details["response_body_start"] = self.last_response_text[:1000]
-                error_details["response_body_end"] = self.last_response_text[-1000:]
-                error_details["response_length"] = len(self.last_response_text)
+            if isinstance(e, JSONDecodeError):
+                try:
+                    import httpx
+                    response = httpx.post(
+                        f"{self.client.base_url}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {self.client.api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": kwargs["model"],
+                            "messages": kwargs["messages"],
+                            "temperature": kwargs.get("temperature", 1.0),
+                            "max_tokens": kwargs.get("max_tokens"),
+                            **kwargs.get("extra_body", {}),
+                        },
+                        timeout=600.0,
+                    )
+                    error_details["debug_status_code"] = response.status_code
+                    error_details["debug_response_start"] = response.text[:1000]
+                    error_details["debug_response_end"] = response.text[-1000:]
+                    error_details["debug_response_length"] = len(response.text)
+                except Exception as debug_error:
+                    error_details["debug_error"] = str(debug_error)
 
             if hasattr(e, 'response'):
                 try:
@@ -91,13 +101,6 @@ class OpenRouterProvider(Provider):
                 except Exception:
                     pass
 
-            if hasattr(e, 'body'):
-                try:
-                    error_details["error_body"] = str(e.body)[:1000]
-                except Exception:
-                    pass
-
-            import json
             error_msg = f"OpenRouter API error: {json.dumps(error_details, indent=2)}"
             raise Exception(error_msg)
 
