@@ -15,7 +15,7 @@ inference:
 
   datasets:
     - name: "gpqa"
-      num_questions: 100
+      num_questions: 10
       samples_per_question: 1
       shuffle: false
 
@@ -31,7 +31,7 @@ evaluation:
   chunk_size: 5000
 
 prefill:
-  legibility_threshold: 7
+  legibility_threshold: 4
   include_reasoning: false
   max_workers: 30
 

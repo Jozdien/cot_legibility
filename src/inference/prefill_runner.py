@@ -110,7 +110,31 @@ def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
 
     logger.info(f"Loading evaluation results from {evaluation_file}")
     evaluation = read_json(evaluation_file)
-    results = evaluation.get("results", [])
+    eval_results = evaluation.get("results", [])
+
+    inference_file = evaluation.get("metadata", {}).get("inference_file")
+    if not inference_file:
+        inference_file = output_dir / "inference.json"
+    else:
+        inference_file = Path(inference_file)
+
+    if not inference_file.exists():
+        raise FileNotFoundError(f"Inference file not found: {inference_file}")
+
+    logger.info(f"Loading full reasoning from {inference_file}")
+    inference_results = read_json(inference_file)
+    reasoning_map = {
+        (item["question_id"], item.get("sample_index", 0)): item.get("reasoning", "")
+        for item in inference_results
+    }
+
+    results = []
+    for eval_result in eval_results:
+        q_id = eval_result["question_id"]
+        sample_idx = eval_result.get("sample_index", 0)
+        full_reasoning = reasoning_map.get((q_id, sample_idx), "")
+        result = {**eval_result, "reasoning": full_reasoning}
+        results.append(result)
 
     if not results:
         logger.warning("No results found in evaluation file")
