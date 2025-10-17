@@ -55,12 +55,19 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
                 "all_chunks_above_threshold": f"Skipped: all chunks already above threshold ({threshold})",
                 "empty_after_extraction": "Extraction resulted in empty reasoning",
             }
-            return {
-                **result,
+            output = {
+                "question_id": result["question_id"],
+                "question": result["question"],
+                "original_answer": result.get("answer"),
+                "original_correctness": result.get("correctness"),
+                "legibility_chunks": legibility_chunks,
                 "prefill_skip_reason": skip_reason,
                 "prefill_skip_message": skip_messages.get(skip_reason, "Unknown reason"),
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
+            if "sample_index" in result:
+                output["sample_index"] = result["sample_index"]
+            return output
 
         prefill_model_config = model_config.copy()
         prefill_model_config["include_reasoning"] = include_reasoning
@@ -73,23 +80,6 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
 
         response = provider.generate(result["question"], prefill_model_config, prefill=extracted_reasoning)
 
-        returned_reasoning = response.get("reasoning")
-        if not include_reasoning and returned_reasoning:
-            return {
-                **result,
-                "prefill_answer": response["answer"],
-                "prefill_reasoning": returned_reasoning,
-                "prefill_extracted_reasoning": extracted_reasoning,
-                "prefill_reasoning_length": len(extracted_reasoning),
-                "prefill_request_sample": request_sample,
-                "prefill_validation_error": "Model returned reasoning when include_reasoning=False",
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-                "metadata": {
-                    "duration_ms": response["duration_ms"],
-                    "tokens": response.get("tokens"),
-                },
-            }
-
         metadata = {
             "duration_ms": response["duration_ms"],
             "tokens": response.get("tokens"),
@@ -98,24 +88,50 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
             metadata["provider_model"] = response["provider_model"]
         if "openrouter_provider" in response:
             metadata["openrouter_provider"] = response["openrouter_provider"]
+        if "stream_complete" in response:
+            metadata["stream_complete"] = response["stream_complete"]
+        if "error" in response:
+            metadata["error"] = response["error"]
 
-        return {
-            **result,
+        output = {
+            "question_id": result["question_id"],
+            "question": result["question"],
+            "original_answer": result.get("answer"),
+            "original_correctness": result.get("correctness"),
+            "legibility_chunks": legibility_chunks,
+            "prefill": extracted_reasoning,
             "prefill_answer": response["answer"],
             "prefill_reasoning": response.get("reasoning"),
-            "prefill_extracted_reasoning": extracted_reasoning,
             "prefill_reasoning_length": len(extracted_reasoning),
-            "prefill_request_sample": request_sample,
             "prefill_include_reasoning": include_reasoning,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "metadata": metadata,
+            "_request_sample": request_sample,
+            "_full_original_reasoning": reasoning,
         }
+        for field in ["correct_answer", "dataset", "model", "temperature"]:
+            if field in result:
+                output[field] = result[field]
+        if "sample_index" in result:
+            output["sample_index"] = result["sample_index"]
+
+        returned_reasoning = response.get("reasoning")
+        if not include_reasoning and returned_reasoning:
+            output["prefill_validation_error"] = "Model returned reasoning when include_reasoning=False"
+
+        return output
     except Exception as e:
-        return {
-            **result,
+        output = {
+            "question_id": result["question_id"],
+            "question": result["question"],
+            "original_answer": result.get("answer"),
+            "original_correctness": result.get("correctness"),
             "prefill_error": str(e),
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
+        if "sample_index" in result:
+            output["sample_index"] = result["sample_index"]
+        return output
 
 
 def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
@@ -208,7 +224,33 @@ def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
 
     logger.info("Converting results to JSON format")
     results = list(read_jsonl(prefill_inference_file))
+
+    sample = None
+    for r in results:
+        if "_request_sample" in r and "_full_original_reasoning" in r:
+            sample = {
+                "note": "This is a sample entry showing the complete structure with all fields for verification",
+                "question_id": r["question_id"],
+                "question": r["question"],
+                "original_answer": r["original_answer"],
+                "original_correctness": r["original_correctness"],
+                "original_reasoning_full": r["_full_original_reasoning"],
+                "legibility_chunks": r["legibility_chunks"],
+                "prefill_extracted": r["prefill"],
+                "prefill_answer": r["prefill_answer"],
+                "prefill_reasoning": r.get("prefill_reasoning"),
+                "request_to_model": r["_request_sample"],
+                "metadata": r["metadata"],
+                "timestamp": r["timestamp"],
+            }
+            if "sample_index" in r:
+                sample["sample_index"] = r["sample_index"]
+            break
+
     json_file = output_dir / "prefill_inference.json"
-    write_json(json_file, results)
+    output_data = {"results": results}
+    if sample:
+        output_data["sample"] = sample
+    write_json(json_file, output_data)
     prefill_inference_file.unlink()
     logger.info(f"Prefill inference complete. {len(results)} results written to {json_file}")

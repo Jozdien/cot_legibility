@@ -14,7 +14,7 @@ def grade_prefill_item(item: dict, grader: Grader) -> dict:
         "question": item["question"],
         "prefill_answer": item.get("prefill_answer"),
         "correct_answer": item.get("correct_answer"),
-        "original_answer": item.get("answer"),
+        "original_answer": item.get("original_answer"),
         "dataset": item.get("dataset"),
         "model": item.get("model"),
         "temperature": item.get("temperature"),
@@ -28,6 +28,11 @@ def grade_prefill_item(item: dict, grader: Grader) -> dict:
         result["prefill_error"] = item["prefill_error"]
         return result
 
+    if "prefill_skip_reason" in item:
+        result["prefill_skip_reason"] = item["prefill_skip_reason"]
+        result["prefill_skip_message"] = item["prefill_skip_message"]
+        return result
+
     if "prefill_validation_error" in item:
         result["prefill_validation_error"] = item["prefill_validation_error"]
 
@@ -37,7 +42,7 @@ def grade_prefill_item(item: dict, grader: Grader) -> dict:
         correctness = grader.grade_correctness(predicted, actual, item["question"])
         result["prefill_correctness"] = correctness
 
-    original_predicted = item.get("answer", "")
+    original_predicted = item.get("original_answer", "")
     if original_predicted and actual:
         original_correctness = grader.grade_correctness(original_predicted, actual, item["question"])
         result["original_correctness"] = original_correctness
@@ -95,10 +100,12 @@ def compute_prefill_statistics(results: list[dict]) -> dict:
 
     errors = sum(1 for r in results if "prefill_error" in r)
     validation_errors = sum(1 for r in results if "prefill_validation_error" in r)
-    if errors or validation_errors:
+    skipped = sum(1 for r in results if "prefill_skip_reason" in r)
+    if errors or validation_errors or skipped:
         stats["errors"] = {
             "prefill_errors": errors,
             "validation_errors": validation_errors,
+            "skipped": skipped,
         }
 
     return stats
@@ -111,7 +118,11 @@ def run_prefill_evaluation_stage(config: dict, output_dir: Path, logger) -> None
         raise FileNotFoundError(f"Prefill inference file not found: {prefill_inference_file}")
 
     logger.info(f"Loading prefill inference results from {prefill_inference_file}")
-    items = read_json(prefill_inference_file)
+    data = read_json(prefill_inference_file)
+    if isinstance(data, dict) and "results" in data:
+        items = data["results"]
+    else:
+        items = data
     logger.info(f"Loaded {len(items)} items")
 
     grader_model = config.get("evaluation", {}).get("grader_model", "claude-3-7-sonnet-latest")
@@ -160,4 +171,4 @@ def run_prefill_evaluation_stage(config: dict, output_dir: Path, logger) -> None
         logger.info(f"  Difference: {sign}{diff:.1f}% (prefilled vs original)")
     if statistics.get("errors"):
         err = statistics["errors"]
-        logger.info(f"  Errors: {err.get('prefill_errors', 0)} prefill errors, {err.get('validation_errors', 0)} validation errors")
+        logger.info(f"  Errors: {err.get('prefill_errors', 0)} prefill errors, {err.get('validation_errors', 0)} validation errors, {err.get('skipped', 0)} skipped")
