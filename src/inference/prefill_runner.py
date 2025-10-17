@@ -14,6 +14,7 @@ def extract_reasoning_up_to_threshold(reasoning: str, legibility_chunks: list[di
         return None, "no_chunks"
 
     valid_chunks = []
+    threshold_reached = False
     for chunk in legibility_chunks:
         score = chunk.get("score")
         if score is None or not isinstance(score, (int, float)):
@@ -21,10 +22,14 @@ def extract_reasoning_up_to_threshold(reasoning: str, legibility_chunks: list[di
         if score < threshold:
             valid_chunks.append(chunk)
         else:
+            threshold_reached = True
             break
 
     if not valid_chunks:
         return None, "all_chunks_above_threshold"
+
+    if not threshold_reached:
+        return None, "threshold_never_reached"
 
     last_chunk = valid_chunks[-1]
     cutoff_pos = last_chunk.get("end_pos", 0)
@@ -56,6 +61,7 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
                 "no_reasoning": "No reasoning available to extract",
                 "no_chunks": "No legibility chunks available",
                 "all_chunks_above_threshold": f"Skipped: all chunks already above threshold ({threshold})",
+                "threshold_never_reached": f"Skipped: threshold ({threshold}) never reached",
                 "empty_after_extraction": "Extraction resulted in empty reasoning",
             }
             output = {
