@@ -49,6 +49,22 @@ def run_analysis(config: dict, output_dir: Path, logger) -> None:
     logger.info("Analysis stage complete")
 
 
+def run_prefill(config: dict, output_dir: Path, logger) -> None:
+    from .inference.prefill_runner import run_prefill_stage
+
+    logger.info("Starting prefill stage")
+    run_prefill_stage(config, output_dir, logger)
+    logger.info("Prefill stage complete")
+
+
+def run_prefill_evaluation(config: dict, output_dir: Path, logger) -> None:
+    from .evaluation.prefill_grader import run_prefill_evaluation_stage
+
+    logger.info("Starting prefill evaluation stage")
+    run_prefill_evaluation_stage(config, output_dir, logger)
+    logger.info("Prefill evaluation stage complete")
+
+
 def main(config_path: str) -> None:
     config = load_config(config_path)
     stages = config["run"]["stages"]
@@ -90,6 +106,10 @@ def main(config_path: str) -> None:
                 if "evaluation" in stages:
                     run_evaluation(config, output_dir, logger)
 
+                if "prefill" in stages:
+                    run_prefill(config, output_dir, logger)
+                    run_prefill_evaluation(config, output_dir, logger)
+
                 if "analysis" in stages:
                     run_analysis(config, output_dir, logger)
 
@@ -106,6 +126,10 @@ def main(config_path: str) -> None:
 
         if "evaluation" in stages:
             run_evaluation(config, output_dir, logger)
+
+        if "prefill" in stages:
+            run_prefill(config, output_dir, logger)
+            run_prefill_evaluation(config, output_dir, logger)
 
         if "analysis" in stages:
             run_analysis(config, output_dir, logger)

@@ -30,7 +30,7 @@ def _validate_config(config: dict) -> None:
     if not stages:
         raise ValueError("Must specify at least one stage in run.stages")
 
-    valid_stages = {"inference", "evaluation", "analysis"}
+    valid_stages = {"inference", "evaluation", "analysis", "prefill"}
     invalid = set(stages) - valid_stages
     if invalid:
         raise ValueError(f"Invalid stages: {invalid}. Must be one of {valid_stages}")
@@ -46,6 +46,12 @@ def _validate_config(config: dict) -> None:
 
     if "analysis" in stages and "analysis" not in config:
         raise ValueError("analysis stage specified but no analysis config provided")
+
+    if "prefill" in stages:
+        if "prefill" not in config:
+            raise ValueError("prefill stage specified but no prefill config provided")
+        if "evaluation" not in stages and not config["prefill"].get("evaluation_file"):
+            raise ValueError("prefill stage requires evaluation stage or prefill.evaluation_file")
 
 
 def _set_defaults(config: dict) -> None:
@@ -65,6 +71,8 @@ def _set_defaults(config: dict) -> None:
         ev.setdefault("max_workers", 5)
         ev.setdefault("grade_legibility", True)
         ev.setdefault("grade_correctness", True)
+        ev.setdefault("grade_legibility_chunks", False)
+        ev.setdefault("chunk_size", 5000)
         ev.setdefault("max_chars_legibility", 5000)
 
     if "analysis" in config:
@@ -73,6 +81,12 @@ def _set_defaults(config: dict) -> None:
         an.setdefault("statistics", ["summary"])
         if "comparison" not in an:
             an["comparison"] = {"enabled": False}
+
+    if "prefill" in config:
+        pf = config["prefill"]
+        pf.setdefault("legibility_threshold", 7)
+        pf.setdefault("include_reasoning", False)
+        pf.setdefault("max_workers", 30)
 
 
 def _resolve_models(config: dict) -> None:

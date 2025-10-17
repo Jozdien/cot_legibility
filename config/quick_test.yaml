@@ -2,22 +2,25 @@ run:
   stages:
     - inference
     - evaluation
+    - prefill
     - analysis
 
 inference:
   models:
-    - name: "R1"
+    - name: "qwq"
       temperature: 1.0
       include_reasoning: true
+      max_tokens: 100000
+      reasoning_budget_tokens: 30000
 
   datasets:
-    - name: "chembench"
-      num_questions: 10
-      samples_per_question: 3
+    - name: "gpqa"
+      num_questions: 100
+      samples_per_question: 1
       shuffle: false
 
   concurrency:
-    max_workers: 50
+    max_workers: 100
 
 evaluation:
   grader_model: "gpt-4o"
@@ -25,6 +28,12 @@ evaluation:
   grade_legibility: true
   grade_correctness: true
   grade_legibility_chunks: true
+  chunk_size: 5000
+
+prefill:
+  legibility_threshold: 7
+  include_reasoning: false
+  max_workers: 30
 
 analysis:
   baseline_file: "runs/20251013_001335_claude-3-7-sonnet-latest_gpqa/evaluation.json"

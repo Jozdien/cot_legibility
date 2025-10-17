@@ -750,6 +750,58 @@ def plot_legibility_progression(evaluation: dict, output_dir: Path) -> None:
     plt.close()
 
 
+def plot_prefill_correctness_comparison(evaluation: dict, output_dir: Path) -> None:
+    stats = evaluation["statistics"]
+    prefill_stats = stats.get("prefill_correctness")
+    original_stats = stats.get("original_correctness")
+
+    if not prefill_stats or not original_stats:
+        return
+
+    categories = ["Correct", "Partially\nCorrect", "Incorrect"]
+    prefill_pcts = [
+        prefill_stats["correct_pct"],
+        prefill_stats["partially_pct"],
+        prefill_stats["incorrect_pct"],
+    ]
+    original_pcts = [
+        original_stats["correct_pct"],
+        original_stats["partially_pct"],
+        original_stats["incorrect_pct"],
+    ]
+    colors = ["#2ecc71", "#f39c12", "#e74c3c"]
+
+    x = np.arange(len(categories))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars1 = ax.bar(x - width/2, original_pcts, width, label="Original", alpha=0.8, color=colors)
+    bars2 = ax.bar(x + width/2, prefill_pcts, width, label="Prefilled", alpha=0.8, color=colors, hatch="///")
+
+    for bars, pcts in [(bars1, original_pcts), (bars2, prefill_pcts)]:
+        for bar, pct in zip(bars, pcts):
+            if pct > 0:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    pct + 2,
+                    f"{pct:.1f}%",
+                    ha="center",
+                    fontsize=9,
+                )
+
+    ax.set_ylabel("Percentage (%)", fontsize=12)
+    ax.set_title(f"Correctness: Original vs Prefilled (n={prefill_stats['total']})", fontsize=14)
+    ax.set_xticks(x)
+    ax.set_xticklabels(categories)
+    ax.set_ylim(0, 110)
+    ax.legend()
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig(output_dir / "prefill_correctness_comparison.png", dpi=150)
+    plt.close()
+
+
 PLOT_FUNCTIONS = {
     "legibility_scores_boxplot": plot_legibility_scores_boxplot,
     "correctness_assessment": plot_correctness_assessment,
@@ -760,6 +812,7 @@ PLOT_FUNCTIONS = {
     "correctness_vs_legibility_scatter_normalized": lambda e,
     o: plot_correctness_vs_legibility_scatter(e, o, use_normalized=True),
     "legibility_progression": plot_legibility_progression,
+    "prefill_correctness_comparison": plot_prefill_correctness_comparison,
 }
 
 COMPARISON_PLOT_FUNCTIONS = {
@@ -829,5 +882,12 @@ def run_analysis_stage(config: dict, output_dir: Path, logger) -> None:
                     plot_func(evaluation, plots_dir, baseline_path)
                 else:
                     plot_func(evaluation, plots_dir)
+
+        prefill_evaluation_file = output_dir / "prefill_evaluation.json"
+        if prefill_evaluation_file.exists():
+            logger.info(f"Loading prefill evaluation from {prefill_evaluation_file}")
+            prefill_evaluation = read_json(prefill_evaluation_file)
+            logger.info("Generating prefill correctness comparison plot")
+            plot_prefill_correctness_comparison(prefill_evaluation, plots_dir)
 
     logger.info(f"Analysis complete. Plots saved to {plots_dir}")

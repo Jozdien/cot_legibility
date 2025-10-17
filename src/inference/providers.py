@@ -6,7 +6,7 @@ from openai import OpenAI
 
 class Provider(ABC):
     @abstractmethod
-    def generate(self, question: str, model_config: dict) -> dict:
+    def generate(self, question: str, model_config: dict, prefill: str | None = None) -> dict:
         pass
 
 
@@ -17,7 +17,7 @@ class OpenRouterProvider(Provider):
             raise ValueError("OPENROUTER_API_KEY not found in environment")
         self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key, timeout=600.0)
 
-    def generate(self, question: str, model_config: dict) -> dict:
+    def generate(self, question: str, model_config: dict, prefill: str | None = None) -> dict:
         start_time = time.time()
 
         extra_body = {}
@@ -41,9 +41,13 @@ class OpenRouterProvider(Provider):
             elif isinstance(provider_config, dict):
                 extra_body["provider"] = provider_config
 
+        messages = [{"role": "user", "content": question}]
+        if prefill:
+            messages.append({"role": "assistant", "content": f"<think>\n{prefill}\n</think>"})
+
         kwargs = {
             "model": model_config["model_id"],
-            "messages": [{"role": "user", "content": question}],
+            "messages": messages,
             "temperature": model_config.get("temperature", 1.0),
             "extra_body": extra_body,
         }
@@ -101,7 +105,7 @@ class DirectAPIProvider(Provider):
         else:
             raise ValueError(f"Unknown provider: {provider_name}")
 
-    def generate(self, question: str, model_config: dict) -> dict:
+    def generate(self, question: str, model_config: dict, prefill: str | None = None) -> dict:
         start_time = time.time()
 
         if self.provider_name == "anthropic":
@@ -115,11 +119,15 @@ class DirectAPIProvider(Provider):
 
             max_tokens = model_config.get("max_tokens", default_max_tokens)
 
+            messages = [{"role": "user", "content": question}]
+            if prefill:
+                messages.append({"role": "assistant", "content": f"<think>\n{prefill}\n</think>"})
+
             response = self.client.messages.create(
                 model=model_config["model_id"],
                 max_tokens=max_tokens,
                 temperature=model_config.get("temperature", 1.0),
-                messages=[{"role": "user", "content": question}],
+                messages=messages,
                 **thinking_config,
             )
 
@@ -133,9 +141,13 @@ class DirectAPIProvider(Provider):
 
             tokens = response.usage.input_tokens + response.usage.output_tokens
         else:
+            messages = [{"role": "user", "content": question}]
+            if prefill:
+                messages.append({"role": "assistant", "content": f"<think>\n{prefill}\n</think>"})
+
             kwargs = {
                 "model": model_config["model_id"],
-                "messages": [{"role": "user", "content": question}],
+                "messages": messages,
                 "temperature": model_config.get("temperature", 1.0),
             }
             if "max_tokens" in model_config:
