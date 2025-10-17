@@ -46,7 +46,7 @@ def extract_reasoning_up_to_threshold(reasoning: str, legibility_chunks: list[di
     return extracted, None
 
 
-def process_prefilled_question(result: dict, model_config: dict, provider, threshold: int, include_reasoning: bool) -> dict:
+def process_prefilled_question(result: dict, model_config: dict, provider, threshold: int, include_reasoning: bool, prefill_max_tokens: int | None = None) -> dict:
     try:
         reasoning = result.get("reasoning", "")
         legibility_chunks = result.get("legibility_chunks", [])
@@ -80,6 +80,8 @@ def process_prefilled_question(result: dict, model_config: dict, provider, thres
 
         prefill_model_config = model_config.copy()
         prefill_model_config["include_reasoning"] = include_reasoning
+        if prefill_max_tokens is not None:
+            prefill_model_config["max_tokens"] = prefill_max_tokens
 
         messages = [
             {"role": "user", "content": result["question"]},
@@ -209,9 +211,12 @@ def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
     threshold = prefill_config["legibility_threshold"]
     include_reasoning = prefill_config["include_reasoning"]
     max_workers = prefill_config["max_workers"]
+    prefill_max_tokens = prefill_config.get("max_tokens")
 
     logger.info(f"Extracting reasoning up to legibility threshold: {threshold}")
     logger.info(f"Include reasoning in prefilled calls: {include_reasoning}")
+    if prefill_max_tokens is not None:
+        logger.info(f"Max tokens for prefilled calls: {prefill_max_tokens}")
     logger.info(f"Initializing provider: {model_config['provider']}")
 
     provider = get_provider(model_config["provider"])
@@ -221,7 +226,7 @@ def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
-            executor.submit(process_prefilled_question, r, model_config, provider, threshold, include_reasoning)
+            executor.submit(process_prefilled_question, r, model_config, provider, threshold, include_reasoning, prefill_max_tokens)
             for r in results
         ]
 
