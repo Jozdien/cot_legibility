@@ -27,10 +27,11 @@ class OpenRouterProvider(Provider):
                 reasoning_config["effort"] = model_config["reasoning_effort"]
             if "reasoning_budget_tokens" in model_config:
                 reasoning_config["max_tokens"] = model_config["reasoning_budget_tokens"]
-            if reasoning_config:
-                extra_body["reasoning"] = reasoning_config
-            else:
-                extra_body["include_reasoning"] = True
+            if not reasoning_config:
+                reasoning_config["enabled"] = True
+            extra_body["reasoning"] = reasoning_config
+        else:
+            extra_body["reasoning"] = {"enabled": False}
 
         if "openrouter_provider" in model_config:
             provider_config = model_config["openrouter_provider"]

@@ -58,7 +58,7 @@ def call_model(model, question, prefill=None, include_reasoning=False):
     if include_reasoning:
         extra_body["reasoning"] = {"max_tokens": 30000}
     else:
-        extra_body["include_reasoning"] = False
+        extra_body["reasoning"] = {"enabled": False}
 
     completion = client.chat.completions.create(
         model=config["model"],
