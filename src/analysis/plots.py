@@ -551,6 +551,101 @@ def plot_correctness_vs_legibility_scatter(
     plt.close()
 
 
+def plot_question_correlations(
+    evaluation: dict, output_dir: Path, use_normalized: bool = False
+) -> None:
+    from scipy import stats as scipy_stats
+
+    correctness_map = {"correct": 1, "partially_correct": 0.5, "incorrect": 0}
+
+    length_map = {}
+    if use_normalized:
+        inference_file = evaluation.get("metadata", {}).get("inference_file")
+        if inference_file and Path(inference_file).exists():
+            inference_data = read_json(inference_file)
+            for item in inference_data:
+                reasoning = item.get("reasoning", "")
+                if reasoning:
+                    q_id = item["question_id"]
+                    sample_idx = item.get("sample_index", 0)
+                    length_map[(q_id, sample_idx)] = len(reasoning)
+
+    median_length = np.median(list(length_map.values())) if length_map else 1
+
+    by_question = {}
+    for r in evaluation["results"]:
+        q_id = r.get("question_id")
+        corr = r.get("correctness", {}).get("correctness")
+        if corr not in correctness_map:
+            continue
+
+        score = r.get("legibility_reasoning", r.get("legibility", {})).get("score")
+        if not isinstance(score, (int, float)):
+            continue
+
+        if use_normalized:
+            sample_idx = r.get("sample_index", 0)
+            length = length_map.get((q_id, sample_idx))
+            if not length or length == 0:
+                continue
+            score = (score / length) * median_length
+
+        if q_id not in by_question:
+            by_question[q_id] = {"correctness": [], "legibility": []}
+        by_question[q_id]["correctness"].append(correctness_map[corr])
+        by_question[q_id]["legibility"].append(score)
+
+    questions_with_multiple = {q_id: data for q_id, data in by_question.items() if len(data["correctness"]) > 1}
+
+    if not questions_with_multiple:
+        print("  Skipping question_correlations: no questions with multiple samples")
+        return
+
+    correlations = []
+    for q_id, data in questions_with_multiple.items():
+        corr_vals = np.array(data["correctness"])
+        leg_vals = np.array(data["legibility"])
+
+        if len(set(corr_vals)) <= 1:
+            continue
+
+        if len(set(leg_vals)) > 1:
+            corr_coef, _ = scipy_stats.pearsonr(corr_vals, leg_vals)
+        else:
+            corr_coef = 0
+        correlations.append(corr_coef)
+
+    if not correlations:
+        print("  Skipping question_correlations: no questions with variance in correctness")
+        return
+
+    correlations = sorted(correlations)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    x = np.arange(len(correlations))
+    ax.scatter(x, correlations, alpha=0.6, s=50, color="#3498db")
+
+    ax.axhline(y=0, color='gray', linestyle='--', alpha=0.5, linewidth=1)
+
+    z = np.polyfit(x, correlations, 1)
+    p = np.poly1d(z)
+    ax.plot(x, p(x), "r-", alpha=0.8, linewidth=2, label=f'Trend: y={z[0]:.4f}x+{z[1]:.4f}')
+
+    mean_corr = np.mean(correlations)
+    ax.axhline(y=mean_corr, color='green', linestyle='--', alpha=0.5, linewidth=2, label=f'Mean: {mean_corr:.3f}')
+
+    ax.set_xlabel("Question Index (sorted by correlation)", fontsize=12)
+    ax.set_ylabel("Pearson Correlation (Correctness vs Illegibility)", fontsize=12)
+    ax.set_title(f"Question-Level Correlations (n={len(correlations)})", fontsize=14)
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+
+    plt.tight_layout()
+    suffix = "_normalized" if use_normalized else ""
+    plt.savefig(output_dir / f"question_correlations{suffix}.png", dpi=150)
+    plt.close()
+
+
 def plot_correctness_vs_legibility_scatter_comparison(
     evaluations: list[tuple[str, dict]], output_dir: Path, use_normalized: bool = False
 ) -> None:
@@ -811,6 +906,9 @@ PLOT_FUNCTIONS = {
     "correctness_vs_legibility_scatter": plot_correctness_vs_legibility_scatter,
     "correctness_vs_legibility_scatter_normalized": lambda e,
     o: plot_correctness_vs_legibility_scatter(e, o, use_normalized=True),
+    "question_correlations": plot_question_correlations,
+    "question_correlations_normalized": lambda e,
+    o: plot_question_correlations(e, o, use_normalized=True),
     "legibility_progression": plot_legibility_progression,
     "prefill_correctness_comparison": plot_prefill_correctness_comparison,
 }

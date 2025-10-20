@@ -37,6 +37,9 @@ class Grader:
         self.model_name = model_name
 
     def grade_legibility(self, text: str, max_chars: int = 5000) -> dict:
+        if not text or not text.strip():
+            raise ValueError("Cannot grade empty or whitespace-only text")
+
         if len(text) > max_chars:
             text = text[-max_chars:]
             context_note = f"(Note: This is the last {max_chars} characters of a longer text)"
@@ -53,12 +56,22 @@ class Grader:
         chunks = []
         for i in range(0, len(text), chunk_size):
             chunk_text = text[i:i + chunk_size]
-            grade = self.grade_legibility(chunk_text, max_chars=chunk_size)
-            chunks.append({
-                "start_pos": i,
-                "end_pos": min(i + chunk_size, len(text)),
-                **grade
-            })
+            if not chunk_text.strip():
+                continue
+            try:
+                grade = self.grade_legibility(chunk_text, max_chars=chunk_size)
+                chunks.append({
+                    "start_pos": i,
+                    "end_pos": min(i + chunk_size, len(text)),
+                    **grade
+                })
+            except Exception as e:
+                chunks.append({
+                    "start_pos": i,
+                    "end_pos": min(i + chunk_size, len(text)),
+                    "error": str(e),
+                    "score": None
+                })
         return chunks
 
     def grade_correctness(self, predicted: str, actual: str, question: str) -> dict:
@@ -81,7 +94,8 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
         "model": item.get("model"),
         "temperature": item.get("temperature"),
         "timestamp": item.get("timestamp"),
-        "metadata": item.get("metadata")
+        "metadata": item.get("metadata"),
+        "errors": []
     }
 
     reasoning = item.get("reasoning")
@@ -93,25 +107,43 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
 
         if config.get("grade_response_reasoning_separately", False):
             if reasoning:
-                result["legibility_reasoning"] = grader.grade_legibility(reasoning, config.get("max_chars_legibility", 5000))
+                try:
+                    result["legibility_reasoning"] = grader.grade_legibility(reasoning, config.get("max_chars_legibility", 5000))
+                except Exception as e:
+                    result["errors"].append(f"legibility_reasoning: {str(e)}")
             if answer_text:
-                result["legibility_response"] = grader.grade_legibility(answer_text, config.get("max_chars_legibility", 5000))
+                try:
+                    result["legibility_response"] = grader.grade_legibility(answer_text, config.get("max_chars_legibility", 5000))
+                except Exception as e:
+                    result["errors"].append(f"legibility_response: {str(e)}")
         else:
             text_to_grade = reasoning if reasoning else answer_text
             if text_to_grade:
-                legibility = grader.grade_legibility(text_to_grade, config.get("max_chars_legibility", 5000))
-                result["legibility"] = legibility
+                try:
+                    legibility = grader.grade_legibility(text_to_grade, config.get("max_chars_legibility", 5000))
+                    result["legibility"] = legibility
+                except Exception as e:
+                    result["errors"].append(f"legibility: {str(e)}")
 
         if config.get("grade_legibility_chunks", False) and reasoning:
             chunk_size = config.get("chunk_size", 5000)
-            result["legibility_chunks"] = grader.grade_legibility_chunks(reasoning, chunk_size)
+            try:
+                result["legibility_chunks"] = grader.grade_legibility_chunks(reasoning, chunk_size)
+            except Exception as e:
+                result["errors"].append(f"legibility_chunks: {str(e)}")
 
     if config.get("grade_correctness"):
         predicted = item.get("answer", "")
         actual = item.get("correct_answer", "")
         if predicted and actual:
-            correctness = grader.grade_correctness(predicted, actual, item["question"])
-            result["correctness"] = correctness
+            try:
+                correctness = grader.grade_correctness(predicted, actual, item["question"])
+                result["correctness"] = correctness
+            except Exception as e:
+                result["errors"].append(f"correctness: {str(e)}")
+
+    if not result["errors"]:
+        del result["errors"]
 
     return result
 
@@ -166,18 +198,60 @@ def run_evaluation_stage(config: dict, output_dir: Path, logger) -> None:
     items = read_json(inference_file)
     logger.info(f"Loaded {len(items)} items")
 
-    logger.info(f"Initializing grader with model: {config['grader_model']}")
-    grader = Grader(config["grader_model"])
-
-    max_workers = config["max_workers"]
-    logger.info(f"Grading with {max_workers} workers")
-
+    checkpoint_file = output_dir / "evaluation_checkpoint.json"
+    completed_ids = set()
     results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(grade_item, item, grader, config) for item in items]
 
-        for future in tqdm(as_completed(futures), total=len(items), desc="Grading"):
-            results.append(future.result())
+    if checkpoint_file.exists():
+        logger.info(f"Found checkpoint file, resuming from {checkpoint_file}")
+        checkpoint_data = read_json(checkpoint_file)
+        results = checkpoint_data.get("results", [])
+        completed_ids = {(r["question_id"], r["sample_index"]) for r in results}
+        logger.info(f"Resuming: {len(completed_ids)} items already completed")
+
+    items_to_process = [
+        item for item in items
+        if (item["question_id"], item.get("sample_index", 0)) not in completed_ids
+    ]
+
+    if not items_to_process:
+        logger.info("All items already processed, skipping to statistics")
+    else:
+        logger.info(f"Initializing grader with model: {config['grader_model']}")
+        grader = Grader(config["grader_model"])
+
+        max_workers = config["max_workers"]
+        logger.info(f"Grading {len(items_to_process)} items with {max_workers} workers")
+
+        checkpoint_interval = 50
+        item_futures = {}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for item in items_to_process:
+                future = executor.submit(grade_item, item, grader, config)
+                item_futures[future] = item
+
+            for idx, future in enumerate(tqdm(as_completed(item_futures), total=len(items_to_process), desc="Grading"), 1):
+                try:
+                    result = future.result()
+                    results.append(result)
+
+                    if "errors" in result and result["errors"]:
+                        logger.warning(f"Errors in grading question {result['question_id']}: {result['errors']}")
+
+                    if idx % checkpoint_interval == 0:
+                        write_json(checkpoint_file, {"results": results})
+                        logger.debug(f"Checkpoint saved at {idx} items")
+
+                except Exception as e:
+                    item = item_futures[future]
+                    logger.error(f"Failed to grade question {item['question_id']}: {str(e)}")
+                    results.append({
+                        "question_id": item["question_id"],
+                        "sample_index": item.get("sample_index", 0),
+                        "question": item["question"],
+                        "errors": [f"Fatal error: {str(e)}"]
+                    })
 
     logger.info("Computing statistics")
     statistics = compute_statistics(results)
@@ -195,6 +269,14 @@ def run_evaluation_stage(config: dict, output_dir: Path, logger) -> None:
     evaluation_file = output_dir / "evaluation.json"
     write_json(evaluation_file, evaluation_output)
     logger.info(f"Evaluation complete. Results written to {evaluation_file}")
+
+    if checkpoint_file.exists():
+        checkpoint_file.unlink()
+        logger.info("Checkpoint file removed")
+
+    error_count = sum(1 for r in results if "errors" in r and r["errors"])
+    if error_count > 0:
+        logger.warning(f"Completed with {error_count} items containing errors")
 
     logger.info("\nEvaluation Summary:")
     if statistics.get("legibility"):
