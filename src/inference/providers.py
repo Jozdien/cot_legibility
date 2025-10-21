@@ -142,23 +142,26 @@ class DirectAPIProvider(Provider):
             if prefill:
                 messages.append({"role": "assistant", "content": prefill})
 
-            response = self.client.messages.create(
+            answer = ""
+            reasoning = ""
+            tokens = None
+
+            with self.client.messages.stream(
                 model=model_config["model_id"],
                 max_tokens=max_tokens,
                 temperature=model_config.get("temperature", 1.0),
                 messages=messages,
                 **thinking_config,
-            )
+            ) as stream:
+                for text in stream.text_stream:
+                    answer += text
 
-            answer = ""
-            reasoning = ""
-            for block in response.content:
+            final_message = stream.get_final_message()
+            for block in final_message.content:
                 if block.type == "thinking":
                     reasoning += block.thinking
-                elif block.type == "text":
-                    answer += block.text
 
-            tokens = response.usage.input_tokens + response.usage.output_tokens
+            tokens = final_message.usage.input_tokens + final_message.usage.output_tokens
         else:
             messages = [{"role": "user", "content": question}]
             if prefill:
