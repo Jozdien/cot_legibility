@@ -627,10 +627,6 @@ def plot_question_correlations(
 
     ax.axhline(y=0, color='gray', linestyle='--', alpha=0.5, linewidth=1)
 
-    z = np.polyfit(x, correlations, 1)
-    p = np.poly1d(z)
-    ax.plot(x, p(x), "r-", alpha=0.8, linewidth=2, label=f'Trend: y={z[0]:.4f}x+{z[1]:.4f}')
-
     mean_corr = np.mean(correlations)
     ax.axhline(y=mean_corr, color='green', linestyle='--', alpha=0.5, linewidth=2, label=f'Mean: {mean_corr:.3f}')
 

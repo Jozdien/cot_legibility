@@ -1,39 +1,16 @@
 run:
   stages:
-    - inference
     - evaluation
     - analysis
-
-inference:
-  models:
-    - name: "R1-Distill-Qwen-14B"
-      temperature: 1.0
-      include_reasoning: true
-      max_tokens: 32000
-      reasoning_budget_tokens: 28000
-
-  datasets:
-    - name: "gpqa"
-      num_questions: 100
-      samples_per_question: 1
-      shuffle: false
-
-  concurrency:
-    max_workers: 50
-
+  
 evaluation:
+  inference_file: "runs/20251020_221724_qwq_gpqa/inference.json"
   grader_model: "gpt-4o"
-  max_workers: 50
+  max_workers: 100
   grade_legibility: true
   grade_correctness: true
   grade_legibility_chunks: false
   chunk_size: 5000
-
-prefill:
-  legibility_threshold: 6
-  include_reasoning: false
-  max_tokens: 2000
-  max_workers: 100
 
 analysis:
   baseline_file: "runs/20251013_001335_claude-3-7-sonnet-latest_gpqa/evaluation.json"

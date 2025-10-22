@@ -7,15 +7,10 @@ analysis:
   comparison:
     enabled: true
     runs:
-      - "runs/20251014_190434_claude-3-7-sonnet-latest_gpqa"
-      - "runs/20251014_194742_gpt-4o_gpqa"
-      - "runs/20251014_201056_R1_gpqa"
+      - "runs/20251020_185640_qwq_gpqa"
     plot_types:
-      - model_comparison
-      - legibility_comparison
-      - legibility_by_difficulty_comparison
-      - correctness_vs_legibility_scatter_comparison
-      - correctness_vs_legibility_scatter_comparison_normalized
+      - question_correlations
+      - question_correlations_normalized
 
   statistics:
     - summary
