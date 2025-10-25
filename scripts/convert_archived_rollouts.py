@@ -25,13 +25,13 @@ def parse_markdown_file(md_path: Path) -> dict:
         sections["question"] = question_match.group(1).strip()
 
     answer_match = re.search(
-        r"# [\w\-]+ response.*?\n+(.*?)(?=---|\n#|\Z)", content, re.DOTALL
+        r"# [\w\-]+ response.*?\n+(.*?)(?=---|\n#(?!#)|\Z)", content, re.DOTALL
     )
     if answer_match:
         sections["answer"] = answer_match.group(1).strip()
 
     reasoning_match = re.search(
-        r"# [\w\-]+ reasoning.*?\n+(.*?)(?=---|\n#|\Z)", content, re.DOTALL
+        r"# [\w\-]+ reasoning.*?\n+(.*?)(?=---|\n#(?!#)|\Z)", content, re.DOTALL
     )
     if reasoning_match:
         sections["reasoning"] = reasoning_match.group(1).strip()
@@ -193,11 +193,18 @@ def convert_rollouts_to_inference(
         sample_index = question_id_counts.get(question_id, 0)
         question_id_counts[question_id] = sample_index + 1
 
+        if config_info["model"].lower() == "v3":
+            answer_field = parsed.get("reasoning", "")
+            reasoning_field = parsed.get("answer", "")
+        else:
+            answer_field = parsed.get("answer", "")
+            reasoning_field = parsed.get("reasoning", "")
+
         record = {
             "question_id": question_id,
             "question": question_text,
-            "answer": parsed.get("answer", ""),
-            "reasoning": parsed.get("reasoning", ""),
+            "answer": answer_field,
+            "reasoning": reasoning_field,
             "correct_answer": correct_answer,
             "dataset": config_info["dataset"],
             "sample_index": sample_index,

@@ -6,8 +6,8 @@ run:
 
 inference:
   models:
-    - name: "R1-Distill-Qwen-14B"
-      temperature: 1.0
+    - name: "Qwen3 235B"
+      temperature: 0
       include_reasoning: true
       max_tokens: 32000
       reasoning_budget_tokens: 28000
@@ -19,7 +19,7 @@ inference:
       shuffle: false
 
   concurrency:
-    max_workers: 50
+    max_workers: 10
 
 evaluation:
   grader_model: "gpt-4o"
