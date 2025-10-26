@@ -194,19 +194,22 @@ def run_prefill_stage(config: dict, output_dir: Path, logger) -> None:
         logger.warning("No results found in evaluation file")
         return
 
-    model_name = results[0].get("model")
-    if not model_name:
-        raise ValueError("Could not determine model from evaluation results")
+    model_config = prefill_config.get("model")
+    if model_config:
+        logger.info(f"Using prefill model from config: {model_config.get('name', model_config.get('model_id'))}")
+    else:
+        model_name = results[0].get("model")
+        if not model_name:
+            raise ValueError("Could not determine model from evaluation results")
 
-    model_config = None
-    if "inference" in config and "models" in config["inference"]:
-        for m in config["inference"]["models"]:
-            if m["name"] == model_name:
-                model_config = m
-                break
+        if "inference" in config and "models" in config["inference"]:
+            for m in config["inference"]["models"]:
+                if m["name"] == model_name:
+                    model_config = m
+                    break
 
-    if not model_config:
-        raise ValueError(f"Model config not found for model: {model_name}")
+        if not model_config:
+            raise ValueError(f"Model config not found for model: {model_name}")
 
     threshold = prefill_config["legibility_threshold"]
     include_reasoning = prefill_config["include_reasoning"]

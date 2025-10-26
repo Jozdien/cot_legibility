@@ -36,6 +36,7 @@ prefill:
   include_reasoning: false
   max_workers: 30
   evaluation_file: null
+  model: null
 
 analysis:
   plots:
