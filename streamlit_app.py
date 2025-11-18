@@ -92,11 +92,17 @@ def enrich_results_with_inference(results, inference_data):
 
 
 def get_legibility_score(result):
-    return result.get("legibility", {}).get("score", 0)
+    leg = result.get("legibility")
+    if isinstance(leg, dict):
+        return leg.get("score", 0)
+    return 0
 
 
 def get_correctness(result):
-    return result.get("correctness", {}).get("correctness", "unknown")
+    corr = result.get("correctness")
+    if isinstance(corr, dict):
+        return corr.get("correctness", "unknown")
+    return "unknown"
 
 
 def calculate_statistics(results):
@@ -137,10 +143,14 @@ def load_runs_data():
                 first_item = next(iter(inference_data.values()))
                 model = first_item.get("model", "unknown")
                 dataset = first_item.get("dataset", "unknown")
+            elif eval_data.get("results"):
+                first_result = eval_data["results"][0]
+                model = first_result.get("model", "unknown")
+                dataset = first_result.get("dataset", "unknown")
             else:
                 parts = run_path.name.split("_")
-                dataset = parts[-1]
-                model = "_".join(parts[2:-1])
+                dataset = parts[-1] if parts else "unknown"
+                model = "_".join(parts[2:-1]) if len(parts) > 2 else "unknown"
 
             temperature = get_temperature_from_config(run_path, model, inference_data)
             enrich_results_with_inference(eval_data.get("results", []), inference_data)
