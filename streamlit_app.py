@@ -156,17 +156,11 @@ def load_runs_metadata():
             dataset = first_result.get("dataset")
 
             if not model or not dataset:
-                inference_data = load_inference_data(run_path)
-                if inference_data:
-                    first_item = next(iter(inference_data.values()))
-                    model = model or first_item.get("model")
-                    dataset = dataset or first_item.get("dataset")
-
-            if not model or not dataset:
                 parts = run_path.name.split("_")
-                if len(parts) >= 3:
-                    dataset = dataset or parts[-1]
-                    model = model or "_".join(parts[2:-1])
+                if not model and len(parts) > 2:
+                    model = "_".join(parts[2:-1])
+                if not dataset and parts:
+                    dataset = parts[-1]
 
             model = model or "unknown"
             dataset = dataset or "unknown"
@@ -295,6 +289,11 @@ selected_dataset = st.selectbox(
 )
 
 if selected_model != "Select a model..." and selected_dataset != "Select a dataset...":
+    current_selection = (selected_model, selected_dataset)
+    if st.session_state.get("last_selection") != current_selection:
+        st.session_state.selected_question_idx = None
+        st.session_state.last_selection = current_selection
+
     run_data = df[
         (df["model_display"] == selected_model) & (df["dataset"] == selected_dataset)
     ]
@@ -325,7 +324,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
 
-        results = load_results_for_runs(tuple(run["runs"]))
+        with st.spinner("Loading results..."):
+            results = load_results_for_runs(tuple(run["runs"]))
 
         st.markdown("---")
 
