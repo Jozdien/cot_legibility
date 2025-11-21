@@ -364,7 +364,10 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     }
                 )
 
-            table_data.sort(key=lambda x: float(x["Legibility"]), reverse=True)
+            def sort_key(x):
+                is_unknown = "Unknown" in x["Correctness"]
+                return (is_unknown, -float(x["Legibility"]))
+            table_data.sort(key=sort_key)
             table_data = table_data[:entries_to_show]
             table_df = pd.DataFrame(table_data)
 
