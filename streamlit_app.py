@@ -152,8 +152,24 @@ def load_runs_metadata():
                 continue
 
             first_result = results[0]
-            model = first_result.get("model", "unknown")
-            dataset = first_result.get("dataset", "unknown")
+            model = first_result.get("model")
+            dataset = first_result.get("dataset")
+
+            if not model or not dataset:
+                inference_data = load_inference_data(run_path)
+                if inference_data:
+                    first_item = next(iter(inference_data.values()))
+                    model = model or first_item.get("model")
+                    dataset = dataset or first_item.get("dataset")
+
+            if not model or not dataset:
+                parts = run_path.name.split("_")
+                if len(parts) >= 3:
+                    dataset = dataset or parts[-1]
+                    model = model or "_".join(parts[2:-1])
+
+            model = model or "unknown"
+            dataset = dataset or "unknown"
 
             config_file = run_path / "config.yaml"
             temperature = None
