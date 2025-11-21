@@ -3,12 +3,13 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
+
 from tqdm.auto import tqdm
 
-from .prompts import LEGIBILITY_GRADING_PROMPT, CORRECTNESS_GRADING_PROMPT
 from ..inference.providers import get_provider
 from ..utils.io import read_json, write_json
 from ..utils.models import get_model_config
+from .prompts import CORRECTNESS_GRADING_PROMPT, LEGIBILITY_GRADING_PROMPT
 
 
 def parse_json_response(response_text: str) -> dict:
@@ -23,14 +24,16 @@ def parse_json_response(response_text: str) -> dict:
         return json.loads(json_str)
     except json.JSONDecodeError as e:
         try:
-            json_str_fixed = re.sub(r'\\([^"\\\/bfnrtu])', r'\\\\\1', json_str)
+            json_str_fixed = re.sub(r'\\([^"\\\/bfnrtu])', r"\\\\\1", json_str)
             return json.loads(json_str_fixed)
         except json.JSONDecodeError:
-            raise ValueError(f"Failed to parse JSON response: {e}\nResponse: {json_str[:500]}")
+            raise ValueError(
+                f"Failed to parse JSON response: {e}\nResponse: {json_str[:500]}"
+            )
 
 
 class Grader:
-    def __init__(self, model_name: str = "claude-3-7-sonnet-latest"):
+    def __init__(self, model_name: str = "gpt-4o"):
         config = get_model_config(model_name)
         self.provider = get_provider(config["provider"])
         self.model_config = config
@@ -42,11 +45,15 @@ class Grader:
 
         if len(text) > max_chars:
             text = text[-max_chars:]
-            context_note = f"(Note: This is the last {max_chars} characters of a longer text)"
+            context_note = (
+                f"(Note: This is the last {max_chars} characters of a longer text)"
+            )
         else:
             context_note = ""
 
-        prompt = f"{LEGIBILITY_GRADING_PROMPT}\n\nTEXT TO GRADE:\n{text}\n{context_note}"
+        prompt = (
+            f"{LEGIBILITY_GRADING_PROMPT}\n\nTEXT TO GRADE:\n{text}\n{context_note}"
+        )
 
         grading_config = {**self.model_config, "temperature": 0.0}
         result = self.provider.generate(prompt, grading_config)
@@ -55,23 +62,23 @@ class Grader:
     def grade_legibility_chunks(self, text: str, chunk_size: int = 5000) -> list[dict]:
         chunks = []
         for i in range(0, len(text), chunk_size):
-            chunk_text = text[i:i + chunk_size]
+            chunk_text = text[i : i + chunk_size]
             if not chunk_text.strip():
                 continue
             try:
                 grade = self.grade_legibility(chunk_text, max_chars=chunk_size)
-                chunks.append({
-                    "start_pos": i,
-                    "end_pos": min(i + chunk_size, len(text)),
-                    **grade
-                })
+                chunks.append(
+                    {"start_pos": i, "end_pos": min(i + chunk_size, len(text)), **grade}
+                )
             except Exception as e:
-                chunks.append({
-                    "start_pos": i,
-                    "end_pos": min(i + chunk_size, len(text)),
-                    "error": str(e),
-                    "score": None
-                })
+                chunks.append(
+                    {
+                        "start_pos": i,
+                        "end_pos": min(i + chunk_size, len(text)),
+                        "error": str(e),
+                        "score": None,
+                    }
+                )
         return chunks
 
     def grade_correctness(self, predicted: str, actual: str, question: str) -> dict:
@@ -95,7 +102,7 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
         "temperature": item.get("temperature"),
         "timestamp": item.get("timestamp"),
         "metadata": item.get("metadata"),
-        "errors": []
+        "errors": [],
     }
 
     reasoning = item.get("reasoning")
@@ -108,19 +115,25 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
         if config.get("grade_response_reasoning_separately", False):
             if reasoning:
                 try:
-                    result["legibility_reasoning"] = grader.grade_legibility(reasoning, config.get("max_chars_legibility", 5000))
+                    result["legibility_reasoning"] = grader.grade_legibility(
+                        reasoning, config.get("max_chars_legibility", 5000)
+                    )
                 except Exception as e:
                     result["errors"].append(f"legibility_reasoning: {str(e)}")
             if answer_text:
                 try:
-                    result["legibility_response"] = grader.grade_legibility(answer_text, config.get("max_chars_legibility", 5000))
+                    result["legibility_response"] = grader.grade_legibility(
+                        answer_text, config.get("max_chars_legibility", 5000)
+                    )
                 except Exception as e:
                     result["errors"].append(f"legibility_response: {str(e)}")
         else:
             text_to_grade = reasoning if reasoning else answer_text
             if text_to_grade:
                 try:
-                    legibility = grader.grade_legibility(text_to_grade, config.get("max_chars_legibility", 5000))
+                    legibility = grader.grade_legibility(
+                        text_to_grade, config.get("max_chars_legibility", 5000)
+                    )
                     result["legibility"] = legibility
                 except Exception as e:
                     result["errors"].append(f"legibility: {str(e)}")
@@ -128,7 +141,9 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
         if config.get("grade_legibility_chunks", False) and reasoning:
             chunk_size = config.get("chunk_size", 5000)
             try:
-                result["legibility_chunks"] = grader.grade_legibility_chunks(reasoning, chunk_size)
+                result["legibility_chunks"] = grader.grade_legibility_chunks(
+                    reasoning, chunk_size
+                )
             except Exception as e:
                 result["errors"].append(f"legibility_chunks: {str(e)}")
 
@@ -137,7 +152,9 @@ def grade_item(item: dict, grader: Grader, config: dict) -> dict:
         actual = item.get("correct_answer", "")
         if predicted and actual:
             try:
-                correctness = grader.grade_correctness(predicted, actual, item["question"])
+                correctness = grader.grade_correctness(
+                    predicted, actual, item["question"]
+                )
                 result["correctness"] = correctness
             except Exception as e:
                 result["errors"].append(f"correctness: {str(e)}")
@@ -155,7 +172,11 @@ def compute_statistics(results: list[dict]) -> dict:
 
     for key in ["legibility", "legibility_reasoning", "legibility_response"]:
         if any(key in r for r in results):
-            scores = [r[key]["score"] for r in results if key in r and isinstance(r[key].get("score"), (int, float))]
+            scores = [
+                r[key]["score"]
+                for r in results
+                if key in r and isinstance(r[key].get("score"), (int, float))
+            ]
             if scores:
                 stats[key] = {
                     "mean": float(np.mean(scores)),
@@ -167,7 +188,9 @@ def compute_statistics(results: list[dict]) -> dict:
                 }
 
     if any("correctness" in r for r in results):
-        grades = [r["correctness"]["correctness"] for r in results if "correctness" in r]
+        grades = [
+            r["correctness"]["correctness"] for r in results if "correctness" in r
+        ]
         correct = grades.count("correct")
         partial = grades.count("partially_correct")
         incorrect = grades.count("incorrect")
@@ -210,7 +233,8 @@ def run_evaluation_stage(config: dict, output_dir: Path, logger) -> None:
         logger.info(f"Resuming: {len(completed_ids)} items already completed")
 
     items_to_process = [
-        item for item in items
+        item
+        for item in items
         if (item["question_id"], item.get("sample_index", 0)) not in completed_ids
     ]
 
@@ -231,13 +255,22 @@ def run_evaluation_stage(config: dict, output_dir: Path, logger) -> None:
                 future = executor.submit(grade_item, item, grader, config)
                 item_futures[future] = item
 
-            for idx, future in enumerate(tqdm(as_completed(item_futures), total=len(items_to_process), desc="Grading"), 1):
+            for idx, future in enumerate(
+                tqdm(
+                    as_completed(item_futures),
+                    total=len(items_to_process),
+                    desc="Grading",
+                ),
+                1,
+            ):
                 try:
                     result = future.result()
                     results.append(result)
 
                     if "errors" in result and result["errors"]:
-                        logger.warning(f"Errors in grading question {result['question_id']}: {result['errors']}")
+                        logger.warning(
+                            f"Errors in grading question {result['question_id']}: {result['errors']}"
+                        )
 
                     if idx % checkpoint_interval == 0:
                         write_json(checkpoint_file, {"results": results})
@@ -245,13 +278,17 @@ def run_evaluation_stage(config: dict, output_dir: Path, logger) -> None:
 
                 except Exception as e:
                     item = item_futures[future]
-                    logger.error(f"Failed to grade question {item['question_id']}: {str(e)}")
-                    results.append({
-                        "question_id": item["question_id"],
-                        "sample_index": item.get("sample_index", 0),
-                        "question": item["question"],
-                        "errors": [f"Fatal error: {str(e)}"]
-                    })
+                    logger.error(
+                        f"Failed to grade question {item['question_id']}: {str(e)}"
+                    )
+                    results.append(
+                        {
+                            "question_id": item["question_id"],
+                            "sample_index": item.get("sample_index", 0),
+                            "question": item["question"],
+                            "errors": [f"Fatal error: {str(e)}"],
+                        }
+                    )
 
     logger.info("Computing statistics")
     statistics = compute_statistics(results)
@@ -281,7 +318,11 @@ def run_evaluation_stage(config: dict, output_dir: Path, logger) -> None:
     logger.info("\nEvaluation Summary:")
     if statistics.get("legibility"):
         leg = statistics["legibility"]
-        logger.info(f"  Legibility: mean={leg['mean']:.2f}, std={leg['std']:.2f}, median={leg['median']:.2f}")
+        logger.info(
+            f"  Legibility: mean={leg['mean']:.2f}, std={leg['std']:.2f}, median={leg['median']:.2f}"
+        )
     if statistics.get("correctness"):
         cor = statistics["correctness"]
-        logger.info(f"  Correctness: {cor['correct_pct']:.1f}% correct, {cor['partially_pct']:.1f}% partial, {cor['incorrect_pct']:.1f}% incorrect")
+        logger.info(
+            f"  Correctness: {cor['correct_pct']:.1f}% correct, {cor['partially_pct']:.1f}% partial, {cor['incorrect_pct']:.1f}% incorrect"
+        )

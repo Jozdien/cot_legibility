@@ -1,0 +1,52 @@
+run:
+  stages:
+  - inference
+  - evaluation
+  - prefill
+  - analysis
+inference:
+  models:
+  - name: qwq
+    temperature: 1.0
+    include_reasoning: true
+    max_tokens: 100000
+    reasoning_budget_tokens: 30000
+    provider: openrouter
+    model_id: qwen/qwq-32b
+    openrouter_provider:
+    - deepinfra/bf16
+    - nebius/fp8
+  datasets:
+  - name: gpqa
+    num_questions: 100
+    samples_per_question: 1
+    shuffle: false
+  concurrency:
+    max_workers: 100
+evaluation:
+  grader_model: gpt-4o
+  max_workers: 50
+  grade_legibility: true
+  grade_correctness: true
+  grade_legibility_chunks: true
+  chunk_size: 5000
+  max_chars_legibility: 5000
+prefill:
+  legibility_threshold: 6
+  include_reasoning: false
+  max_workers: 30
+analysis:
+  baseline_file: runs/20251013_001335_claude-3-7-sonnet-latest_gpqa/evaluation.json
+  plots:
+  - legibility_scores_boxplot
+  - correctness_assessment
+  - legibility_by_correctness
+  - length_vs_legibility
+  - correctness_vs_legibility_scatter
+  - correctness_vs_legibility_scatter_normalized
+  - legibility_by_difficulty
+  - legibility_progression
+  statistics:
+  - summary
+  comparison:
+    enabled: false

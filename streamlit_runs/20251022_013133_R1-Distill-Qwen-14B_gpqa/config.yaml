@@ -1,0 +1,51 @@
+run:
+  stages:
+  - inference
+  - evaluation
+  - analysis
+inference:
+  models:
+  - name: R1-Distill-Qwen-14B
+    temperature: 1.0
+    include_reasoning: true
+    max_tokens: 32000
+    reasoning_budget_tokens: 28000
+    provider: openrouter
+    model_id: deepseek/deepseek-r1-distill-qwen-14b
+    openrouter_provider: []
+  datasets:
+  - name: gpqa
+    num_questions: 100
+    samples_per_question: 1
+    shuffle: false
+  concurrency:
+    max_workers: 50
+evaluation:
+  grader_model: gpt-4o
+  max_workers: 50
+  grade_legibility: true
+  grade_correctness: true
+  grade_legibility_chunks: false
+  chunk_size: 5000
+  max_chars_legibility: 5000
+prefill:
+  legibility_threshold: 6
+  include_reasoning: false
+  max_tokens: 2000
+  max_workers: 100
+analysis:
+  baseline_file: runs/20251013_001335_claude-3-7-sonnet-latest_gpqa/evaluation.json
+  plots:
+  - legibility_scores_boxplot
+  - correctness_assessment
+  - legibility_by_correctness
+  - length_vs_legibility
+  - correctness_vs_legibility_scatter
+  - correctness_vs_legibility_scatter_normalized
+  - legibility_by_difficulty
+  - question_correlations
+  - question_correlations_normalized
+  statistics:
+  - summary
+  comparison:
+    enabled: false

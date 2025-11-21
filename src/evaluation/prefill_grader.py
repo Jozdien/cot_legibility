@@ -1,10 +1,11 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
+
 from tqdm.auto import tqdm
 
-from .grader import Grader
 from ..utils.io import read_json, write_json
+from .grader import Grader
 
 
 def grade_prefill_item(item: dict, grader: Grader) -> dict:
@@ -35,7 +36,9 @@ def grade_prefill_item(item: dict, grader: Grader) -> dict:
         original_predicted = item.get("original_answer", "")
         actual = item.get("correct_answer", "")
         if original_predicted and actual:
-            original_correctness = grader.grade_correctness(original_predicted, actual, item["question"])
+            original_correctness = grader.grade_correctness(
+                original_predicted, actual, item["question"]
+            )
             result["original_correctness"] = original_correctness
 
         return result
@@ -51,7 +54,9 @@ def grade_prefill_item(item: dict, grader: Grader) -> dict:
 
     original_predicted = item.get("original_answer", "")
     if original_predicted and actual:
-        original_correctness = grader.grade_correctness(original_predicted, actual, item["question"])
+        original_correctness = grader.grade_correctness(
+            original_predicted, actual, item["question"]
+        )
         result["original_correctness"] = original_correctness
 
     return result
@@ -64,7 +69,11 @@ def compute_prefill_statistics(results: list[dict]) -> dict:
         "comparison": {},
     }
 
-    prefill_grades = [r["prefill_correctness"]["correctness"] for r in results if "prefill_correctness" in r]
+    prefill_grades = [
+        r["prefill_correctness"]["correctness"]
+        for r in results
+        if "prefill_correctness" in r
+    ]
     if prefill_grades:
         correct = prefill_grades.count("correct")
         partial = prefill_grades.count("partially_correct")
@@ -81,7 +90,11 @@ def compute_prefill_statistics(results: list[dict]) -> dict:
             "incorrect_pct": round(incorrect / total * 100, 1) if total > 0 else 0,
         }
 
-    original_grades = [r["original_correctness"]["correctness"] for r in results if "original_correctness" in r]
+    original_grades = [
+        r["original_correctness"]["correctness"]
+        for r in results
+        if "original_correctness" in r
+    ]
     if original_grades:
         correct = original_grades.count("correct")
         partial = original_grades.count("partially_correct")
@@ -102,7 +115,11 @@ def compute_prefill_statistics(results: list[dict]) -> dict:
         stats["comparison"] = {
             "prefill_correct_pct": stats["prefill_correctness"]["correct_pct"],
             "original_correct_pct": stats["original_correctness"]["correct_pct"],
-            "difference_pct": round(stats["prefill_correctness"]["correct_pct"] - stats["original_correctness"]["correct_pct"], 1),
+            "difference_pct": round(
+                stats["prefill_correctness"]["correct_pct"]
+                - stats["original_correctness"]["correct_pct"],
+                1,
+            ),
         }
 
     errors = sum(1 for r in results if "prefill_error" in r)
@@ -125,9 +142,17 @@ def compute_prefill_statistics(results: list[dict]) -> dict:
             "skip_breakdown": skip_breakdown,
         }
 
-    threshold_never_reached_results = [r for r in results if r.get("prefill_skip_reason") == "threshold_never_reached" and "original_correctness" in r]
+    threshold_never_reached_results = [
+        r
+        for r in results
+        if r.get("prefill_skip_reason") == "threshold_never_reached"
+        and "original_correctness" in r
+    ]
     if threshold_never_reached_results:
-        grades = [r["original_correctness"]["correctness"] for r in threshold_never_reached_results]
+        grades = [
+            r["original_correctness"]["correctness"]
+            for r in threshold_never_reached_results
+        ]
         correct = grades.count("correct")
         partial = grades.count("partially_correct")
         incorrect = grades.count("incorrect")
@@ -150,7 +175,9 @@ def run_prefill_evaluation_stage(config: dict, output_dir: Path, logger) -> None
     prefill_inference_file = output_dir / "prefill_inference.json"
 
     if not prefill_inference_file.exists():
-        raise FileNotFoundError(f"Prefill inference file not found: {prefill_inference_file}")
+        raise FileNotFoundError(
+            f"Prefill inference file not found: {prefill_inference_file}"
+        )
 
     logger.info(f"Loading prefill inference results from {prefill_inference_file}")
     data = read_json(prefill_inference_file)
@@ -160,7 +187,7 @@ def run_prefill_evaluation_stage(config: dict, output_dir: Path, logger) -> None
         items = data
     logger.info(f"Loaded {len(items)} items")
 
-    grader_model = config.get("evaluation", {}).get("grader_model", "claude-3-7-sonnet-latest")
+    grader_model = config.get("evaluation", {}).get("grader_model", "gpt-4o")
     logger.info(f"Initializing grader with model: {grader_model}")
     grader = Grader(grader_model)
 
@@ -171,7 +198,9 @@ def run_prefill_evaluation_stage(config: dict, output_dir: Path, logger) -> None
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(grade_prefill_item, item, grader) for item in items]
 
-        for future in tqdm(as_completed(futures), total=len(items), desc="Grading Prefilled"):
+        for future in tqdm(
+            as_completed(futures), total=len(items), desc="Grading Prefilled"
+        ):
             results.append(future.result())
 
     logger.info("Computing statistics")
@@ -190,18 +219,26 @@ def run_prefill_evaluation_stage(config: dict, output_dir: Path, logger) -> None
 
     prefill_evaluation_file = output_dir / "prefill_evaluation.json"
     write_json(prefill_evaluation_file, evaluation_output)
-    logger.info(f"Prefill evaluation complete. Results written to {prefill_evaluation_file}")
+    logger.info(
+        f"Prefill evaluation complete. Results written to {prefill_evaluation_file}"
+    )
 
     logger.info("\nPrefill Evaluation Summary:")
     if statistics.get("prefill_correctness"):
         cor = statistics["prefill_correctness"]
-        logger.info(f"  Prefilled: {cor['correct_pct']:.1f}% correct, {cor['partially_pct']:.1f}% partial, {cor['incorrect_pct']:.1f}% incorrect (n={cor['total']})")
+        logger.info(
+            f"  Prefilled: {cor['correct_pct']:.1f}% correct, {cor['partially_pct']:.1f}% partial, {cor['incorrect_pct']:.1f}% incorrect (n={cor['total']})"
+        )
     if statistics.get("original_correctness"):
         cor = statistics["original_correctness"]
-        logger.info(f"  Original (all): {cor['correct_pct']:.1f}% correct, {cor['partially_pct']:.1f}% partial, {cor['incorrect_pct']:.1f}% incorrect (n={cor['total']})")
+        logger.info(
+            f"  Original (all): {cor['correct_pct']:.1f}% correct, {cor['partially_pct']:.1f}% partial, {cor['incorrect_pct']:.1f}% incorrect (n={cor['total']})"
+        )
     if statistics.get("threshold_never_reached"):
         tnr = statistics["threshold_never_reached"]
-        logger.info(f"  Threshold never reached: {tnr['correct_pct']:.1f}% correct, {tnr['partially_pct']:.1f}% partial, {tnr['incorrect_pct']:.1f}% incorrect (n={tnr['count']})")
+        logger.info(
+            f"  Threshold never reached: {tnr['correct_pct']:.1f}% correct, {tnr['partially_pct']:.1f}% partial, {tnr['incorrect_pct']:.1f}% incorrect (n={tnr['count']})"
+        )
     if statistics.get("comparison"):
         comp = statistics["comparison"]
         diff = comp["difference_pct"]
@@ -209,6 +246,8 @@ def run_prefill_evaluation_stage(config: dict, output_dir: Path, logger) -> None
         logger.info(f"  Difference: {sign}{diff:.1f}% (prefilled vs original)")
     if statistics.get("errors"):
         err = statistics["errors"]
-        logger.info(f"  Errors: {err.get('prefill_errors', 0)} prefill errors, {err.get('validation_errors', 0)} validation errors, {err.get('skipped', 0)} skipped")
+        logger.info(
+            f"  Errors: {err.get('prefill_errors', 0)} prefill errors, {err.get('validation_errors', 0)} validation errors, {err.get('skipped', 0)} skipped"
+        )
         if err.get("skip_breakdown"):
             logger.info(f"  Skip breakdown: {err['skip_breakdown']}")

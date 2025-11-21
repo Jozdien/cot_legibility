@@ -1,0 +1,32 @@
+run:
+  stages:
+  - inference
+  - evaluation
+  - analysis
+inference:
+  models:
+  - name: R1
+    temperature: 1.0
+    include_reasoning: true
+    provider: openrouter
+    model_id: deepseek/deepseek-r1
+  datasets:
+  - name: gpqa
+    num_questions: 100
+    shuffle: false
+  concurrency:
+    max_workers: 50
+evaluation:
+  grader_model: gpt-4o
+  max_workers: 50
+  grade_legibility: true
+  grade_correctness: true
+  max_chars_legibility: 5000
+analysis:
+  plots:
+  - legibility_scores_boxplot
+  - correctness_assessment
+  statistics:
+  - summary
+  comparison:
+    enabled: false

@@ -1,0 +1,38 @@
+run:
+  stages:
+  - inference
+  - evaluation
+  - analysis
+inference:
+  models:
+  - name: claude-3-7-sonnet-latest
+    include_reasoning: true
+    temperature: 1
+    provider: anthropic
+    model_id: claude-3-7-sonnet-20250219
+  - name: gpt-4o
+    temperature: 1
+    include_reasoning: false
+    provider: openai
+    model_id: gpt-4o
+  datasets:
+  - name: gpqa
+    num_questions: 100
+    shuffle: true
+  concurrency:
+    max_workers: 10
+evaluation:
+  grader_model: gpt-4o
+  max_workers: 50
+  grade_legibility: true
+  grade_correctness: true
+  max_chars_legibility: 5000
+analysis:
+  plots:
+  - legibility_scores_boxplot
+  - correctness_assessment
+  - legibility_by_correctness
+  statistics:
+  - summary
+  comparison:
+    enabled: false
