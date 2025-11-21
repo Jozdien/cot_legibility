@@ -111,18 +111,28 @@ def calculate_statistics(results):
     total = len(results)
 
     return {
-        "avg_legibility": sum(legibility_scores) / len(legibility_scores) if legibility_scores else 0,
-        "legibility_std": pd.Series(legibility_scores).std() if len(legibility_scores) > 1 else 0,
+        "avg_legibility": sum(legibility_scores) / len(legibility_scores)
+        if legibility_scores
+        else 0,
+        "legibility_std": pd.Series(legibility_scores).std()
+        if len(legibility_scores) > 1
+        else 0,
         "num_questions": total,
-        "correct_pct": correctness_counts.get("correct", 0) / total * 100 if total > 0 else 0,
-        "partial_pct": correctness_counts.get("partially_correct", 0) / total * 100 if total > 0 else 0,
-        "incorrect_pct": correctness_counts.get("incorrect", 0) / total * 100 if total > 0 else 0,
+        "correct_pct": correctness_counts.get("correct", 0) / total * 100
+        if total > 0
+        else 0,
+        "partial_pct": correctness_counts.get("partially_correct", 0) / total * 100
+        if total > 0
+        else 0,
+        "incorrect_pct": correctness_counts.get("incorrect", 0) / total * 100
+        if total > 0
+        else 0,
     }
 
 
 @st.cache_data(ttl=60)
 def load_runs_data():
-    runs_dir = Path("runs")
+    runs_dir = Path("streamlit_runs")
     aggregated_data = {}
 
     for run_path in runs_dir.iterdir():
@@ -200,23 +210,27 @@ st.markdown("---")
 st.subheader("Model")
 all_models = sorted(df["model_display"].unique().tolist())
 if "dataset" in st.session_state and st.session_state.dataset != "Select a dataset...":
-    available_models = sorted(df[df["dataset"] == st.session_state.dataset]["model_display"].unique().tolist())
+    available_models = sorted(
+        df[df["dataset"] == st.session_state.dataset]["model_display"].unique().tolist()
+    )
     model_options = ["Select a model..."] + available_models
 else:
     model_options = ["Select a model..."] + all_models
 selected_model = st.selectbox(
-    "", model_options, label_visibility="collapsed", key="model"
+    "Model", model_options, label_visibility="collapsed", key="model"
 )
 
 st.subheader("Dataset")
 all_datasets = sorted(df["dataset"].unique().tolist())
 if selected_model != "Select a model...":
-    available_datasets = sorted(df[df["model_display"] == selected_model]["dataset"].unique().tolist())
+    available_datasets = sorted(
+        df[df["model_display"] == selected_model]["dataset"].unique().tolist()
+    )
     dataset_options = ["Select a dataset..."] + available_datasets
 else:
     dataset_options = ["Select a dataset..."] + all_datasets
 selected_dataset = st.selectbox(
-    "", dataset_options, label_visibility="collapsed", key="dataset"
+    "Dataset", dataset_options, label_visibility="collapsed", key="dataset"
 )
 
 if selected_model != "Select a model..." and selected_dataset != "Select a dataset...":
@@ -293,7 +307,8 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             )
 
         filtered_results = [
-            r for r in run["results"]
+            r
+            for r in run["results"]
             if legibility_range[0] <= get_legibility_score(r) <= legibility_range[1]
             and get_correctness(r) in correctness_options
         ]
@@ -321,15 +336,17 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                 sample_idx = result.get("sample_index", 0)
 
                 if search_query:
-                    searchable_text = " ".join([
-                        str(result.get("question_id", "")),
-                        str(result.get("question", "")),
-                        str(result.get("reasoning", "")),
-                        str(result.get("answer", "")),
-                        str(result.get("correct_answer", "")),
-                        str(result.get("legibility", {}).get("explanation", "")),
-                        str(result.get("correctness", {}).get("explanation", "")),
-                    ]).lower()
+                    searchable_text = " ".join(
+                        [
+                            str(result.get("question_id", "")),
+                            str(result.get("question", "")),
+                            str(result.get("reasoning", "")),
+                            str(result.get("answer", "")),
+                            str(result.get("correct_answer", "")),
+                            str(result.get("legibility", {}).get("explanation", "")),
+                            str(result.get("correctness", {}).get("explanation", "")),
+                        ]
+                    ).lower()
 
                     if search_query.lower() not in searchable_text:
                         continue
@@ -338,12 +355,14 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     get_correctness(result), "? Unknown"
                 )
 
-                table_data.append({
-                    "ID": qid,
-                    "Legibility": f"{get_legibility_score(result):.2f}",
-                    "Correctness": correctness_display,
-                    "original_index": i,
-                })
+                table_data.append(
+                    {
+                        "ID": qid,
+                        "Legibility": f"{get_legibility_score(result):.2f}",
+                        "Correctness": correctness_display,
+                        "original_index": i,
+                    }
+                )
 
             table_data.sort(key=lambda x: float(x["Legibility"]), reverse=True)
             table_data = table_data[:entries_to_show]
@@ -351,7 +370,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
             event = st.dataframe(
                 table_df[["ID", "Legibility", "Correctness"]],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 height=400,
                 on_select="rerun",
@@ -388,7 +407,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                         "Model Reasoning",
                         result.get("reasoning"),
                         height=200,
-                        key="reasoning_detail",
+                        key=f"reasoning_detail_{result.get('question_id')}_{result.get('sample_index', 0)}",
                         label_visibility="collapsed",
                     )
 
@@ -397,7 +416,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
                     "Model Answer",
                     result.get("answer", "N/A"),
                     height=200,
-                    key="answer_detail",
+                    key=f"answer_detail_{result.get('question_id')}_{result.get('sample_index', 0)}",
                     label_visibility="collapsed",
                 )
 
