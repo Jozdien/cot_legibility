@@ -130,8 +130,8 @@ def calculate_statistics(results):
     }
 
 
-@st.cache_data(ttl=60)
-def load_runs_data():
+@st.cache_data(ttl=300)
+def load_runs_metadata():
     runs_dir = Path("streamlit_runs")
     aggregated_data = {}
 
@@ -147,23 +147,27 @@ def load_runs_data():
             with open(eval_file) as f:
                 eval_data = json.load(f)
 
-            inference_data = load_inference_data(run_path)
+            results = eval_data.get("results", [])
+            if not results:
+                continue
 
-            if inference_data:
-                first_item = next(iter(inference_data.values()))
-                model = first_item.get("model", "unknown")
-                dataset = first_item.get("dataset", "unknown")
-            elif eval_data.get("results"):
-                first_result = eval_data["results"][0]
-                model = first_result.get("model", "unknown")
-                dataset = first_result.get("dataset", "unknown")
-            else:
-                parts = run_path.name.split("_")
-                dataset = parts[-1] if parts else "unknown"
-                model = "_".join(parts[2:-1]) if len(parts) > 2 else "unknown"
+            first_result = results[0]
+            model = first_result.get("model", "unknown")
+            dataset = first_result.get("dataset", "unknown")
 
-            temperature = get_temperature_from_config(run_path, model, inference_data)
-            enrich_results_with_inference(eval_data.get("results", []), inference_data)
+            config_file = run_path / "config.yaml"
+            temperature = None
+            if config_file.exists():
+                with open(config_file) as f:
+                    config = yaml.safe_load(f)
+                    models = config.get("inference", {}).get("models", [])
+                    for m in models:
+                        if m.get("name") == model:
+                            temperature = m.get("temperature")
+                            break
+
+            if temperature is None and results:
+                temperature = first_result.get("temperature")
 
             model_display = get_model_display_name(model, temperature)
             key = (model_display, dataset)
@@ -172,32 +176,73 @@ def load_runs_data():
                 aggregated_data[key] = {
                     "model_display": model_display,
                     "dataset": dataset,
-                    "results": [],
                     "runs": [],
+                    "num_questions": 0,
+                    "legibility_scores": [],
+                    "correctness_counts": Counter(),
                 }
 
-            aggregated_data[key]["results"].extend(eval_data.get("results", []))
             aggregated_data[key]["runs"].append(run_path.name)
+            aggregated_data[key]["num_questions"] += len(results)
+            aggregated_data[key]["legibility_scores"].extend(
+                [get_legibility_score(r) for r in results]
+            )
+            for r in results:
+                aggregated_data[key]["correctness_counts"][get_correctness(r)] += 1
 
         except Exception:
             continue
 
     runs_data = []
     for data in aggregated_data.values():
-        stats = calculate_statistics(data["results"])
+        scores = data["legibility_scores"]
+        counts = data["correctness_counts"]
+        total = data["num_questions"]
+
         run_info = {
-            **stats,
             "model_display": data["model_display"],
             "dataset": data["dataset"],
-            "results": data["results"],
             "runs": data["runs"],
+            "num_questions": total,
+            "avg_legibility": sum(scores) / len(scores) if scores else 0,
+            "legibility_std": pd.Series(scores).std() if len(scores) > 1 else 0,
+            "correct_pct": counts.get("correct", 0) / total * 100 if total > 0 else 0,
+            "partial_pct": counts.get("partially_correct", 0) / total * 100
+            if total > 0
+            else 0,
+            "incorrect_pct": counts.get("incorrect", 0) / total * 100
+            if total > 0
+            else 0,
         }
         runs_data.append(run_info)
 
     return pd.DataFrame(runs_data)
 
 
-df = load_runs_data()
+@st.cache_data(ttl=300)
+def load_results_for_runs(run_names):
+    runs_dir = Path("streamlit_runs")
+    all_results = []
+
+    for run_name in run_names:
+        run_path = runs_dir / run_name
+        eval_file = run_path / "evaluation.json"
+
+        if not eval_file.exists():
+            continue
+
+        with open(eval_file) as f:
+            eval_data = json.load(f)
+
+        inference_data = load_inference_data(run_path)
+        results = eval_data.get("results", [])
+        enrich_results_with_inference(results, inference_data)
+        all_results.extend(results)
+
+    return all_results
+
+
+df = load_runs_metadata()
 
 if df.empty:
     st.error("No runs found with evaluation data")
@@ -264,13 +309,15 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         st.caption(f"Combined from {len(run['runs'])} run(s): {', '.join(run['runs'])}")
 
+        results = load_results_for_runs(tuple(run["runs"]))
+
         st.markdown("---")
 
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
             fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
-            legibility_scores = [get_legibility_score(r) for r in run["results"]]
+            legibility_scores = [get_legibility_score(r) for r in results]
             bins = [i + 0.5 for i in range(0, 10)]
             ax.hist(legibility_scores, bins=bins, color="#87CEEB", edgecolor="black")
             ax.set_xlabel("Legibility Score (1=legible, 9=illegible)")
@@ -308,7 +355,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
 
         filtered_results = [
             r
-            for r in run["results"]
+            for r in results
             if legibility_range[0] <= get_legibility_score(r) <= legibility_range[1]
             and get_correctness(r) in correctness_options
         ]
@@ -333,7 +380,6 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             table_data = []
             for i, result in enumerate(filtered_results):
                 qid = result.get("question_id", f"Question {i+1}")
-                sample_idx = result.get("sample_index", 0)
 
                 if search_query:
                     searchable_text = " ".join(
@@ -367,6 +413,7 @@ if selected_model != "Select a model..." and selected_dataset != "Select a datas
             def sort_key(x):
                 is_unknown = "Unknown" in x["Correctness"]
                 return (is_unknown, -float(x["Legibility"]))
+
             table_data.sort(key=sort_key)
             table_data = table_data[:entries_to_show]
             table_df = pd.DataFrame(table_data)
